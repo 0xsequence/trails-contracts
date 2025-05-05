@@ -14,12 +14,16 @@ pragma solidity ^0.8.17;
  *      Success of internal calls is NOT a guarantee that the correct offset was used or modification occurred.
  */
 contract AnypayLifiModifierWrapper {
-    // --- Immutables ---
+    // -------------------------------------------------------------------------
+    // Immutables
+    // -------------------------------------------------------------------------
 
     /// @notice The target LiFi Diamond contract address.
     address public immutable TARGET_LIFI_DIAMOND;
 
-    // --- Constants ---
+    // -------------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------------
 
     /// @notice Assumed offset for func(BridgeData memory, Param2 calldata)
     uint256 internal constant RECEIVER_OFFSET_ASSUMED_2_ARGS = 228;
@@ -29,9 +33,16 @@ contract AnypayLifiModifierWrapper {
     /// @notice Hardcoded receiver
     address internal constant SENTINEL_RECEIVER = 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF;
 
-    // --- Events ---
+    // -------------------------------------------------------------------------
+    // Events
+    // -------------------------------------------------------------------------
+
     event ForwardAttempt(uint256 indexed offset, bytes4 selector, address sender, bool modificationMade);
     event ForwardResult(bool success, uint256 indexed usedOffset);
+
+    // -------------------------------------------------------------------------
+    // Constructor + functions
+    // -------------------------------------------------------------------------
 
     constructor(address _lifiDiamondAddress) {
         require(_lifiDiamondAddress != address(0), "Wrapper: Zero address");
@@ -57,7 +68,7 @@ contract AnypayLifiModifierWrapper {
             calldatacopy(add(originalDataCopy, 0x20), 0, dataSize)
         }
 
-        // --- Attempt 1: Offset 228 (Assumed 2 Args w/ 1st as ILiFi.BridgeData) ---
+        // Attempt 1: Offset 228 (Assumed 2 Args w/ 1st as ILiFi.BridgeData)
         bool attempt1Possible = dataSize >= RECEIVER_OFFSET_ASSUMED_2_ARGS + 32;
         if (attempt1Possible) {
             bytes memory attempt1Data = _cloneBytes(originalDataCopy);
@@ -75,7 +86,7 @@ contract AnypayLifiModifierWrapper {
             }
         }
 
-        // --- Attempt 2: Offset 260 (Assumed 3 Args w/ 1st as ILiFi.BridgeData) ---
+        // Attempt 2: Offset 260 (Assumed 3 Args w/ 1st as ILiFi.BridgeData)
         bool attempt2Possible = dataSize >= RECEIVER_OFFSET_ASSUMED_3_ARGS + 32;
         if (attempt2Possible) {
             bytes memory attempt2Data = _cloneBytes(originalDataCopy);
@@ -96,7 +107,7 @@ contract AnypayLifiModifierWrapper {
             }
         }
 
-        // --- Final Attempt: Unmodified ---
+        // Final Attempt: Unmodified
         string memory reason;
         if (!attempt1Possible && !attempt2Possible) {
             reason = "Calldata too short for modification attempts";
@@ -160,6 +171,10 @@ contract AnypayLifiModifierWrapper {
             }
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Receive
+    // -------------------------------------------------------------------------
 
     /**
      * @dev Needed to receive plain Ether transfers.
