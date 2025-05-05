@@ -69,11 +69,9 @@ contract AnypayLifiModifierWrapper {
                 emit ForwardResult(success, RECEIVER_OFFSET_ASSUMED_2_ARGS);
                 if (success) {
                     _handleReturnData(success, returnData);
-                    return; // Exit fallback
+                    return;
                 }
-                // If forward failed even after modification, continue to next attempt
             }
-            // If not modified, continue to next attempt
         }
 
         // --- Attempt 2: Offset 260 (Assumed 3 Args w/ 1st as ILiFi.BridgeData) ---
@@ -92,17 +90,14 @@ contract AnypayLifiModifierWrapper {
                 emit ForwardResult(success, RECEIVER_OFFSET_ASSUMED_3_ARGS);
                 if (success) {
                     _handleReturnData(success, returnData);
-                    return; // Exit fallback
+                    return;
                 }
-                // If forward failed even after modification, continue to final attempt
             }
-            // If not modified, continue to final attempt
         }
 
         // --- Final Attempt: Unmodified ---
         string memory reason;
         if (!attempt1Possible && !attempt2Possible) {
-            // Check both possibilities
             reason = "Calldata too short for modification attempts";
         } else {
             reason = "Modification attempts failed or sentinel not found";
@@ -137,7 +132,7 @@ contract AnypayLifiModifierWrapper {
     }
 
     /**
-     * @dev Helper to clone bytes memory array. (Inefficient, simple version)
+     * @dev Helper to clone bytes memory array.
      */
     function _cloneBytes(bytes memory original) internal pure returns (bytes memory) {
         bytes memory copy = new bytes(original.length);
