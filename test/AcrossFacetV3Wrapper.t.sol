@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.17;
 
 import {Test, console} from "forge-std/Test.sol";
@@ -6,8 +7,6 @@ import {AnypayLifiModifierWrapper} from "src/AnypayLifiModifierWrapper.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 
-// --- Simplified AcrossV3Data struct for testing ---
-// Define necessary structs locally if not importing the actual facet
 struct AcrossV3Data {
     address receiverAddress;
     address refundAddress;
@@ -21,7 +20,6 @@ struct AcrossV3Data {
     bytes message;
 }
 
-// --- Mock Facet Contract (Mocks AcrossFacetV3 signatures) ---
 contract MockAcrossFacetV3 {
     event StartBridgeCalled(bytes32 indexed transactionId, address receiver);
     event SwapAndStartBridgeCalled(bytes32 indexed transactionId, address receiver);
@@ -104,7 +102,6 @@ contract AcrossFacetV3WrapperTest is Test {
         console.log("Call succeeded and mock facet emitted event with MODIFIED receiver.");
     }
 
-    // --- Test swapAndStartBridgeTokensViaAcrossV3 (Memory Param) ---
     function test_SwapAndStartBridge_MemoryParam_ReceivesModifiedReceiver() public {
         ILiFi.BridgeData memory bridgeData = baseBridgeData;
         AcrossV3Data memory acrossData = baseAcrossData;
