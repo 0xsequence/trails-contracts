@@ -11,8 +11,10 @@ contract MockLiFiFacet {
     event BridgeCallReceived(bytes32 indexed transactionId, address actualReceiver, uint256 valueReceived);
     event NonBridgeCallReceived(uint256 data, uint256 valueReceived);
     event RevertingCallReceived(bytes32 indexed transactionId);
+    event CalldataLength(uint256 length);
 
     function mockBridgeFunction(ILiFi.BridgeData calldata _bridgeData, uint256 _someOtherData) external payable {
+        emit CalldataLength(msg.data.length);
         console.logBytes32(_bridgeData.transactionId);
         if (_bridgeData.transactionId == bytes32(uint256(0xDEADBEEF))) {
             emit RevertingCallReceived(_bridgeData.transactionId);
@@ -28,6 +30,7 @@ contract MockLiFiFacet {
     }
 
     function nonBridgeFunction(uint256 data, address addr) external payable {
+        emit CalldataLength(msg.data.length);
         console.log("nonBridgeFunction received addr:", addr);
         emit NonBridgeCallReceived(data, msg.value);
         uint256 result = 456;
@@ -135,5 +138,38 @@ contract AnypayLifiModifierWrapperTest is Test {
         (bool success, bytes memory returnData) = address(wrapper).call{value: 0.01 ether}(shortCallData);
 
         assertFalse(success, "Short calldata call unexpectedly succeeded");
+    }
+
+    function test_CalldataLengthPreserved_Modified() public {
+        ILiFi.BridgeData memory testData = ILiFi.BridgeData({
+            transactionId: bytes32(uint256(1)),
+            bridge: "mockBridge",
+            integrator: "testWrap",
+            referrer: address(0),
+            sendingAssetId: address(0),
+            receiver: originalReceiver,
+            minAmount: 100,
+            destinationChainId: 10,
+            hasSourceSwaps: false,
+            hasDestinationCall: false
+        });
+        uint256 otherData = 789;
+        bytes memory callData = abi.encodeCall(mockFacet.mockBridgeFunction, (testData, otherData));
+        vm.prank(user);
+        vm.expectEmit(false, false, false, true, address(mockFacet));
+        emit MockLiFiFacet.CalldataLength(callData.length);
+        (bool success, ) = address(wrapper).call{value: 1 ether}(callData);
+        assertTrue(success, "Call through wrapper failed");
+    }
+
+    function test_CalldataLengthPreserved_Unmodified() public {
+        uint256 inputData = 999;
+        address inputAddr = makeAddr("someAddr");
+        bytes memory callData = abi.encodeCall(mockFacet.nonBridgeFunction, (inputData, inputAddr));
+        vm.prank(user);
+        vm.expectEmit(false, false, false, true, address(mockFacet));
+        emit MockLiFiFacet.CalldataLength(callData.length);
+        (bool success, ) = address(wrapper).call{value: 0.1 ether}(callData);
+        assertTrue(success, "Non-matching call through wrapper failed");
     }
 }
