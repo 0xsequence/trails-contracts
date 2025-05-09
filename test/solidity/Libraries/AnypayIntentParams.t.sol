@@ -18,7 +18,7 @@ contract AnypayIntentParamsTest is Test {
             gasLimit: 21000,
             delegateCall: false,
             onlyFallback: false,
-            behaviorOnError: 0 // RevertOnError
+            behaviorOnError: 0
         });
 
         baseParams.userAddress = address(0x1234567890123456789012345678901234567890);
@@ -113,8 +113,9 @@ contract AnypayIntentParamsTest is Test {
             gasLimit: 0,
             delegateCall: false,
             onlyFallback: false,
-            behaviorOnError: 0 // RevertOnError
+            behaviorOnError: 0
         });
+
         params.destinationCalls[0] = Payload.Decoded({
             kind: Payload.KIND_TRANSACTIONS,
             noChainId: false,
@@ -134,8 +135,9 @@ contract AnypayIntentParamsTest is Test {
             amount: 123
         });
 
-        bytes32 expectedHash = 0x0b8d4dd3cd166737a495e2404a5f4b4f81b5643daa93687ef1678ba4ffefe528;
+        bytes32 expectedHash = 0xd033d3e730025c33a97e791c3e5606e22fb4af1bc028faa994cb58818b9b3ea5;
 
+        vm.chainId(1);
         bytes32 actualHash = AnypayIntentParams.hashIntentParams(params);
         assertEq(actualHash, expectedHash, "SingleValidCallPayload hash mismatch");
     }
@@ -158,7 +160,7 @@ contract AnypayIntentParamsTest is Test {
             gasLimit: 0,
             delegateCall: false,
             onlyFallback: false,
-            behaviorOnError: 0 // RevertOnError
+            behaviorOnError: 0
         });
         params.destinationCalls[0] = Payload.Decoded({
             kind: Payload.KIND_TRANSACTIONS,
@@ -172,16 +174,15 @@ contract AnypayIntentParamsTest is Test {
             parentWallets: new address[](0)
         });
 
-        // Payload 1
         Payload.Call[] memory callsForPayload1_multi = new Payload.Call[](1);
         callsForPayload1_multi[0] = Payload.Call({
             to: 0x5555555555555555555555555555555555555555,
             value: 456,
             data: bytes("data2"),
             gasLimit: 0,
-            delegateCall: false, // Changed from true in original Go test, as KIND_TRANSACTIONS implies no delegate
+            delegateCall: false,
             onlyFallback: false,
-            behaviorOnError: 1 // IgnoreError
+            behaviorOnError: 0
         });
         params.destinationCalls[1] = Payload.Decoded({
             kind: Payload.KIND_TRANSACTIONS,
@@ -202,8 +203,9 @@ contract AnypayIntentParamsTest is Test {
             amount: 123
         });
 
-        bytes32 expectedHash = 0xa6fa28fd6bb9ca5cae503c6bb67342d15b16749c32aafdc325323c37d50822ec;
+        bytes32 expectedHash = 0xa3809d7b18b9d7b08536effc5bbd411147850972a576fcb0653993b96d43101e;
 
+        vm.chainId(1);
         bytes32 actualHash = AnypayIntentParams.hashIntentParams(params);
         assertEq(actualHash, expectedHash, "MultipleValidCallPayloads hash mismatch");
     }

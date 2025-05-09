@@ -91,19 +91,15 @@ library AnypayIntentParams {
             // The Payload.hash function expects a single Decoded struct.
             // It internally handles hashing based on the 'kind'.
             // For KIND_TRANSACTIONS, it will hash the .calls array according to EIP-712 logic.
-            cumulativeCallsHash = keccak256(abi.encodePacked(cumulativeCallsHash, Payload.hash(currentDestCallPayload)));
+            cumulativeCallsHash =
+                keccak256(abi.encodePacked(cumulativeCallsHash, Payload.hashFor(currentDestCallPayload, address(0))));
         }
 
         // ABI encode the parameters in the specified order.
         // The `params.destinationCalls` itself (an array of structs) is encoded.
         // The `cumulativeCallsHash` is also included to ensure the integrity of the call data.
-        bytes memory encodedData = abi.encode(
-            params.userAddress,
-            params.originTokens,
-            params.destinationCalls,
-            params.destinationTokens,
-            cumulativeCallsHash
-        );
+        bytes memory encodedData =
+            abi.encode(params.userAddress, params.originTokens, params.destinationTokens, cumulativeCallsHash);
 
         intentHash = keccak256(encodedData);
     }
