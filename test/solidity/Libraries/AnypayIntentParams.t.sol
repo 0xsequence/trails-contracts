@@ -99,12 +99,10 @@ contract AnypayIntentParamsTest is Test {
     function testHashIntentParams_SingleValidCallPayload() public {
         AnypayIntentParams.IntentParamsData memory params;
         params.userAddress = 0x3333333333333333333333333333333333333333;
-        
+
         params.originTokens = new AnypayIntentParams.OriginToken[](1);
-        params.originTokens[0] = AnypayIntentParams.OriginToken({
-            tokenAddress: 0x4444444444444444444444444444444444444444,
-            chainId: 1
-        });
+        params.originTokens[0] =
+            AnypayIntentParams.OriginToken({tokenAddress: 0x4444444444444444444444444444444444444444, chainId: 1});
 
         params.destinationCalls = new Payload.Decoded[](1);
         Payload.Call[] memory callsForPayload0 = new Payload.Call[](1);
@@ -128,7 +126,7 @@ contract AnypayIntentParamsTest is Test {
             digest: bytes32(0),
             parentWallets: new address[](0)
         });
-        
+
         params.destinationTokens = new AnypayIntentParams.DestinationToken[](1);
         params.destinationTokens[0] = AnypayIntentParams.DestinationToken({
             tokenAddress: 0x4444444444444444444444444444444444444444,
@@ -137,7 +135,7 @@ contract AnypayIntentParamsTest is Test {
         });
 
         bytes32 expectedHash = 0x0b8d4dd3cd166737a495e2404a5f4b4f81b5643daa93687ef1678ba4ffefe528;
- 
+
         bytes32 actualHash = AnypayIntentParams.hashIntentParams(params);
         assertEq(actualHash, expectedHash, "SingleValidCallPayload hash mismatch");
     }
@@ -147,10 +145,8 @@ contract AnypayIntentParamsTest is Test {
         params.userAddress = 0x3333333333333333333333333333333333333333;
 
         params.originTokens = new AnypayIntentParams.OriginToken[](1);
-        params.originTokens[0] = AnypayIntentParams.OriginToken({
-            tokenAddress: 0x4444444444444444444444444444444444444444,
-            chainId: 1
-        });
+        params.originTokens[0] =
+            AnypayIntentParams.OriginToken({tokenAddress: 0x4444444444444444444444444444444444444444, chainId: 1});
 
         params.destinationCalls = new Payload.Decoded[](2);
         // Payload 0
@@ -187,7 +183,7 @@ contract AnypayIntentParamsTest is Test {
             onlyFallback: false,
             behaviorOnError: 1 // IgnoreError
         });
-         params.destinationCalls[1] = Payload.Decoded({
+        params.destinationCalls[1] = Payload.Decoded({
             kind: Payload.KIND_TRANSACTIONS,
             noChainId: false,
             calls: callsForPayload1_multi,
@@ -198,7 +194,7 @@ contract AnypayIntentParamsTest is Test {
             digest: bytes32(0),
             parentWallets: new address[](0)
         });
-        
+
         params.destinationTokens = new AnypayIntentParams.DestinationToken[](1);
         params.destinationTokens[0] = AnypayIntentParams.DestinationToken({
             tokenAddress: 0x4444444444444444444444444444444444444444,
@@ -211,4 +207,4 @@ contract AnypayIntentParamsTest is Test {
         bytes32 actualHash = AnypayIntentParams.hashIntentParams(params);
         assertEq(actualHash, expectedHash, "MultipleValidCallPayloads hash mismatch");
     }
-} 
+}

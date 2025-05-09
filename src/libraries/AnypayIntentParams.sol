@@ -85,9 +85,9 @@ library AnypayIntentParams {
             }
             // Ensure there are actual calls within this KIND_TRANSACTIONS payload
             if (currentDestCallPayload.calls.length == 0) {
-                revert InvalidCallInDestination(); 
+                revert InvalidCallInDestination();
             }
-            
+
             // The Payload.hash function expects a single Decoded struct.
             // It internally handles hashing based on the 'kind'.
             // For KIND_TRANSACTIONS, it will hash the .calls array according to EIP-712 logic.
