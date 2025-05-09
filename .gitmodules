@@ -10,3 +10,6 @@
 [submodule "lib/erc2470-libs"]
 	path = lib/erc2470-libs
 	url = https://github.com/ScreamingHawk/erc2470-libs
+[submodule "lib/wallet-contracts-v3"]
+	path = lib/wallet-contracts-v3
+	url = https://github.com/0xsequence/wallet-contracts-v3
