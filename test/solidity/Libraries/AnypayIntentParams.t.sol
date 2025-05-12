@@ -22,6 +22,7 @@ contract AnypayIntentParamsTest is Test {
         });
 
         baseParams.userAddress = address(0x1234567890123456789012345678901234567890);
+        baseParams.nonce = 0;
 
         baseParams.originTokens = new AnypayIntentParams.OriginToken[](1);
         baseParams.originTokens[0] = AnypayIntentParams.OriginToken({
@@ -99,6 +100,7 @@ contract AnypayIntentParamsTest is Test {
     function testHashIntentParams_SingleValidCallPayload() public {
         AnypayIntentParams.IntentParamsData memory params;
         params.userAddress = 0x3333333333333333333333333333333333333333;
+        params.nonce = 0;
 
         params.originTokens = new AnypayIntentParams.OriginToken[](1);
         params.originTokens[0] =
@@ -135,7 +137,7 @@ contract AnypayIntentParamsTest is Test {
             amount: 123
         });
 
-        bytes32 expectedHash = 0xd033d3e730025c33a97e791c3e5606e22fb4af1bc028faa994cb58818b9b3ea5;
+        bytes32 expectedHash = 0x4479e1ed63b1cf70ed13228bec79f2a1d2ffa0e9372e2afc7d82263cd8107451;
 
         vm.chainId(1);
         bytes32 actualHash = AnypayIntentParams.hashIntentParams(params);
@@ -145,6 +147,7 @@ contract AnypayIntentParamsTest is Test {
     function testHashIntentParams_MultipleValidCallPayloads() public {
         AnypayIntentParams.IntentParamsData memory params;
         params.userAddress = 0x3333333333333333333333333333333333333333;
+        params.nonce = 0;
 
         params.originTokens = new AnypayIntentParams.OriginToken[](1);
         params.originTokens[0] =
@@ -203,7 +206,7 @@ contract AnypayIntentParamsTest is Test {
             amount: 123
         });
 
-        bytes32 expectedHash = 0xa3809d7b18b9d7b08536effc5bbd411147850972a576fcb0653993b96d43101e;
+        bytes32 expectedHash = 0x64631a48bc218cd8196dca22437223d90dc9caa8208284cdcea4b7f32bfc7cec;
 
         vm.chainId(1);
         bytes32 actualHash = AnypayIntentParams.hashIntentParams(params);
