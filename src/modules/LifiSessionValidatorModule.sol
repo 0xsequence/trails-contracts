@@ -4,6 +4,9 @@ pragma solidity ^0.8.27;
 import {Attestation, LibAttestation} from "wallet-contracts-v3/extensions/sessions/implicit/Attestation.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+// import {ILiFi} from "lifi-contracts/interfaces/ILiFi.sol"; // Removed unused import
+import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol"; // For LibSwap.SwapData type
+import {AnypayLiFiDecoder} from "../libraries/AnypayLiFiDecoder.sol";
 // import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol"; // Keep for reference if contract signer needed
 
 /**
@@ -60,6 +63,23 @@ contract LifiSessionValidatorModule {
     error LifiCallFailed();
 
     // -------------------------------------------------------------------------
+    // Structs
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice Packed structure for applicationData within the Attestation.
+     * @dev abi.encodePacked(address targetContract, uint256 value, uint256 nonce, uint256 expiry, bytes32 callDataHash, bytes32 constraintsHash)
+     */
+    struct LifiApplicationData {
+        address targetContract;
+        uint256 value;
+        uint256 nonce;
+        uint256 expiry;
+        bytes32 callDataHash;
+        bytes32 constraintsHash; // keccak256 of packed constraints, or bytes32(0) if none
+    }
+
+    // -------------------------------------------------------------------------
     // State
     // -------------------------------------------------------------------------
 
@@ -81,22 +101,19 @@ contract LifiSessionValidatorModule {
         TARGET_LIFI_DIAMOND = _lifiDiamondAddress;
     }
 
+    /**
+     * @dev External view helper to call the library's decodeSwapDataTuple.
+     *      This allows using try/catch with the decoding logic from a contract context.
+     *      Accepts `bytes calldata` as that's what `_lifiCall.data` is.
+     */
+    function _getDecodedSwapDataForTryCatchSession(bytes calldata data) external view returns (LibSwap.SwapData[] memory) {
+        // Library function expects `bytes memory`, calldata will be copied automatically.
+        return AnypayLiFiDecoder.decodeSwapDataTuple(data);
+    }
+
     // -------------------------------------------------------------------------
     // Logic
     // -------------------------------------------------------------------------
-
-    /**
-     * @notice Packed structure for applicationData within the Attestation.
-     * @dev abi.encodePacked(address targetContract, uint256 value, uint256 nonce, uint256 expiry, bytes32 callDataHash, bytes32 constraintsHash)
-     */
-    struct LifiApplicationData {
-        address targetContract;
-        uint256 value;
-        uint256 nonce;
-        uint256 expiry;
-        bytes32 callDataHash;
-        bytes32 constraintsHash; // keccak256 of packed constraints, or bytes32(0) if none
-    }
 
     /**
      * @notice Executes a LiFi call authorized by a signed attestation.
@@ -116,13 +133,10 @@ contract LifiSessionValidatorModule {
 
         // 1. Verify Signature and Signer
         bytes32 attestationHash = _attestation.toHash();
-        address recoveredSigner = ECDSA.recover(attestationHash, _signature); // Or use EIP-712 hash if defined
+        address recoveredSigner = ECDSA.recover(attestationHash, _signature); 
 
         if (recoveredSigner == address(0) || recoveredSigner != approvedSigner) {
-            // Optional: Add ERC-1271 check for contract wallets
-            // if (!SignatureChecker.isValidSignatureNow(approvedSigner, attestationHash, _signature)) {
             revert InvalidLifiAttestationSignature();
-            // }
         }
 
         // 2. Verify Attestation Identity, Audience, and Issuer
@@ -173,13 +187,35 @@ contract LifiSessionValidatorModule {
         //     revert LifiConstraintMismatch(); // Define this error
         // }
 
-        // 8. Execute LiFi Call
-        // IMPORTANT: Ensure the `executeWithLifiSession` call itself has enough gas.
-        // The ETH value is forwarded directly using _lifiCall.value.
+        // 8. Decode BridgeData and SwapData from calldata using the library
+        AnypayLiFiDecoder.emitDecodedBridgeData(_lifiCall.data);
+        
+        LibSwap.SwapData[] memory _decodedSwapDataArray;
+        try this._getDecodedSwapDataForTryCatchSession(_lifiCall.data) returns (LibSwap.SwapData[] memory _sds) {
+            _decodedSwapDataArray = _sds;
+        } catch Error(string memory /*reason*/) {
+            _decodedSwapDataArray = new LibSwap.SwapData[](0);
+        } catch Panic(uint256 /*errorCode*/) {
+            _decodedSwapDataArray = new LibSwap.SwapData[](0);
+        }
+
+        if (_decodedSwapDataArray.length > 0) {
+            emit AnypayLiFiDecoder.DecodedSwapData(
+                _decodedSwapDataArray[0].callTo,
+                _decodedSwapDataArray[0].sendingAssetId,
+                _decodedSwapDataArray[0].receivingAssetId,
+                _decodedSwapDataArray[0].fromAmount,
+                _decodedSwapDataArray.length
+            );
+        } else {
+            emit AnypayLiFiDecoder.DecodedSwapData(address(0), address(0), address(0), 0, 0);
+        }
+
+        // 9. Execute LiFi Call
         (bool success,) = _lifiCall.to.call{value: _lifiCall.value}(_lifiCall.data);
 
         if (!success) {
-            revert LifiCallFailed(); // Simplified revert
+            revert LifiCallFailed(); 
         }
 
         emit LifiSessionExecuted(
