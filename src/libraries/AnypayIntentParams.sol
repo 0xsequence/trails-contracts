@@ -99,8 +99,9 @@ library AnypayIntentParams {
         // ABI encode the parameters in the specified order.
         // The `params.destinationCalls` itself (an array of structs) is encoded.
         // The `cumulativeCallsHash` is also included to ensure the integrity of the call data.
-        bytes memory encodedData =
-            abi.encode(params.userAddress, params.nonce, params.originTokens, params.destinationTokens, cumulativeCallsHash);
+        bytes memory encodedData = abi.encode(
+            params.userAddress, params.nonce, params.originTokens, params.destinationTokens, cumulativeCallsHash
+        );
 
         intentHash = keccak256(encodedData);
     }
