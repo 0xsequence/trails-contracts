@@ -27,7 +27,7 @@ contract AnypayLifiSapientSignerTest is Test {
 
     AnypayLifiSapientSigner public signerContract;
     MockLiFiDiamond public mockLiFiDiamond;
-    address public userWalletAddress; 
+    address public userWalletAddress;
     uint256 public userSignerPrivateKey;
     address public userSignerAddress;
 
@@ -59,12 +59,12 @@ contract AnypayLifiSapientSignerTest is Test {
         // Initialize mockSwapData
         LibSwap.SwapData[] memory swaps = new LibSwap.SwapData[](1);
         swaps[0] = LibSwap.SwapData({
-            callTo: address(0x222222222227dC0AA78B770FA6A738034120c302), 
+            callTo: address(0x222222222227dC0AA78B770FA6A738034120c302),
             approveTo: address(0x222222222227dC0AA78B770FA6A738034120c302),
             sendingAssetId: mockBridgeData.sendingAssetId,
-            receivingAssetId: address(0x222222222227dC0AA78B770FA6A738034120c302), 
+            receivingAssetId: address(0x222222222227dC0AA78B770FA6A738034120c302),
             fromAmount: mockBridgeData.minAmount,
-            callData: hex"1234", 
+            callData: hex"1234",
             requiresDeposit: true
         });
         mockSwapData = swaps;
@@ -72,10 +72,8 @@ contract AnypayLifiSapientSignerTest is Test {
 
     function test_RecoverSingleLifiCall_ValidSignature() public {
         // 1. Prepare the call data for the mockLifiFunction
-        bytes memory callDataToLifiDiamond = abi.encodeCall(
-            mockLiFiDiamond.mockLifiFunction,
-            (mockBridgeData, mockSwapData)
-        );
+        bytes memory callDataToLifiDiamond =
+            abi.encodeCall(mockLiFiDiamond.mockLifiFunction, (mockBridgeData, mockSwapData));
 
         // 2. Construct the Payload.Call
         Payload.Call[] memory calls = new Payload.Call[](1);
@@ -83,7 +81,7 @@ contract AnypayLifiSapientSignerTest is Test {
             to: address(mockLiFiDiamond),
             value: 0,
             data: callDataToLifiDiamond,
-            gasLimit: 0, 
+            gasLimit: 0,
             delegateCall: false,
             onlyFallback: false,
             behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
@@ -92,19 +90,18 @@ contract AnypayLifiSapientSignerTest is Test {
         // 3. Construct the Payload.Decoded
         Payload.Decoded memory payload = Payload.Decoded({
             kind: Payload.KIND_TRANSACTIONS,
-            noChainId: false, 
+            noChainId: false,
             calls: calls,
-            space: 0, 
-            nonce: 1, 
-            message: "", 
-            imageHash: bytes32(0), 
-            digest: bytes32(0), 
-            parentWallets: new address[](0) 
+            space: 0,
+            nonce: 1,
+            message: "",
+            imageHash: bytes32(0),
+            digest: bytes32(0),
+            parentWallets: new address[](0)
         });
 
         // 4. Generate the EIP-712 digest.
         bytes32 digestToSign = payload.hashFor(address(0));
-
 
         // 5. Sign the digest
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
@@ -116,7 +113,8 @@ contract AnypayLifiSapientSignerTest is Test {
 
         expectedLifiInfos[0] = AnypayLifiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapData);
 
-        bytes32 expectedLifiIntentHash = AnypayLifiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
+        bytes32 expectedLifiIntentHash =
+            AnypayLifiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 7. Call recoverSapientSignature
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, encodedSignature);
@@ -126,11 +124,11 @@ contract AnypayLifiSapientSignerTest is Test {
     }
 
     // Helper to construct Payload.Decoded more easily if needed later
-    function _createPayload(
-        Payload.Call[] memory _calls,
-        uint256 _nonce,
-        bool _noChainId
-    ) internal view returns (Payload.Decoded memory) {
+    function _createPayload(Payload.Call[] memory _calls, uint256 _nonce, bool _noChainId)
+        internal
+        view
+        returns (Payload.Decoded memory)
+    {
         return Payload.Decoded({
             kind: Payload.KIND_TRANSACTIONS,
             noChainId: _noChainId,
@@ -143,4 +141,4 @@ contract AnypayLifiSapientSignerTest is Test {
             parentWallets: new address[](0)
         });
     }
-} 
+}
