@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.17;
 
 import {ILiFi} from "lifi-contracts/interfaces/ILiFi.sol";
@@ -6,20 +7,14 @@ import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 
 /**
  * @title AnypayLiFiDecoder
+ * @author Shun Kakinoki
  * @notice Library to decode ILiFi.BridgeData and LibSwap.SwapData[] from calldata.
  */
 library AnypayLiFiDecoder {
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
-    error InvalidCalldataLengthForBridgeData();
     error SliceOutOfBounds();
-
-    // -------------------------------------------------------------------------
-    // Events
-    // -------------------------------------------------------------------------
-    event DecodedBridgeData(bytes32 transactionId, address receiver, uint256 destinationChainId);
-    event DecodedSwapData(address callTo, address sendingAssetId, address receivingAssetId, uint256 fromAmount, uint256 numSwaps);
 
     // -------------------------------------------------------------------------
     // Internal Helper Functions
@@ -47,47 +42,43 @@ library AnypayLiFiDecoder {
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Decode only the first argument (ILiFi.BridgeData) from arbitrary calldata
-     * @param data Full calldata including 4-byte function selector, passed as memory
-     */
-    function decodeOnlyBridgeData(bytes memory data) internal pure returns (ILiFi.BridgeData memory bd) {
-        // Check if calldata is long enough for selector + one 32-byte offset
-        if (data.length < 4 + 32) revert InvalidCalldataLengthForBridgeData();
-        
-        bytes memory bridgeDataBytes = _getMemorySlice(data, 4);
-        (bd) = abi.decode(bridgeDataBytes, (ILiFi.BridgeData));
-    }
-
-    /**
-     * @notice Emits decoded fields from BridgeData
-     * @param data Calldata passed to LiFi-style function (e.g. bridge(BridgeData, X, Y)), passed as memory
-     */
-    function emitDecodedBridgeData(bytes memory data) internal {
-        ILiFi.BridgeData memory bd = decodeOnlyBridgeData(data);
-        emit DecodedBridgeData(bd.transactionId, bd.receiver, bd.destinationChainId);
-    }
-
-    /**
-     * @notice Attempts to decode (ILiFi.BridgeData, LibSwap.SwapData[]) from calldata.
-     * @dev This function can revert if calldata doesn't conform to the expected tuple structure (e.g. abi.decode panic).
+     * @notice Attempts to decode (ILiFi.BridgeData, LibSwap.SwapData[]) or just ILiFi.BridgeData from calldata.
+     * @dev Returns default/empty structs if calldata is too short for required offsets.
+     *      If calldata is long enough for offsets but malformed for abi.decode, this function WILL REVERT.
+     *      The calling contract should use try/catch if it needs to handle such reverts.
      * @param data Full calldata including 4-byte function selector, passed as memory.
-     * @return swapDataOut The decoded SwapData array if successful.
+     * @return bridgeDataOut The decoded BridgeData struct, or a default one if data is too short.
+     * @return swapDataOut The decoded SwapData array, or an empty one if not present or data is too short.
      */
-    function decodeSwapDataTuple(bytes memory data)
-        internal
+    function tryDecodeBridgeAndSwapData(bytes memory data)
+        external
         view
-        returns (LibSwap.SwapData[] memory swapDataOut)
+        returns (ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
     {
-        // Basic check: selector (4) + offset_bd (32) + offset_sd (32) = 68 bytes.
-        // If calldata is shorter, it cannot hold offsets for two dynamic parameters.
-        if (data.length < 4 + (2 * 32)) {
-            return new LibSwap.SwapData[](0);
-        }
+        // bridgeDataOut is implicitly zero-initialized by Solidity.
+        swapDataOut = new LibSwap.SwapData[](0); // Initialize to empty array.
 
-        bytes memory tupleBytes = _getMemorySlice(data, 4);
-        // This abi.decode attempts to parse tupleBytes as (ILiFi.BridgeData, LibSwap.SwapData[]).
-        // It will revert (e.g., with panic 0x41) if the calldata is not structured accordingly.
-        (, LibSwap.SwapData[] memory _decodedSwapData) = abi.decode(tupleBytes, (ILiFi.BridgeData, LibSwap.SwapData[]));
-        return _decodedSwapData;
+        // Minimum length for selector (4) + two offsets (32 each) = 68 bytes for a tuple
+        uint256 minLenForTupleOffsets = 4 + 32 + 32;
+        // Minimum length for selector (4) + one offset (32) = 36 bytes for BridgeData only
+        uint256 minLenForBridgeDataOffset = 4 + 32;
+
+        if (data.length >= minLenForTupleOffsets) {
+            // Data is long enough to potentially be a (BridgeData, SwapData[]) tuple.
+            bytes memory tupleBytes = _getMemorySlice(data, 4); // Strip selector
+            // This abi.decode will REVERT if tupleBytes is not a valid encoding for the tuple.
+            (bridgeDataOut, swapDataOut) = abi.decode(tupleBytes, (ILiFi.BridgeData, LibSwap.SwapData[]));
+            // If we reach here, decoding was successful.
+        } else if (data.length >= minLenForBridgeDataOffset) {
+            // Data is not long enough for a tuple, but might be for BridgeData alone.
+            bytes memory bridgeDataOnlyBytes = _getMemorySlice(data, 4); // Strip selector
+            // This abi.decode will REVERT if bridgeDataOnlyBytes is not a valid encoding for BridgeData.
+            (bridgeDataOut) = abi.decode(bridgeDataOnlyBytes, (ILiFi.BridgeData));
+            // If we reach here, decoding was successful; swapDataOut remains empty.
+        }
+        // If data.length < minLenForBridgeDataOffset, both bridgeDataOut (implicitly)
+        // and swapDataOut (explicitly) will be their default/empty values.
+
+        return (bridgeDataOut, swapDataOut);
     }
-} 
+}

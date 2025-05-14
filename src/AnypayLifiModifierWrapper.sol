@@ -3,7 +3,7 @@
 pragma solidity ^0.8.17;
 
 import {AnypayLiFiDecoder} from "./libraries/AnypayLiFiDecoder.sol";
-import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol"; // For LibSwap.SwapData type
+import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 
 /**
  * @title AnypayLifiModifierWrapper
@@ -55,15 +55,6 @@ contract AnypayLifiModifierWrapper {
     }
 
     /**
-     * @dev External view helper to call the library's decodeSwapDataTuple.
-     *      This allows using try/catch with the decoding logic from a contract context.
-     *      Accepts `bytes memory` as that's what `originalDataCopy` is.
-     */
-    function _getDecodedSwapDataForTryCatch(bytes memory data) external view returns (LibSwap.SwapData[] memory) {
-        return AnypayLiFiDecoder.decodeSwapDataTuple(data);
-    }
-
-    /**
      * @dev Fallback function trying offsets 228, then 260, then unmodified.
      *      Modification only happens if the value at offset is SENTINEL_RECEIVER.
      *      Also attempts to decode BridgeData and logs the result if successful.
@@ -81,35 +72,6 @@ contract AnypayLifiModifierWrapper {
         bytes memory originalDataCopy = new bytes(dataSize);
         assembly {
             calldatacopy(add(originalDataCopy, 0x20), 0, dataSize)
-        }
-
-        AnypayLiFiDecoder.emitDecodedBridgeData(originalDataCopy);
-
-        // Try to decode and emit SwapData
-        LibSwap.SwapData[] memory _decodedSwapDataArray;
-        try this._getDecodedSwapDataForTryCatch(originalDataCopy) returns (LibSwap.SwapData[] memory _sds) {
-            _decodedSwapDataArray = _sds;
-        } catch Error(string memory /*reason*/) {
-            // If string reason is useful: emit SomeEvent(reason);
-            _decodedSwapDataArray = new LibSwap.SwapData[](0);
-        } catch Panic(uint256 /*errorCode*/) {
-            // If panic code is useful: emit SomeEvent(errorCode);
-            _decodedSwapDataArray = new LibSwap.SwapData[](0);
-        }
-        // Generic catch for any other revert, not strictly necessary if above cover LiFi specific cases
-        // catch { _decodedSwapDataArray = new LibSwap.SwapData[](0); }
-
-        if (_decodedSwapDataArray.length > 0) {
-            // Emit for the first swap, or aggregate if needed
-            emit AnypayLiFiDecoder.DecodedSwapData(
-                _decodedSwapDataArray[0].callTo,
-                _decodedSwapDataArray[0].sendingAssetId,
-                _decodedSwapDataArray[0].receivingAssetId,
-                _decodedSwapDataArray[0].fromAmount,
-                _decodedSwapDataArray.length
-            );
-        } else {
-            emit AnypayLiFiDecoder.DecodedSwapData(address(0), address(0), address(0), 0, 0); // Emit empty if no swaps or error
         }
 
         // Attempt 1: Offset 228 (Assumed 2 Args w/ 1st as ILiFi.BridgeData)
