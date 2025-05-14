@@ -5,7 +5,7 @@ pragma solidity ^0.8.17;
 import {Test, console} from "forge-std/Test.sol";
 import {AnypayLifiInterpreter, AnypayLifiInfo, EmptyLibSwapData} from "../../src/libraries/AnypayLifiInterpreter.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {ILiFi} from "lifi-contracts/interfaces/ILiFi.sol";
+import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 
 contract AnypayLifiInterpreterTest is Test {
     // Mock data for ILiFi.BridgeData

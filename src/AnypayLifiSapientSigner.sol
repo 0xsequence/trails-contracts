@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {ILiFi} from "lifi-contracts/interfaces/ILiFi.sol";
+import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiDecoder} from "./libraries/AnypayLiFiDecoder.sol";
 import {AnypayLifiInterpreter, AnypayLifiInfo} from "./libraries/AnypayLifiInterpreter.sol";

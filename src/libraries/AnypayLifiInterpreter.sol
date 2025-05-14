@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.17;
 
-import {ILiFi} from "lifi-contracts/interfaces/ILiFi.sol";
+import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 
 error EmptyLibSwapData();

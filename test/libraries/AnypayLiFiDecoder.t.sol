@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 
 import {Test} from "forge-std/Test.sol";
 import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
-import {ILiFi} from "lifi-contracts/interfaces/ILiFi.sol";
+import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 
 struct AcrossV3Data {
