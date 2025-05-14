@@ -87,7 +87,6 @@ contract AnypayLifiModifierWrapper {
                 emit ForwardResult(success, RECEIVER_OFFSET_ASSUMED_2_ARGS);
                 if (success) {
                     _handleReturnData(success, returnData);
-                    return;
                 }
             }
         }
@@ -108,7 +107,6 @@ contract AnypayLifiModifierWrapper {
                 emit ForwardResult(success, RECEIVER_OFFSET_ASSUMED_3_ARGS);
                 if (success) {
                     _handleReturnData(success, returnData);
-                    return;
                 }
             }
         }
