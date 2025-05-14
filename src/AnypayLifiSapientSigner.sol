@@ -82,7 +82,7 @@ contract AnypayLifiSapientSigner is ISapient {
         address attestationSigner = ECDSA.recover(payload.hashFor(address(0)), encodedSignature);
 
         // 5. Initialize structs to store decoded data
-        AnypayLifiInfo[] memory lifiInfos;
+        AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](payload.calls.length);
 
         // 6. Decode BridgeData and SwapData from calldata using the library
         for (uint256 i = 0; i < payload.calls.length; i++) {
