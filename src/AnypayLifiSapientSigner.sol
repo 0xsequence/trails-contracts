@@ -9,7 +9,6 @@ import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiDecoder} from "./libraries/AnypayLiFiDecoder.sol";
 import {AnypayLifiInterpreter, AnypayLifiInfo} from "./libraries/AnypayLifiInterpreter.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
-// import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol"; // Keep for reference if contract signer needed
 
 /**
  * @title AnypayLifiSapientSigner
@@ -32,43 +31,13 @@ contract AnypayLifiSapientSigner is ISapient {
     address public immutable TARGET_LIFI_DIAMOND;
 
     // -------------------------------------------------------------------------
-    // Constants
-    // -------------------------------------------------------------------------
-
-    bytes4 public constant LIFI_ATTESTATION_IDENTITY_TYPE = bytes4(keccak256("LifiSessionAttestation_v1"));
-    string public constant LIFI_SESSION_AUDIENCE_SUFFIX = "LifiSessionAudience_v1";
-    string public constant LIFI_SESSION_ISSUER_SUFFIX = "LifiSessionIssuer_v1";
-
-    // -------------------------------------------------------------------------
-    // Events
-    // -------------------------------------------------------------------------
-
-    event LifiSessionExecuted(
-        address indexed wallet,
-        address indexed approvedSigner,
-        uint256 nonce,
-        address targetContract,
-        uint256 value,
-        bytes callData
-    );
-
-    // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
 
-    error InvalidLifiAttestationSignature();
-    error LifiAttestationExpired(uint256 expiry, uint256 blockTimestamp);
-    error LifiAttestationNonceInvalid(uint256 expectedNonce, uint256 actualNonce);
-    error LifiAttestationMismatch(); // If attestation details don't match Payload.Call
-    error InvalidLifiAttestationSigner(address expectedSigner, address actualSigner);
-    error InvalidLifiAttestationAudience(bytes32 expectedAudienceHash, bytes32 actualAudienceHash);
-    error InvalidLifiAttestationIssuer(bytes32 expectedIssuerHash, bytes32 actualIssuerHash);
-    error InvalidLifiAttestationIdentity(bytes4 expectedIdentity, bytes4 actualIdentity);
     error InvalidTargetAddress(address expectedTarget, address actualTarget);
     error InvalidLifiDiamondAddress();
     error InvalidPayloadKind();
     error InvalidCallsLength();
-    error LifiCallFailed();
 
     // -------------------------------------------------------------------------
     // Constructor
