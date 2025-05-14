@@ -2,18 +2,22 @@
 
 pragma solidity ^0.8.17;
 
+import {AnypayLiFiDecoder} from "./libraries/AnypayLiFiDecoder.sol";
+import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
+
 /**
  * @title AnypayLifiModifierWrapper
- * @notice WARNING: Highly experimental wrapper for Anypay. Use with extreme caution.
- *         Intercepts ALL calls. Attempts conditional modification (if current receiver=0xFFf...)
- *         assuming offset 228 (likely 2 args), forwards call. If that fails or no modification,
- *         attempts conditional modification assuming offset 260 (likely 3 args), forwards call.
- *         If both modification attempts fail or receiver wasn't 0xFFf..., forwards original calldata.
- * @dev Relies on hardcoded offsets (228, 260) potentially corresponding to different function
- *      signatures where BridgeData memory is the first parameter. See previous comments for details.
- *      Success of internal calls is NOT a guarantee that the correct offset was used or modification occurred.
+ * @notice Wrapper to decode ILiFi.BridgeData from any LiFi facet function.
+ *         Slices calldata to isolate BridgeData, decodes it, and forwards the original call.
+ * @dev Uses assembly to parse BridgeData's dynamic encoding. Handles arbitrary facet signatures.
  */
 contract AnypayLifiModifierWrapper {
+    // -------------------------------------------------------------------------
+    // Errors
+    // -------------------------------------------------------------------------
+
+    error ZeroAddress();
+
     // -------------------------------------------------------------------------
     // Immutables
     // -------------------------------------------------------------------------
@@ -39,19 +43,21 @@ contract AnypayLifiModifierWrapper {
 
     event ForwardAttempt(uint256 indexed offset, bytes4 selector, address sender, bool modificationMade);
     event ForwardResult(bool success, uint256 indexed usedOffset);
+    event DecodeAttempt(bytes4 indexed selector, bool success, string reason);
 
     // -------------------------------------------------------------------------
     // Constructor + functions
     // -------------------------------------------------------------------------
 
     constructor(address _lifiDiamondAddress) {
-        require(_lifiDiamondAddress != address(0), "Wrapper: Zero address");
+        if (_lifiDiamondAddress == address(0)) revert ZeroAddress();
         TARGET_LIFI_DIAMOND = _lifiDiamondAddress;
     }
 
     /**
      * @dev Fallback function trying offsets 228, then 260, then unmodified.
      *      Modification only happens if the value at offset is SENTINEL_RECEIVER.
+     *      Also attempts to decode BridgeData and logs the result if successful.
      */
     fallback() external payable {
         uint256 dataSize;
@@ -81,7 +87,6 @@ contract AnypayLifiModifierWrapper {
                 emit ForwardResult(success, RECEIVER_OFFSET_ASSUMED_2_ARGS);
                 if (success) {
                     _handleReturnData(success, returnData);
-                    return;
                 }
             }
         }
@@ -102,7 +107,6 @@ contract AnypayLifiModifierWrapper {
                 emit ForwardResult(success, RECEIVER_OFFSET_ASSUMED_3_ARGS);
                 if (success) {
                     _handleReturnData(success, returnData);
-                    return;
                 }
             }
         }
