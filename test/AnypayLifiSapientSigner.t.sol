@@ -12,10 +12,15 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // Mock LiFi Diamond contract to receive calls
 contract MockLiFiDiamond {
-    event MockFunctionCalled(ILiFi.BridgeData bridgeData, LibSwap.SwapData[] swapData);
+    event MockBridgeOnlyCalled(ILiFi.BridgeData bridgeData);
+    event MockSwapAndBridgeCalled(ILiFi.BridgeData bridgeData, LibSwap.SwapData[] swapData);
 
-    function mockLifiFunction(ILiFi.BridgeData calldata _bridgeData, LibSwap.SwapData[] calldata _swapData) external {
-        emit MockFunctionCalled(_bridgeData, _swapData);
+    function mockLifiBridgeOnly(ILiFi.BridgeData calldata _bridgeData, bytes calldata _mockData) external {
+        emit MockBridgeOnlyCalled(_bridgeData);
+    }
+
+    function mockLifiSwapAndBridge(ILiFi.BridgeData calldata _bridgeData, LibSwap.SwapData[] calldata _swapData) external {
+        emit MockSwapAndBridgeCalled(_bridgeData, _swapData);
     }
 
     receive() external payable {}
@@ -71,9 +76,9 @@ contract AnypayLifiSapientSignerTest is Test {
     }
 
     function test_RecoverSingleLifiCall_ValidSignature() public {
-        // 1. Prepare the call data for the mockLifiFunction
+        // 1. Prepare the call data for the mockLifiSwapAndBridge
         bytes memory callDataToLifiDiamond =
-            abi.encodeCall(mockLiFiDiamond.mockLifiFunction, (mockBridgeData, mockSwapData));
+            abi.encodeCall(mockLiFiDiamond.mockLifiSwapAndBridge, (mockBridgeData, mockSwapData));
 
         // 2. Construct the Payload.Call
         Payload.Call[] memory calls = new Payload.Call[](1);
@@ -121,6 +126,76 @@ contract AnypayLifiSapientSignerTest is Test {
 
         // 8. Assert equality
         assertEq(actualLifiIntentHash, expectedLifiIntentHash, "Recovered LiFi intent hash mismatch");
+    }
+
+    function test_RecoverSingleLifiCall_BridgeOnly_ValidSignature() public {
+        // 1. Prepare the BridgeData for a bridge-only call
+        ILiFi.BridgeData memory bridgeOnlyData = ILiFi.BridgeData({
+            transactionId: bytes32(uint256(456)),
+            bridge: "mockBridgeOnly",
+            integrator: "Anypay",
+            referrer: address(0),
+            sendingAssetId: address(0x111111111117dC0aa78b770fA6A738034120C302),
+            receiver: address(0xbeefdead),
+            minAmount: 2 ether,
+            destinationChainId: 1,
+            hasSourceSwaps: false,
+            hasDestinationCall: false
+        });
+
+        LibSwap.SwapData[] memory emptySwapData = new LibSwap.SwapData[](0);
+
+        // 2. Prepare the call data for the mockLifiFunction
+        bytes memory callDataToLifiDiamond =
+            abi.encodeCall(mockLiFiDiamond.mockLifiBridgeOnly, (bridgeOnlyData, new bytes(0)));
+
+        // 3. Construct the Payload.Call
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(mockLiFiDiamond),
+            value: 0,
+            data: callDataToLifiDiamond,
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
+        });
+
+        // 4. Construct the Payload.Decoded
+        Payload.Decoded memory payload = Payload.Decoded({
+            kind: Payload.KIND_TRANSACTIONS,
+            noChainId: false,
+            calls: calls,
+            space: 0,
+            nonce: 2,
+            message: "",
+            imageHash: bytes32(0),
+            digest: bytes32(0),
+            parentWallets: new address[](0)
+        });
+
+        // 5. Generate the EIP-712 digest.
+        bytes32 digestToSign = payload.hashFor(address(0));
+
+        // 6. Sign the digest
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
+        bytes memory encodedSignature = abi.encodePacked(r, s, v);
+
+        // 7. Manually derive the expected lifiIntentHash
+        AnypayLifiInfo[] memory expectedLifiInfos = new AnypayLifiInfo[](1);
+        // For a bridge-only call, getOriginSwapInfo is still called, but with empty swap data.
+        // The interpreter should correctly handle this.
+        expectedLifiInfos[0] = AnypayLifiInterpreter.getOriginSwapInfo(bridgeOnlyData, emptySwapData);
+
+
+        bytes32 expectedLifiIntentHash =
+            AnypayLifiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
+
+        // 8. Call recoverSapientSignature
+        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, encodedSignature);
+
+        // 9. Assert equality
+        assertEq(actualLifiIntentHash, expectedLifiIntentHash, "Recovered LiFi intent hash mismatch for bridge-only call");
     }
 
     // Helper to construct Payload.Decoded more easily if needed later
