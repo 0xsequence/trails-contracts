@@ -14,6 +14,7 @@ library AnypayLiFiDecoder {
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
+
     error SliceOutOfBounds();
 
     // -------------------------------------------------------------------------
@@ -52,7 +53,7 @@ library AnypayLiFiDecoder {
      */
     function tryDecodeBridgeAndSwapData(bytes memory data)
         external
-        view
+        pure
         returns (ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
     {
         // bridgeDataOut is implicitly zero-initialized by Solidity.

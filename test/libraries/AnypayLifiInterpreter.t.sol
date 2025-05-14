@@ -69,7 +69,6 @@ contract AnypayLifiInterpreterTest is Test {
             MOCK_FROM_AMOUNT_SWAP,
             "Test Case 1 Failed: Min amount should be from swapData's fromAmount"
         );
-        assertEq(result.transactionId, MOCK_TRANSACTION_ID, "Test Case 1 Failed: Transaction ID mismatch");
         assertEq(result.destinationChainId, MOCK_DEST_CHAIN_ID, "Test Case 1 Failed: Destination chain ID mismatch");
     }
 
@@ -92,7 +91,6 @@ contract AnypayLifiInterpreterTest is Test {
             MOCK_MIN_AMOUNT_BRIDGE,
             "Test Case 2 Failed: Min amount should be from bridgeData's minAmount"
         );
-        assertEq(result.transactionId, MOCK_TRANSACTION_ID, "Test Case 2 Failed: Transaction ID mismatch");
         assertEq(result.destinationChainId, MOCK_DEST_CHAIN_ID, "Test Case 2 Failed: Destination chain ID mismatch");
     }
 
@@ -136,7 +134,6 @@ contract AnypayLifiInterpreterTest is Test {
             MOCK_FROM_AMOUNT_SWAP,
             "Test Case 4 Failed: Min amount should be from the first swapData item's fromAmount"
         );
-        assertEq(result.transactionId, MOCK_TRANSACTION_ID, "Test Case 4 Failed: Transaction ID mismatch");
         assertEq(result.destinationChainId, MOCK_DEST_CHAIN_ID, "Test Case 4 Failed: Destination chain ID mismatch");
     }
 }

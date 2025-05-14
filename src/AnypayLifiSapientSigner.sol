@@ -110,7 +110,7 @@ contract AnypayLifiSapientSigner is ISapient {
         }
 
         // 4. Recover the signer from the signature
-        address recoveredSigner = ECDSA.recover(payload.hashFor(address(0)), encodedSignature);
+        address attestationSigner = ECDSA.recover(payload.hashFor(address(0)), encodedSignature);
 
         // 5. Initialize structs to store decoded data
         AnypayLifiInfo[] memory lifiInfos;
@@ -122,14 +122,10 @@ contract AnypayLifiSapientSigner is ISapient {
             lifiInfos[i] = AnypayLifiInterpreter.getOriginSwapInfo(bridgeData, swapData);
         }
 
-        // 9. Validate Constraints
-        // Example: bytes32 actualConstraintsHash = keccak256(abi.encodePacked(...));
-        // if (appData.constraintsHash != actualConstraintsHash && appData.constraintsHash != bytes32(0)) {
-        //     revert LifiConstraintMismatch(); // Define this error
-        // }
+        // 7. Hash the lifi intent params
+        bytes32 lifiIntentHash = AnypayLifiInterpreter.getAnypayLifiInfoHash(lifiInfos, attestationSigner);
 
-        // 10. Return the lifi intent hashed params
-        // TODO: Return bytes32(0) for now
-        return bytes32(0);
+        // 8. Return the lifi intent hashed params
+        return lifiIntentHash;
     }
 }

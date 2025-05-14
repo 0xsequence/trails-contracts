@@ -10,7 +10,6 @@ error EmptyLibSwapData();
 struct AnypayLifiInfo {
     address originToken;
     uint256 minAmount;
-    bytes32 transactionId;
     uint256 destinationChainId;
 }
 
@@ -24,7 +23,9 @@ library AnypayLifiInterpreter {
         uint256 minAmount;
 
         if (bridgeData.hasSourceSwaps) {
-            if (swapData.length == 0) revert EmptyLibSwapData();
+            if (swapData.length == 0) {
+                revert EmptyLibSwapData();
+            }
             originToken = swapData[0].sendingAssetId;
             minAmount = swapData[0].fromAmount;
         } else {
@@ -35,8 +36,15 @@ library AnypayLifiInterpreter {
         return AnypayLifiInfo({
             originToken: originToken,
             minAmount: minAmount,
-            transactionId: bridgeData.transactionId,
             destinationChainId: bridgeData.destinationChainId
         });
+    }
+
+    function getAnypayLifiInfoHash(AnypayLifiInfo[] memory lifiInfos, address attestationAddress)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(lifiInfos, attestationAddress));
     }
 }
