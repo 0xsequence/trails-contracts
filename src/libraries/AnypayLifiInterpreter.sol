@@ -13,7 +13,22 @@ struct AnypayLifiInfo {
     uint256 destinationChainId;
 }
 
+/**
+ * @title AnypayLifiInterpreter
+ * @author Shun Kakinoki
+ * @notice Library for interpreting LiFi data into AnypayLifiInfo structs.
+ */
 library AnypayLifiInterpreter {
+    // -------------------------------------------------------------------------
+    // Errors
+    // -------------------------------------------------------------------------
+
+    error EmptyLibSwapData();
+
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
+
     function getOriginSwapInfo(ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData)
         internal
         pure
