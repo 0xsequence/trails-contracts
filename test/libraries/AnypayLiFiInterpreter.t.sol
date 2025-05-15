@@ -3,11 +3,11 @@
 pragma solidity ^0.8.17;
 
 import {Test, console} from "forge-std/Test.sol";
-import {AnypayLifiInterpreter, AnypayLifiInfo, EmptyLibSwapData} from "../../src/libraries/AnypayLifiInterpreter.sol";
+import {AnypayLiFiInterpreter, AnypayLifiInfo, EmptyLibSwapData} from "../../src/libraries/AnypayLiFiInterpreter.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 
-contract AnypayLifiInterpreterTest is Test {
+contract AnypayLiFiInterpreterTest is Test {
     // Mock data for ILiFi.BridgeData
     ILiFi.BridgeData internal mockBridgeData;
 
@@ -59,7 +59,7 @@ contract AnypayLifiInterpreterTest is Test {
         mockSwapDataArray = new LibSwap.SwapData[](1);
         mockSwapDataArray[0] = mockSingleSwapData;
 
-        AnypayLifiInfo memory result = AnypayLifiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapDataArray);
+        AnypayLifiInfo memory result = AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapDataArray);
 
         assertEq(
             result.originToken, MOCK_SENDING_ASSET_SWAP, "Test Case 1 Failed: Origin token should be from swapData"
@@ -79,7 +79,7 @@ contract AnypayLifiInterpreterTest is Test {
         // Providing an empty array for this test case.
         mockSwapDataArray = new LibSwap.SwapData[](0);
 
-        AnypayLifiInfo memory result = AnypayLifiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapDataArray);
+        AnypayLifiInfo memory result = AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapDataArray);
 
         assertEq(
             result.originToken,
@@ -102,7 +102,7 @@ contract AnypayLifiInterpreterTest is Test {
 
     //     // Expect revert with the custom error EmptySwapData
     //     vm.expectRevert();
-    //     AnypayLifiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapDataArray);
+    //     AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapDataArray);
     // }
 
     function test_GetOriginSwapInfo_WithSourceSwaps_MultipleSwapsInArray() public {
@@ -122,7 +122,7 @@ contract AnypayLifiInterpreterTest is Test {
             requiresDeposit: true
         });
 
-        AnypayLifiInfo memory result = AnypayLifiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapDataArray);
+        AnypayLifiInfo memory result = AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapDataArray);
 
         assertEq(
             result.originToken,
@@ -151,14 +151,14 @@ contract AnypayLifiInterpreterTest is Test {
     AnypayLifiInfo[] internal _attestedInfos;
 
     /**
-     * @notice Wrapper to test the internal AnypayLifiInterpreter.validateLifiInfos function.
+     * @notice Wrapper to test the internal AnypayLiFiInterpreter.validateLifiInfos function.
      * @dev This function explicitly uses the imported AnypayLifiInfo struct.
      */
     function validateLifiInfosWrapper(
         AnypayLifiInfo[] memory inferredLifiInfos,
         AnypayLifiInfo[] memory attestedLifiInfos
     ) public view {
-        AnypayLifiInterpreter.validateLifiInfos(inferredLifiInfos, attestedLifiInfos);
+        AnypayLiFiInterpreter.validateLifiInfos(inferredLifiInfos, attestedLifiInfos);
     }
 
     function _setUpValidateLifiInfosTest() internal {
@@ -180,7 +180,7 @@ contract AnypayLifiInterpreterTest is Test {
         _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
         _attestedInfos = new AnypayLifiInfo[](0);
 
-        vm.expectRevert(AnypayLifiInterpreter.MismatchedLifiInfoLengths.selector);
+        vm.expectRevert(AnypayLiFiInterpreter.MismatchedLifiInfoLengths.selector);
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos);
     }
 
@@ -192,7 +192,7 @@ contract AnypayLifiInterpreterTest is Test {
         _attestedInfos = new AnypayLifiInfo[](1);
         _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
 
-        vm.expectRevert(AnypayLifiInterpreter.InvalidInferredMinAmount.selector);
+        vm.expectRevert(AnypayLiFiInterpreter.InvalidInferredMinAmount.selector);
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos);
     }
 
@@ -227,7 +227,7 @@ contract AnypayLifiInterpreterTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                AnypayLifiInterpreter.NoMatchingInferredInfoFound.selector,
+                AnypayLiFiInterpreter.NoMatchingInferredInfoFound.selector,
                 CURRENT_CHAIN_ID,
                 MOCK_DEST_CHAIN_ID,
                 TOKEN_B
@@ -244,7 +244,7 @@ contract AnypayLifiInterpreterTest is Test {
         _attestedInfos = new AnypayLifiInfo[](1);
         _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
 
-        vm.expectRevert(abi.encodeWithSelector(AnypayLifiInterpreter.InferredMinAmountTooLow.selector, 50, 100));
+        vm.expectRevert(abi.encodeWithSelector(AnypayLiFiInterpreter.InferredMinAmountTooLow.selector, 50, 100));
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos);
     }
 
@@ -298,7 +298,7 @@ contract AnypayLifiInterpreterTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                AnypayLifiInterpreter.NoMatchingInferredInfoFound.selector, CURRENT_CHAIN_ID, OTHER_CHAIN_ID, TOKEN_B
+                AnypayLiFiInterpreter.NoMatchingInferredInfoFound.selector, CURRENT_CHAIN_ID, OTHER_CHAIN_ID, TOKEN_B
             )
         );
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos);
@@ -317,7 +317,7 @@ contract AnypayLifiInterpreterTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                AnypayLifiInterpreter.NoMatchingInferredInfoFound.selector,
+                AnypayLiFiInterpreter.NoMatchingInferredInfoFound.selector,
                 CURRENT_CHAIN_ID,
                 MOCK_DEST_CHAIN_ID, // destinationChainId for attestedInfos[1]
                 TOKEN_A // originToken for attestedInfos[1]

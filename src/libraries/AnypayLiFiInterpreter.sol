@@ -15,11 +15,11 @@ struct AnypayLifiInfo {
 }
 
 /**
- * @title AnypayLifiInterpreter
+ * @title AnypayLiFiInterpreter
  * @author Shun Kakinoki
  * @notice Library for interpreting LiFi data into AnypayLifiInfo structs.
  */
-library AnypayLifiInterpreter {
+library AnypayLiFiInterpreter {
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------

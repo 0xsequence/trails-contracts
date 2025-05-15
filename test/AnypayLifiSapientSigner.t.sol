@@ -7,7 +7,7 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
-import {AnypayLifiInterpreter, AnypayLifiInfo} from "src/libraries/AnypayLifiInterpreter.sol";
+import {AnypayLiFiInterpreter, AnypayLifiInfo} from "src/libraries/AnypayLiFiInterpreter.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // Mock LiFi Diamond contract to receive calls
@@ -111,7 +111,7 @@ contract AnypayLifiSapientSignerTest is Test {
         bytes32 digestToSign = payload.hashFor(address(0));
 
         AnypayLifiInfo[] memory expectedLifiInfos = new AnypayLifiInfo[](1);
-        expectedLifiInfos[0] = AnypayLifiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapData);
+        expectedLifiInfos[0] = AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapData);
 
         // 6. Sign the digest
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
@@ -122,7 +122,7 @@ contract AnypayLifiSapientSignerTest is Test {
 
         // 8. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash =
-            AnypayLifiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
+            AnypayLiFiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 9. Call recoverSapientSignature
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
@@ -182,7 +182,7 @@ contract AnypayLifiSapientSignerTest is Test {
 
         // 6. Prepare LifiInfos for encoding
         AnypayLifiInfo[] memory expectedLifiInfos = new AnypayLifiInfo[](1);
-        expectedLifiInfos[0] = AnypayLifiInterpreter.getOriginSwapInfo(bridgeOnlyData, emptySwapData);
+        expectedLifiInfos[0] = AnypayLiFiInterpreter.getOriginSwapInfo(bridgeOnlyData, emptySwapData);
 
         // 7. Sign the digest
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
@@ -193,7 +193,7 @@ contract AnypayLifiSapientSignerTest is Test {
 
         // 9. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash =
-            AnypayLifiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
+            AnypayLiFiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 10. Call recoverSapientSignature
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
