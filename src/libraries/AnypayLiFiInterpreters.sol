@@ -101,7 +101,7 @@ library AnypayLifiInterpreter {
 
         uint256 numInfos = attestedLifiInfos.length; // Or inferredLifiInfos.length, they are equal here
         if (numInfos == 0) {
-            return; 
+            return;
         }
 
         // Validate all inferredLifiInfos upfront (Check 2 from NatSpec).
@@ -126,22 +126,22 @@ library AnypayLifiInterpreter {
             bool foundMatch = false;
             for (uint256 j = 0; j < numInfos; j++) {
                 if (inferredInfoUsed[j]) {
-                    continue; 
+                    continue;
                 }
 
                 AnypayLifiInfo memory currentInferredInfo = inferredLifiInfos[j];
 
                 if (
-                    currentAttestedInfo.originChainId == currentInferredInfo.originChainId &&
-                    currentAttestedInfo.destinationChainId == currentInferredInfo.destinationChainId &&
-                    currentAttestedInfo.originToken == currentInferredInfo.originToken
+                    currentAttestedInfo.originChainId == currentInferredInfo.originChainId
+                        && currentAttestedInfo.destinationChainId == currentInferredInfo.destinationChainId
+                        && currentAttestedInfo.originToken == currentInferredInfo.originToken
                 ) {
                     if (currentInferredInfo.minAmount < currentAttestedInfo.minAmount) {
                         revert InferredMinAmountTooLow(currentInferredInfo.minAmount, currentAttestedInfo.minAmount);
                     }
                     inferredInfoUsed[j] = true;
                     foundMatch = true;
-                    break; 
+                    break;
                 }
             }
 
