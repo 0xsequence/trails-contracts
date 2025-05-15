@@ -29,10 +29,8 @@ library AnypayLifiInterpreter {
     // --- Errors for validateLifiInfos ---
     /// @notice Thrown when the lengths of attested and inferred LiFi info arrays do not match.
     error MismatchedLifiInfoLengths();
-    /// @notice Thrown when an inferred LiFi info has an invalid (zero) origin token.
-    error InferredInfo_InvalidOriginToken();
     /// @notice Thrown when an inferred LiFi info has a zero minimum amount.
-    error InferredInfo_ZeroMinAmount();
+    error InvalidInferredMinAmount();
     /// @notice Thrown when an attested LiFi info cannot find a unique, matching inferred LiFi info.
     /// @param originChainId The origin chain ID of the attested info that failed to find a match.
     /// @param destinationChainId The destination chain ID of the attested info.
@@ -109,11 +107,8 @@ library AnypayLifiInterpreter {
         // Validate all inferredLifiInfos upfront (Check 2 from NatSpec).
         for (uint256 i = 0; i < numInfos; i++) {
             AnypayLifiInfo memory _currentInferredInfo = inferredLifiInfos[i];
-            if (_currentInferredInfo.originToken == address(0)) {
-                revert InferredInfo_InvalidOriginToken();
-            }
             if (_currentInferredInfo.minAmount == 0) {
-                revert InferredInfo_ZeroMinAmount();
+                revert InvalidInferredMinAmount();
             }
         }
 

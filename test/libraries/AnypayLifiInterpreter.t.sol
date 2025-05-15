@@ -183,19 +183,7 @@ contract AnypayLifiInterpreterTest is Test {
         vm.expectRevert(AnypayLifiInterpreter.MismatchedLifiInfoLengths.selector);
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos);
     }
-
-    /// forge-config: default.allow_internal_expect_revert = true
-    function test_ValidateLifiInfos_InferredInvalidOriginToken_Reverts() public {
-        _setUpValidateLifiInfosTest();
-        _inferredInfos = new AnypayLifiInfo[](1);
-        _inferredInfos[0] = AnypayLifiInfo(address(0), 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID); // Invalid token
-        _attestedInfos = new AnypayLifiInfo[](1);
-        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
-
-        vm.expectRevert(AnypayLifiInterpreter.InferredInfo_InvalidOriginToken.selector);
-        validateLifiInfosWrapper(_inferredInfos, _attestedInfos);
-    }
-
+ 
     /// forge-config: default.allow_internal_expect_revert = true
     function test_ValidateLifiInfos_InferredZeroMinAmount_Reverts() public {
         _setUpValidateLifiInfosTest();
@@ -204,7 +192,7 @@ contract AnypayLifiInterpreterTest is Test {
         _attestedInfos = new AnypayLifiInfo[](1);
         _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
 
-        vm.expectRevert(AnypayLifiInterpreter.InferredInfo_ZeroMinAmount.selector);
+        vm.expectRevert(AnypayLifiInterpreter.InvalidInferredMinAmount.selector);
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos);
     }
 
