@@ -32,7 +32,7 @@ library AnypayLifiInterpreter {
 
     function getOriginSwapInfo(ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData)
         internal
-        pure
+        view
         returns (AnypayLifiInfo memory)
     {
         address originToken;
