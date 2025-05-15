@@ -10,6 +10,7 @@ error EmptyLibSwapData();
 struct AnypayLifiInfo {
     address originToken;
     uint256 minAmount;
+    uint256 originChainId;
     uint256 destinationChainId;
 }
 
@@ -51,6 +52,7 @@ library AnypayLifiInterpreter {
         return AnypayLifiInfo({
             originToken: originToken,
             minAmount: minAmount,
+            originChainId: block.chainid,
             destinationChainId: bridgeData.destinationChainId
         });
     }

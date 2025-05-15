@@ -77,9 +77,9 @@ library AnypayLiFiDecoder {
             (bridgeDataOut) = abi.decode(bridgeDataOnlyBytes, (ILiFi.BridgeData));
             // If we reach here, decoding was successful; swapDataOut remains empty.
         }
+
         // If data.length < minLenForBridgeDataOffset, both bridgeDataOut (implicitly)
         // and swapDataOut (explicitly) will be their default/empty values.
-
         return (bridgeDataOut, swapDataOut);
     }
 }
