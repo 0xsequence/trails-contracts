@@ -19,7 +19,9 @@ contract MockLiFiDiamond {
         emit MockBridgeOnlyCalled(_bridgeData);
     }
 
-    function mockLifiSwapAndBridge(ILiFi.BridgeData calldata _bridgeData, LibSwap.SwapData[] calldata _swapData) external {
+    function mockLifiSwapAndBridge(ILiFi.BridgeData calldata _bridgeData, LibSwap.SwapData[] calldata _swapData)
+        external
+    {
         emit MockSwapAndBridgeCalled(_bridgeData, _swapData);
     }
 
@@ -187,7 +189,6 @@ contract AnypayLifiSapientSignerTest is Test {
         // The interpreter should correctly handle this.
         expectedLifiInfos[0] = AnypayLifiInterpreter.getOriginSwapInfo(bridgeOnlyData, emptySwapData);
 
-
         bytes32 expectedLifiIntentHash =
             AnypayLifiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
@@ -195,7 +196,9 @@ contract AnypayLifiSapientSignerTest is Test {
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, encodedSignature);
 
         // 9. Assert equality
-        assertEq(actualLifiIntentHash, expectedLifiIntentHash, "Recovered LiFi intent hash mismatch for bridge-only call");
+        assertEq(
+            actualLifiIntentHash, expectedLifiIntentHash, "Recovered LiFi intent hash mismatch for bridge-only call"
+        );
     }
 
     // Helper to construct Payload.Decoded more easily if needed later
