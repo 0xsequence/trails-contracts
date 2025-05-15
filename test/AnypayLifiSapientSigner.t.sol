@@ -110,23 +110,24 @@ contract AnypayLifiSapientSignerTest is Test {
         // 4. Generate the EIP-712 digest.
         bytes32 digestToSign = payload.hashFor(address(0));
 
-        // 5. Sign the digest
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
-        bytes memory encodedSignature = abi.encodePacked(r, s, v);
-
-        // 6. Manually derive the expected lifiIntentHash
-        // Decode what AnypayLifiSapientSigner would decode
         AnypayLifiInfo[] memory expectedLifiInfos = new AnypayLifiInfo[](1);
-
         expectedLifiInfos[0] = AnypayLifiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapData);
 
+        // 6. Sign the digest
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
+        bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
+
+        // 7. Encode LifiInfos and ECDSA signature together
+        bytes memory combinedSignature = abi.encode(expectedLifiInfos, ecdsaSignature);
+
+        // 8. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash =
             AnypayLifiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
-        // 7. Call recoverSapientSignature
-        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, encodedSignature);
+        // 9. Call recoverSapientSignature
+        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
 
-        // 8. Assert equality
+        // 10. Assert equality
         assertEq(actualLifiIntentHash, expectedLifiIntentHash, "Recovered LiFi intent hash mismatch");
     }
 
@@ -179,23 +180,25 @@ contract AnypayLifiSapientSignerTest is Test {
         // 5. Generate the EIP-712 digest.
         bytes32 digestToSign = payload.hashFor(address(0));
 
-        // 6. Sign the digest
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
-        bytes memory encodedSignature = abi.encodePacked(r, s, v);
-
-        // 7. Manually derive the expected lifiIntentHash
+        // 6. Prepare LifiInfos for encoding
         AnypayLifiInfo[] memory expectedLifiInfos = new AnypayLifiInfo[](1);
-        // For a bridge-only call, getOriginSwapInfo is still called, but with empty swap data.
-        // The interpreter should correctly handle this.
         expectedLifiInfos[0] = AnypayLifiInterpreter.getOriginSwapInfo(bridgeOnlyData, emptySwapData);
 
+        // 7. Sign the digest
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
+        bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
+
+        // 8. Encode LifiInfos and ECDSA signature together
+        bytes memory combinedSignature = abi.encode(expectedLifiInfos, ecdsaSignature);
+
+        // 9. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash =
             AnypayLifiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
-        // 8. Call recoverSapientSignature
-        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, encodedSignature);
+        // 10. Call recoverSapientSignature
+        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
 
-        // 9. Assert equality
+        // 11. Assert equality
         assertEq(
             actualLifiIntentHash, expectedLifiIntentHash, "Recovered LiFi intent hash mismatch for bridge-only call"
         );
