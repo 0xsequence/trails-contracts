@@ -33,7 +33,6 @@ contract AnypayLifiModifierWrapper {
     uint256 internal constant RECEIVER_OFFSET_ASSUMED_2_ARGS = 228;
     /// @notice Assumed offset for func(BridgeData memory, Param2 calldata, Param3 calldata)
     uint256 internal constant RECEIVER_OFFSET_ASSUMED_3_ARGS = 260;
-
     /// @notice Hardcoded receiver
     address internal constant SENTINEL_RECEIVER = 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF;
 
