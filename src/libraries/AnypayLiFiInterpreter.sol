@@ -78,6 +78,7 @@ library AnypayLiFiInterpreter {
             if (swapData.length == 0) {
                 revert EmptyLibSwapData();
             }
+
             return AnypayLifiInfo({
                 originToken: swapData[0].sendingAssetId,
                 minAmount: swapData[0].fromAmount,
