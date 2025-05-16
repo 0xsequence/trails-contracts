@@ -16,7 +16,7 @@ library AnypayLiFiDecoder {
     // -------------------------------------------------------------------------
 
     error SliceOutOfBounds();
-    error NoSwapDataDecoded();
+    error NoLifiDataDecoded();
     error CalldataTooShortForPayload();
 
     // -------------------------------------------------------------------------
@@ -159,6 +159,6 @@ library AnypayLiFiDecoder {
             return (finalBridgeData, finalSwapDataArray); 
         }
 
-        revert NoSwapDataDecoded();
+        revert NoLifiDataDecoded();
     }
 }
