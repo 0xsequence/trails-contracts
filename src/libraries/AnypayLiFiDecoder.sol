@@ -16,7 +16,7 @@ library AnypayLiFiDecoder {
     // -------------------------------------------------------------------------
 
     error SliceOutOfBounds();
-    error NoLifiDataDecoded();
+    error NoLiFiDataDecoded();
     error CalldataTooShortForPayload();
 
     // -------------------------------------------------------------------------
@@ -126,39 +126,50 @@ library AnypayLiFiDecoder {
      * @return finalBridgeData The decoded ILiFi.BridgeData struct. Populated if the first decoding strategy is used and successful.
      * @return finalSwapDataArray The decoded LibSwap.SwapData array. Will not be empty if the function doesn't revert.
      */
-    function decodeLiFiDataOrRevert(bytes memory data) 
-        external 
-        pure 
+    function decodeLiFiDataOrRevert(bytes memory data)
+        external
+        pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
     {
+        // finalBridgeData is implicitly initialized to default.
+        // It will be populated ONLY if tryDecodeBridgeAndSwapData succeeds without reverting.
+
         // Attempt 1: Using tryDecodeBridgeAndSwapData
-        // This function might revert if abi.decode fails. If so, decodeLiFiDataOrRevert also reverts.
-        (finalBridgeData, finalSwapDataArray) = tryDecodeBridgeAndSwapData(data);
-        if (finalSwapDataArray.length > 0) {
-            return (finalBridgeData, finalSwapDataArray);
+        try tryDecodeBridgeAndSwapData(data) returns (ILiFi.BridgeData memory bd, LibSwap.SwapData[] memory sd) {
+            finalBridgeData = bd; // Store bridge data if this attempt doesn't revert
+            if (sd.length > 0) {
+                finalSwapDataArray = sd;
+                return (finalBridgeData, finalSwapDataArray);
+            }
+            // If no swaps found here, finalBridgeData is set, continue to other strategies for swaps.
+        } catch {
+            // tryDecodeBridgeAndSwapData reverted (e.g., ABI decode error).
+            // finalBridgeData remains default. Proceed to other strategies for swaps.
         }
-        // If we reach here, tryDecodeBridgeAndSwapData succeeded but found no swap data.
-        // finalBridgeData might be populated. We carry it forward.
 
         // Attempt 2: Using decodeLifiSwapDataPayloadAsArray
-        // This function might revert. If so, decodeLiFiDataOrRevert also reverts.
-        // We need a way to know if it reverted vs. returned empty. But without try/catch, we can't distinguish.
-        // For now, assume if it returns, it was a "valid" attempt, even if array is empty (less likely for this specific decoder).
-        LibSwap.SwapData[] memory sDataArr = decodeLifiSwapDataPayloadAsArray(data);
-        if (sDataArr.length > 0) { 
-            finalSwapDataArray = sDataArr;
-            return (finalBridgeData, finalSwapDataArray); 
+        // This attempt will use the finalBridgeData (either populated from Attempt 1 or default).
+        try decodeLifiSwapDataPayloadAsArray(data) returns (LibSwap.SwapData[] memory sDataArr) {
+            if (sDataArr.length > 0) {
+                finalSwapDataArray = sDataArr;
+                return (finalBridgeData, finalSwapDataArray);
+            }
+        } catch {
+            // decodeLifiSwapDataPayloadAsArray reverted. Proceed.
         }
 
         // Attempt 3: Using decodeLifiSwapDataPayloadAsSingle
-        // This function might revert. If so, decodeLiFiDataOrRevert also reverts.
-        LibSwap.SwapData memory sDataSingle = decodeLifiSwapDataPayloadAsSingle(data);
-        if (sDataSingle.callTo != address(0)) { // Basic validity check 
-            finalSwapDataArray = new LibSwap.SwapData[](1);
-            finalSwapDataArray[0] = sDataSingle;
-            return (finalBridgeData, finalSwapDataArray); 
+        try decodeLifiSwapDataPayloadAsSingle(data) returns (LibSwap.SwapData memory sDataSingle) {
+            if (sDataSingle.callTo != address(0)) { // Basic validity check for a populated struct
+                finalSwapDataArray = new LibSwap.SwapData[](1);
+                finalSwapDataArray[0] = sDataSingle;
+                return (finalBridgeData, finalSwapDataArray);
+            }
+        } catch {
+            // decodeLifiSwapDataPayloadAsSingle reverted.
         }
 
-        revert NoLifiDataDecoded();
+        // If no swap data was found and returned by any strategy.
+        revert NoLiFiDataDecoded();
     }
 }
