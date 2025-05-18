@@ -8,6 +8,7 @@ import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiDecoder} from "./libraries/AnypayLiFiDecoder.sol";
 import {AnypayLiFiInterpreter, AnypayLifiInfo} from "./libraries/AnypayLiFiInterpreter.sol";
+import {AnypayIntentParams} from "./libraries/AnypayIntentParams.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 
 /**
@@ -105,7 +106,7 @@ contract AnypayLifiSapientSigner is ISapient {
         AnypayLiFiInterpreter.validateLifiInfos(inferredLifiInfos, attestationLifiInfos);
 
         // 9. Hash the lifi intent params
-        bytes32 lifiIntentHash = AnypayLiFiInterpreter.getAnypayLifiInfoHash(attestationLifiInfos, attestationSigner);
+        bytes32 lifiIntentHash = AnypayIntentParams.getAnypayLifiInfoHash(attestationLifiInfos, attestationSigner);
 
         // 10. Return the lifi intent hashed params
         return lifiIntentHash;

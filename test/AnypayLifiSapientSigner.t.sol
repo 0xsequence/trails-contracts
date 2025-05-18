@@ -8,6 +8,7 @@ import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
 import {AnypayLiFiInterpreter, AnypayLifiInfo} from "src/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayIntentParams} from "src/libraries/AnypayIntentParams.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // Mock LiFi Diamond contract to receive calls
@@ -122,7 +123,7 @@ contract AnypayLifiSapientSignerTest is Test {
 
         // 8. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash =
-            AnypayLiFiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
+            AnypayIntentParams.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 9. Call recoverSapientSignature
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
@@ -193,7 +194,7 @@ contract AnypayLifiSapientSignerTest is Test {
 
         // 9. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash =
-            AnypayLiFiInterpreter.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
+            AnypayIntentParams.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 10. Call recoverSapientSignature
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);

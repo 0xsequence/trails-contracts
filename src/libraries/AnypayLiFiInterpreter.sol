@@ -24,9 +24,6 @@ library AnypayLiFiInterpreter {
     // Errors
     // -------------------------------------------------------------------------
 
-    // error EmptyLibSwapData(); // Removed: This was shadowing the top-level error
-
-    // --- Errors for validateLifiInfos ---
     /// @notice Thrown when the lengths of attested and inferred LiFi info arrays do not match.
     error MismatchedLifiInfoLengths();
     /// @notice Thrown when an inferred LiFi info has a zero minimum amount.
@@ -86,14 +83,6 @@ library AnypayLiFiInterpreter {
                 destinationChainId: block.chainid
             });
         }
-    }
-
-    function getAnypayLifiInfoHash(AnypayLifiInfo[] memory lifiInfos, address attestationAddress)
-        internal
-        pure
-        returns (bytes32)
-    {
-        return keccak256(abi.encode(lifiInfos, attestationAddress));
     }
 
     /**
