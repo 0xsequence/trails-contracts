@@ -3,7 +3,7 @@
 pragma solidity ^0.8.17;
 
 import {Test} from "forge-std/Test.sol";
-import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
+import {AnypayLiFiDecoder, AnypayLiFiDecodingLogic} from "src/libraries/AnypayLiFiDecoder.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 
@@ -25,7 +25,7 @@ contract DecoderTestHelper {
     function mockTryDecodeBridgeAndSwapData(bytes memory data)
         external
         view
-        returns (ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
+        returns (bool success, ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
     {
         return AnypayLiFiDecoder.tryDecodeBridgeAndSwapData(data);
     }
@@ -43,6 +43,61 @@ contract DecoderTestHelper {
         LibSwap.SwapData[] calldata, /*_swapData*/
         AcrossV3Data calldata /*_acrossData*/
     ) external pure {}
+
+    function mockDecodeLifiSwapDataPayloadAsArray(bytes memory data)
+        public
+        pure
+        returns (bool success, LibSwap.SwapData[] memory swapDataArrayOut)
+    {
+        return AnypayLiFiDecoder.tryDecodeLifiSwapDataPayloadAsArray(data);
+    }
+
+    function mockDecodeLifiSwapDataPayloadAsSingle(bytes memory data)
+        public
+        pure
+        returns (bool success, LibSwap.SwapData memory singleSwapDataOut)
+    {
+        return AnypayLiFiDecoder.tryDecodeLifiSwapDataPayloadAsSingle(data);
+    }
+
+    function mockDecodeLiFiDataOrRevert(bytes memory data)
+        public
+        pure
+        returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
+    {
+        return AnypayLiFiDecoder.decodeLiFiDataOrRevert(data);
+    }
+
+    function mockSwapTokensSingle(
+        bytes32, // _transactionId
+        string calldata, // _integrator
+        string calldata, // _referrer
+        address, // _receiver
+        uint256, // _minAmountOut
+        LibSwap.SwapData calldata // _swapData
+    ) external pure {}
+
+    function mockSwapTokensMultiple(
+        bytes32, // _transactionId
+        string calldata, // _integrator
+        string calldata, // _referrer
+        address, // _receiver
+        uint256, // _minAmountOut
+        LibSwap.SwapData[] calldata // _swapData
+    ) external pure {}
+
+    // Mock function for GenericSwapFacet (older version) - assuming it might be needed by other tests if user undid removal.
+    // If not, this can be removed if no other test uses mockSwapTokensGeneric_GSF_Selector.
+    function mockSwapTokensGeneric_GSF(
+        bytes32, // _transactionId
+        string calldata, // _integrator
+        string calldata, // _referrer
+        address payable, // _receiver
+        uint256, // _minAmount
+        LibSwap.SwapData[] calldata // _swapData
+    ) external pure {}
+
+    function mockCompletelyUnrelated(uint256 valA, bool flagB) external pure {}
 }
 
 contract AnypayLiFiDecoderTest is Test {
@@ -57,6 +112,16 @@ contract AnypayLiFiDecoderTest is Test {
     bytes4 internal mockStartBridgeSelector = DecoderTestHelper.mockStartBridge.selector;
     bytes4 internal mockSwapAndStartBridgeSelector = DecoderTestHelper.mockSwapAndStartBridge.selector;
     bytes4 internal mockSingleBridgeArgSelector = DecoderTestHelper.mockSingleBridgeArg.selector;
+    bytes4 internal mockSwapTokensSingleSelector = DecoderTestHelper.mockSwapTokensSingle.selector;
+    bytes4 internal mockSwapTokensMultipleSelector = DecoderTestHelper.mockSwapTokensMultiple.selector;
+    bytes4 internal mockCompletelyUnrelatedSelector = DecoderTestHelper.mockCompletelyUnrelated.selector;
+
+    // Dummy prefix data for GenericSwapFacetV3 style calldata
+    bytes32 internal dummyTxId = bytes32(uint256(0xABC));
+    string internal dummyIntegrator = "TestIntegrator";
+    string internal dummyReferrer = "TestReferrer";
+    address internal dummyReceiver = makeAddr("dummyReceiver");
+    uint256 internal dummyMinAmountOut = 1 wei;
 
     function setUp() public {
         helper = new DecoderTestHelper();
@@ -107,9 +172,10 @@ contract AnypayLiFiDecoderTest is Test {
         bytes memory encodedCall =
             abi.encodeCall(helper.mockSwapAndStartBridge, (localBridgeData, singleSwapData, baseAcrossData));
 
-        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
             helper.mockTryDecodeBridgeAndSwapData(encodedCall);
 
+        assertTrue(success, "TD01: Decoding should succeed");
         assertEq(
             decodedBridgeData.transactionId, localBridgeData.transactionId, "TD01: BridgeData transactionId mismatch"
         );
@@ -126,9 +192,10 @@ contract AnypayLiFiDecoderTest is Test {
         bytes memory encodedCall =
             abi.encodeCall(helper.mockSwapAndStartBridge, (localBridgeData, emptySwapDataArray, baseAcrossData));
 
-        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
             helper.mockTryDecodeBridgeAndSwapData(encodedCall);
 
+        assertTrue(success, "TD02: Decoding should succeed with empty swaps array");
         assertEq(
             decodedBridgeData.transactionId, localBridgeData.transactionId, "TD02: BridgeData transactionId mismatch"
         );
@@ -142,10 +209,9 @@ contract AnypayLiFiDecoderTest is Test {
         // Calldata for (ILiFi.BridgeData, AcrossV3Data)
         bytes memory encodedCall = abi.encodeCall(helper.mockStartBridge, (localBridgeData, baseAcrossData));
 
-        // Expects revert because tryDecodeBridgeAndSwapData will attempt to decode as
-        // (ILiFi.BridgeData, LibSwap.SwapData[]), which fails due to type mismatch.
-        vm.expectRevert(abi.encodeWithSignature("Panic(uint256)", uint256(0x41)));
-        helper.mockTryDecodeBridgeAndSwapData(encodedCall);
+        // tryDecodeBridgeAndSwapData should catch the internal revert and return success=false
+        (bool success,,) = helper.mockTryDecodeBridgeAndSwapData(encodedCall);
+        assertFalse(success, "TD03: Expected decoding to fail due to mismatched tuple type");
     }
 
     function test_TryDecode_Reverts_BridgeOnly_CalldataHasOnlyBridgeData() public {
@@ -155,18 +221,19 @@ contract AnypayLiFiDecoderTest is Test {
         // Encode calldata for a function that *only* takes ILiFi.BridgeData
         bytes memory encodedCall = abi.encodeCall(helper.mockSingleBridgeArg, (localBridgeData));
 
-        // Expects revert because the calldata is too short for a tuple with two dynamic params.
-        vm.expectRevert();
-        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            helper.mockTryDecodeBridgeAndSwapData(encodedCall);
+        // tryDecodeBridgeAndSwapData should catch the internal revert (likely SliceOutOfBounds or similar
+        // because it tries to read past the end for the second tuple element's offset) and return success=false.
+        (bool success,,) = helper.mockTryDecodeBridgeAndSwapData(encodedCall);
+        assertFalse(success, "TD06: Expected decoding to fail for bridge-only calldata not fitting tuple structure");
     }
 
     function test_TryDecode_Fail_CalldataTooShortForBridge_ReturnsDefaults() public {
         bytes memory shortCalldata = hex"01020304"; // selector + 0 bytes for offset = 4 bytes total
 
-        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
             helper.mockTryDecodeBridgeAndSwapData(shortCalldata);
 
+        assertTrue(success, "TD04: Expected decoding to not revert and return defaults for very short calldata");
         // Assert default/empty BridgeData
         assertEq(decodedBridgeData.transactionId, bytes32(0), "TD04: Expected default transactionId");
         assertEq(decodedBridgeData.bridge, "", "TD04: Expected default bridge name");
@@ -174,5 +241,167 @@ contract AnypayLiFiDecoderTest is Test {
 
         // Assert empty SwapData
         assertEq(decodedSwapData.length, 0, "TD04: Expected empty SwapData array");
+    }
+
+    function test_DecodeLifiSwapDataPayloadAsArray_Success() public {
+        LibSwap.SwapData[] memory expectedSwapData = singleSwapData; // Re-use existing singleSwapData for simplicity
+        bytes memory encodedCall = abi.encodeCall(
+            helper.mockSwapTokensMultiple,
+            (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, expectedSwapData)
+        );
+
+        (bool success, LibSwap.SwapData[] memory decodedSwapData) =
+            helper.mockDecodeLifiSwapDataPayloadAsArray(encodedCall);
+
+        assertTrue(success, "DPA01: Decoding payload as array should succeed");
+        assertEq(decodedSwapData.length, expectedSwapData.length, "DPA01: SwapData array length mismatch");
+        assertEq(decodedSwapData[0].callTo, expectedSwapData[0].callTo, "DPA01: SwapData[0].callTo mismatch");
+    }
+
+    function test_DecodeLifiSwapDataPayloadAsArray_Reverts_AbiDecodeError() public {
+        // Construct calldata that is long enough but malformed for abi.decode
+        // (bytes32, string, string, address, uint256, LibSwap.SwapData[])
+        // We'll replace the SwapData[] part with something that's not an array (e.g., a single struct)
+        bytes memory malformedPayload = abi.encode(
+            dummyTxId,
+            dummyIntegrator,
+            dummyReferrer,
+            dummyReceiver,
+            dummyMinAmountOut,
+            singleSwapData[0] // single struct instead of array
+        );
+        bytes memory encodedCall = abi.encodePacked(mockSwapTokensMultipleSelector, malformedPayload);
+
+        (bool success,) = helper.mockDecodeLifiSwapDataPayloadAsArray(encodedCall);
+        assertFalse(success, "DPA02: Expected decoding as array to fail due to ABI decode error");
+    }
+
+    // Test cases for decodeLifiSwapDataPayloadAsSingle
+    function test_DecodeLifiSwapDataPayloadAsSingle_Success() public {
+        LibSwap.SwapData memory expectedSwapData = singleSwapData[0];
+        bytes memory encodedCall = abi.encodeCall(
+            helper.mockSwapTokensSingle,
+            (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, expectedSwapData)
+        );
+
+        (bool success, LibSwap.SwapData memory decodedSwapData) =
+            helper.mockDecodeLifiSwapDataPayloadAsSingle(encodedCall);
+
+        assertTrue(success, "DPS01: Decoding payload as single should succeed");
+        assertEq(decodedSwapData.callTo, expectedSwapData.callTo, "DPS01: SwapData.callTo mismatch");
+        assertEq(
+            decodedSwapData.sendingAssetId, expectedSwapData.sendingAssetId, "DPS01: SwapData.sendingAssetId mismatch"
+        );
+    }
+
+    function test_DecodeLifiSwapDataPayloadAsSingle_Reverts_AbiDecodeError() public {
+        // Construct calldata that is long enough but malformed for abi.decode
+        // (bytes32, string, string, address, uint256, LibSwap.SwapData)
+        // We'll replace the SwapData part with an array
+        bytes memory malformedPayload = abi.encode(
+            dummyTxId,
+            dummyIntegrator,
+            dummyReferrer,
+            dummyReceiver,
+            dummyMinAmountOut,
+            singleSwapData // array instead of single struct
+        );
+        bytes memory encodedCall = abi.encodePacked(mockSwapTokensSingleSelector, malformedPayload);
+
+        (bool success,) = helper.mockDecodeLifiSwapDataPayloadAsSingle(encodedCall);
+        assertFalse(success, "DPS02: Expected decoding as single to fail due to ABI decode error");
+    }
+
+    function test_DecodeOrRevert_Reverts_CalldataTooShort_WithMinimalCalldata() public {
+        bytes memory minimalCalldata = hex"deadbeef";
+        vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
+        helper.mockDecodeLiFiDataOrRevert(minimalCalldata);
+    }
+
+    function test_DecodeOrRevert_Reverts_TryDecode_AbiError() public {
+        bytes memory encodedCall = abi.encodeCall(helper.mockStartBridge, (baseBridgeData, baseAcrossData));
+
+        vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
+        helper.mockDecodeLiFiDataOrRevert(encodedCall);
+    }
+
+    function test_DecodeOrRevert_Reverts_PayloadAsArray_CalldataTooShort() public {
+        bytes memory shortCalldata = hex"0102030405060708";
+
+        vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
+        helper.mockDecodeLiFiDataOrRevert(shortCalldata);
+    }
+
+    function test_DecodeOrRevert_Reverts_WithUnrelatedCalldata_Short() public {
+        bytes memory unrelatedSelectorOnly = abi.encodePacked(mockCompletelyUnrelatedSelector);
+
+        vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
+        helper.mockDecodeLiFiDataOrRevert(unrelatedSelectorOnly);
+    }
+
+    function test_DecodeOrRevert_Reverts_Panic_WithUnrelatedCalldata_Longer() public {
+        // Calldata is for a completely unrelated function with some arguments.
+        bytes memory unrelatedFullCall = abi.encodeCall(helper.mockCompletelyUnrelated, (123_456, true));
+        // Length of this calldata is 4 (selector) + 32 (uint256) + 32 (bool) = 68 bytes.
+
+        vm.expectRevert();
+        helper.mockDecodeLiFiDataOrRevert(unrelatedFullCall);
+    }
+
+    function test_DecodeOrRevert_Reverts_PayloadAsSingle_CalldataTooShort() public {
+        bytes memory veryShortCalldata = hex"12345678";
+
+        vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
+        helper.mockDecodeLiFiDataOrRevert(veryShortCalldata);
+    }
+
+    // Test cases for decodeLiFiDataOrRevert
+    function test_DecodeOrRevert_Strategy1_TryDecodeBridgeAndSwap_Success() public {
+        ILiFi.BridgeData memory localBridgeData = baseBridgeData;
+        localBridgeData.hasSourceSwaps = true;
+        bytes memory encodedCall =
+            abi.encodeCall(helper.mockSwapAndStartBridge, (localBridgeData, singleSwapData, baseAcrossData));
+
+        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+            helper.mockDecodeLiFiDataOrRevert(encodedCall);
+
+        assertEq(
+            decodedBridgeData.transactionId, localBridgeData.transactionId, "DOR01: BridgeData.transactionId mismatch"
+        );
+        assertEq(decodedSwapData.length, singleSwapData.length, "DOR01: SwapData length mismatch");
+        assertEq(decodedSwapData[0].callTo, singleSwapData[0].callTo, "DOR01: SwapData[0].callTo mismatch");
+    }
+
+    function test_DecodeOrRevert_Strategy2_PayloadAsArray_Success() public {
+        // Calldata that fails tryDecodeBridgeAndSwapData (e.g., it's not (BridgeData, SwapData[]))
+        // but succeeds for decodeLifiSwapDataPayloadAsArray
+        LibSwap.SwapData[] memory expectedSwapData = singleSwapData;
+        bytes memory encodedCall = abi.encodeCall(
+            helper.mockSwapTokensMultiple,
+            (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, expectedSwapData)
+        );
+
+        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+            helper.mockDecodeLiFiDataOrRevert(encodedCall);
+
+        // BridgeData should be default as first strategy fails to populate it meaningfully for this input type
+        assertEq(decodedBridgeData.transactionId, bytes32(0), "DOR02: BridgeData should be default");
+        assertEq(decodedSwapData.length, expectedSwapData.length, "DOR02: SwapData array length mismatch");
+        assertEq(decodedSwapData[0].callTo, expectedSwapData[0].callTo, "DOR02: SwapData[0].callTo mismatch");
+    }
+
+    function test_DecodeOrRevert_Strategy3_PayloadAsSingle_Success() public {
+        LibSwap.SwapData memory expectedSwapData = singleSwapData[0];
+        bytes memory encodedCall = abi.encodeCall(
+            helper.mockSwapTokensSingle,
+            (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, expectedSwapData)
+        );
+
+        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+            helper.mockDecodeLiFiDataOrRevert(encodedCall);
+
+        assertEq(decodedBridgeData.transactionId, bytes32(0), "DOR03: BridgeData should be default");
+        assertEq(decodedSwapData.length, 1, "DOR03: SwapData array length should be 1");
+        assertEq(decodedSwapData[0].callTo, expectedSwapData.callTo, "DOR03: SwapData[0].callTo mismatch");
     }
 }

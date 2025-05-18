@@ -53,23 +53,39 @@ library AnypayLiFiInterpreter {
         address originToken;
         uint256 minAmount;
 
-        if (bridgeData.hasSourceSwaps) {
+        // If the bridge data is not empty
+        if (bridgeData.sendingAssetId != address(0)) {
+            if (bridgeData.hasSourceSwaps) {
+                if (swapData.length == 0) {
+                    revert EmptyLibSwapData();
+                }
+                originToken = swapData[0].sendingAssetId;
+                minAmount = swapData[0].fromAmount;
+            } else {
+                originToken = bridgeData.sendingAssetId;
+                minAmount = bridgeData.minAmount;
+            }
+
+            return AnypayLifiInfo({
+                originToken: originToken,
+                minAmount: minAmount,
+                originChainId: block.chainid,
+                destinationChainId: bridgeData.destinationChainId
+            });
+
+            // If just swap on the origin chain
+        } else {
             if (swapData.length == 0) {
                 revert EmptyLibSwapData();
             }
-            originToken = swapData[0].sendingAssetId;
-            minAmount = swapData[0].fromAmount;
-        } else {
-            originToken = bridgeData.sendingAssetId;
-            minAmount = bridgeData.minAmount;
-        }
 
-        return AnypayLifiInfo({
-            originToken: originToken,
-            minAmount: minAmount,
-            originChainId: block.chainid,
-            destinationChainId: bridgeData.destinationChainId
-        });
+            return AnypayLifiInfo({
+                originToken: swapData[0].sendingAssetId,
+                minAmount: swapData[0].fromAmount,
+                originChainId: block.chainid,
+                destinationChainId: block.chainid
+            });
+        }
     }
 
     function getAnypayLifiInfoHash(AnypayLifiInfo[] memory lifiInfos, address attestationAddress)
