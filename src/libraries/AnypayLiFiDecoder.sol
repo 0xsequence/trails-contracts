@@ -88,7 +88,7 @@ library AnypayLiFiDecodingLogic {
     {
         uint256 minCalldataLenForPrefixAndOneOffset = 4 + (6 * 32);
         if (data.length < 4) {
-             revert CalldataTooShortForPayload();
+            revert CalldataTooShortForPayload();
         }
         if (data.length < minCalldataLenForPrefixAndOneOffset) {
             revert CalldataTooShortForPayload();
@@ -112,7 +112,7 @@ library AnypayLiFiDecodingLogic {
     {
         uint256 minCalldataLenForPrefixAndOneOffset = 4 + (6 * 32);
         if (data.length < 4) {
-             revert CalldataTooShortForPayload();
+            revert CalldataTooShortForPayload();
         }
         if (data.length < minCalldataLenForPrefixAndOneOffset) {
             revert CalldataTooShortForPayload();
@@ -182,9 +182,7 @@ library AnypayLiFiDecoder {
         }
 
         // Attempt 2: Decode as single BridgeData (no swap data)
-        try AnypayLiFiDecodingLogic.decodeAsSingleBridgeData(calldataForDecode) returns (
-            ILiFi.BridgeData memory bd
-        ) {
+        try AnypayLiFiDecodingLogic.decodeAsSingleBridgeData(calldataForDecode) returns (ILiFi.BridgeData memory bd) {
             // Success, but no swap data from this specific decode.
             // swapDataOut is already initialized to an empty array.
             return (true, bd, swapDataOut);
@@ -285,7 +283,10 @@ library AnypayLiFiDecoder {
 
         if (thirdAttemptSuccess) {
             // If any swap data was decoded, return it.
-             if (swapDataFromThirdAttempt.callTo != address(0) || swapDataFromThirdAttempt.approveTo != address(0) || swapDataFromThirdAttempt.fromAmount > 0) {
+            if (
+                swapDataFromThirdAttempt.callTo != address(0) || swapDataFromThirdAttempt.approveTo != address(0)
+                    || swapDataFromThirdAttempt.fromAmount > 0
+            ) {
                 finalSwapDataArray = new LibSwap.SwapData[](1);
                 finalSwapDataArray[0] = swapDataFromThirdAttempt;
                 return (finalBridgeData, finalSwapDataArray);

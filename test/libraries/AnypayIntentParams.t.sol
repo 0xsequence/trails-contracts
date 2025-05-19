@@ -250,8 +250,7 @@ contract AnypayIntentParamsTest is Test {
         assertEq(actualHash, expectedHash, "MultipleInfo hash mismatch");
     }
 
-
-   /// forge-config: default.allow_internal_expect_revert = true
+    /// forge-config: default.allow_internal_expect_revert = true
     function testGetAnypayLifiInfoHash_EmptyInfo_ShouldRevert() public {
         AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](0);
         address attestationAddress = 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC;
