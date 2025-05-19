@@ -210,9 +210,15 @@ contract AnypayLiFiDecoderTest is Test {
         bytes memory encodedCall = abi.encodeCall(helper.mockStartBridge, (localBridgeData, baseAcrossData));
 
         // tryDecodeBridgeAndSwapData should catch the internal revert and return success=false
-        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) = helper.mockTryDecodeBridgeAndSwapData(encodedCall);
-        assertTrue(success, "TD03: Decoding should succeed for BridgeData even if second tuple element is mismatched for SwapData");
-        assertEq(decodedBridgeData.transactionId, localBridgeData.transactionId, "TD03: BridgeData transactionId mismatch");
+        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+            helper.mockTryDecodeBridgeAndSwapData(encodedCall);
+        assertTrue(
+            success,
+            "TD03: Decoding should succeed for BridgeData even if second tuple element is mismatched for SwapData"
+        );
+        assertEq(
+            decodedBridgeData.transactionId, localBridgeData.transactionId, "TD03: BridgeData transactionId mismatch"
+        );
         assertEq(decodedSwapData.length, 0, "TD03: SwapData should be empty when second tuple element is mismatched");
     }
 
@@ -223,9 +229,12 @@ contract AnypayLiFiDecoderTest is Test {
         // Encode calldata for a function that *only* takes ILiFi.BridgeData
         bytes memory encodedCall = abi.encodeCall(helper.mockSingleBridgeArg, (localBridgeData));
 
-        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) = helper.mockTryDecodeBridgeAndSwapData(encodedCall);
+        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+            helper.mockTryDecodeBridgeAndSwapData(encodedCall);
         assertTrue(success, "TD06: Decoding should succeed for BridgeData when calldata is bridge-only");
-        assertEq(decodedBridgeData.transactionId, localBridgeData.transactionId, "TD06: BridgeData transactionId mismatch");
+        assertEq(
+            decodedBridgeData.transactionId, localBridgeData.transactionId, "TD06: BridgeData transactionId mismatch"
+        );
         assertEq(decodedSwapData.length, 0, "TD06: SwapData should be empty for bridge-only calldata");
     }
 
@@ -235,7 +244,10 @@ contract AnypayLiFiDecoderTest is Test {
         (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
             helper.mockTryDecodeBridgeAndSwapData(shortCalldata);
 
-        assertFalse(success, "TD04: Decoding should indicate failure (success=false) but return defaults for very short calldata");
+        assertFalse(
+            success,
+            "TD04: Decoding should indicate failure (success=false) but return defaults for very short calldata"
+        );
         // Assert default/empty BridgeData
         assertEq(decodedBridgeData.transactionId, bytes32(0), "TD04: Expected default transactionId");
         assertEq(decodedBridgeData.bridge, "", "TD04: Expected default bridge name");
@@ -252,8 +264,7 @@ contract AnypayLiFiDecoderTest is Test {
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, expectedSwapData)
         );
 
-        (bool success, LibSwap.SwapData[] memory decodedSwapData) =
-            helper.decodeLifiSwapDataPayloadAsArray(encodedCall);
+        (bool success, LibSwap.SwapData[] memory decodedSwapData) = helper.decodeLifiSwapDataPayloadAsArray(encodedCall);
 
         assertTrue(success, "DPA01: Decoding payload as array should succeed");
         assertEq(decodedSwapData.length, expectedSwapData.length, "DPA01: SwapData array length mismatch");
@@ -286,8 +297,7 @@ contract AnypayLiFiDecoderTest is Test {
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, expectedSwapData)
         );
 
-        (bool success, LibSwap.SwapData memory decodedSwapData) =
-            helper.decodeLifiSwapDataPayloadAsSingle(encodedCall);
+        (bool success, LibSwap.SwapData memory decodedSwapData) = helper.decodeLifiSwapDataPayloadAsSingle(encodedCall);
 
         assertTrue(success, "DPS01: Decoding payload as single should succeed");
         assertEq(decodedSwapData.callTo, expectedSwapData.callTo, "DPS01: SwapData.callTo mismatch");

@@ -122,8 +122,7 @@ contract AnypayLifiSapientSignerTest is Test {
         bytes memory combinedSignature = abi.encode(expectedLifiInfos, ecdsaSignature);
 
         // 8. Manually derive the expected lifiIntentHash
-        bytes32 expectedLifiIntentHash =
-            AnypayIntentParams.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
+        bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 9. Call recoverSapientSignature
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
@@ -193,8 +192,7 @@ contract AnypayLifiSapientSignerTest is Test {
         bytes memory combinedSignature = abi.encode(expectedLifiInfos, ecdsaSignature);
 
         // 9. Manually derive the expected lifiIntentHash
-        bytes32 expectedLifiIntentHash =
-            AnypayIntentParams.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
+        bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLifiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 10. Call recoverSapientSignature
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);

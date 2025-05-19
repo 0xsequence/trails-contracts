@@ -3,7 +3,6 @@
 pragma solidity ^0.8.17;
 
 import {Test, console} from "forge-std/Test.sol";
-import {AnypayLifiModifierWrapper} from "src/AnypayLifiModifierWrapper.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
@@ -63,8 +62,7 @@ contract MockAcrossFacetV3 {
     receive() external payable {}
 }
 
-contract AcrossFacetV3WrapperTest is Test {
-    AnypayLifiModifierWrapper public wrapper;
+contract MockAcrossFacetV3Test is Test {
     MockAcrossFacetV3 public mockFacet;
     address public user = makeAddr("user");
     address public originalReceiver = address(0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF);
@@ -99,63 +97,8 @@ contract AcrossFacetV3WrapperTest is Test {
 
     function setUp() public {
         mockFacet = new MockAcrossFacetV3();
-        wrapper = new AnypayLifiModifierWrapper(address(mockFacet));
         decoderHelper = new AnypayDecoderTestHelperForAcross();
         deal(user, 10 ether);
-    }
-
-    function test_StartBridge_MemoryParam_FailsOrKeepsOriginalReceiver() public {
-        ILiFi.BridgeData memory bridgeData = baseBridgeData;
-        AcrossV3Data memory acrossData = baseAcrossData;
-        bridgeData.transactionId = bytes32(uint256(0xAC20551));
-
-        bytes memory callData = abi.encodeCall(mockFacet.mockStartBridge, (bridgeData, acrossData));
-
-        bytes4 expectedSelector = mockFacet.mockStartBridge.selector;
-        vm.expectEmit(true, true, true, true, address(wrapper));
-        emit AnypayLifiModifierWrapper.ForwardAttempt(228, expectedSelector, user, true);
-        vm.expectEmit(true, true, false, true, address(mockFacet));
-        emit MockAcrossFacetV3.StartBridgeCalled(bridgeData.transactionId, user);
-
-        vm.prank(user);
-        (bool success, bytes memory returnData) = address(wrapper).call{value: 0}(callData);
-
-        assertTrue(success, "Call to wrapper failed unexpectedly.");
-        console.log("Call succeeded and mock facet emitted event with MODIFIED receiver.");
-    }
-
-    function test_SwapAndStartBridge_MemoryParam_ReceivesModifiedReceiver() public {
-        ILiFi.BridgeData memory bridgeData = baseBridgeData;
-        AcrossV3Data memory acrossData = baseAcrossData;
-        bridgeData.transactionId = bytes32(uint256(0xAC20552));
-        bridgeData.hasSourceSwaps = true;
-
-        LibSwap.SwapData[] memory swapData = new LibSwap.SwapData[](1);
-        swapData[0] = LibSwap.SwapData({
-            callTo: address(0xdead),
-            approveTo: address(0xdead),
-            sendingAssetId: bridgeData.sendingAssetId,
-            receivingAssetId: bridgeData.sendingAssetId,
-            fromAmount: bridgeData.minAmount,
-            callData: hex"",
-            requiresDeposit: false
-        });
-
-        bytes memory callData = abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeData, swapData, acrossData));
-
-        bytes4 expectedSelector = mockFacet.mockSwapAndStartBridge.selector;
-        vm.expectEmit(true, true, true, true, address(wrapper));
-        emit AnypayLifiModifierWrapper.ForwardAttempt(228, expectedSelector, user, false);
-        vm.expectEmit(true, true, true, true, address(wrapper));
-        emit AnypayLifiModifierWrapper.ForwardAttempt(260, expectedSelector, user, true);
-        vm.expectEmit(true, true, false, true, address(mockFacet));
-        emit MockAcrossFacetV3.SwapAndStartBridgeCalled(bridgeData.transactionId, user);
-
-        vm.prank(user);
-        (bool success, bytes memory returnData) = address(wrapper).call{value: 0}(callData);
-
-        assertTrue(success, "Call to wrapper failed unexpectedly.");
-        console.log("Call succeeded and mock facet emitted event with MODIFIED receiver.");
     }
 
     function test_AnypayDecoder_TryDecode_MockAcross_StartBridge() public {
@@ -176,18 +119,14 @@ contract AcrossFacetV3WrapperTest is Test {
             bridgeDataInput.transactionId,
             "AD_ACROSS_01: Decoded BridgeData transactionId mismatch"
         );
-        assertEq(
-            decodedBridgeData.bridge, bridgeDataInput.bridge, "AD_ACROSS_01: Decoded BridgeData bridge mismatch"
-        );
+        assertEq(decodedBridgeData.bridge, bridgeDataInput.bridge, "AD_ACROSS_01: Decoded BridgeData bridge mismatch");
         assertEq(
             decodedBridgeData.integrator,
             bridgeDataInput.integrator,
             "AD_ACROSS_01: Decoded BridgeData integrator mismatch"
         );
         assertEq(
-            decodedBridgeData.receiver,
-            bridgeDataInput.receiver,
-            "AD_ACROSS_01: Decoded BridgeData receiver mismatch"
+            decodedBridgeData.receiver, bridgeDataInput.receiver, "AD_ACROSS_01: Decoded BridgeData receiver mismatch"
         );
         assertEq(
             decodedBridgeData.sendingAssetId,
@@ -205,7 +144,8 @@ contract AcrossFacetV3WrapperTest is Test {
             "AD_ACROSS_01: Decoded BridgeData destinationChainId mismatch"
         );
         assertFalse(
-            bridgeDataInput.hasSourceSwaps, "AD_ACROSS_01: Input BridgeData hasSourceSwaps should be false for this test case"
+            bridgeDataInput.hasSourceSwaps,
+            "AD_ACROSS_01: Input BridgeData hasSourceSwaps should be false for this test case"
         );
         assertEq(decodedSwapData.length, 0, "AD_ACROSS_01: Decoded SwapData array should be empty for mockStartBridge");
     }
@@ -240,14 +180,10 @@ contract AcrossFacetV3WrapperTest is Test {
             bridgeDataInput.transactionId,
             "AD_ACROSS_02: Decoded BridgeData transactionId mismatch"
         );
-        assertEq(
-            decodedBridgeData.bridge, bridgeDataInput.bridge, "AD_ACROSS_02: Decoded BridgeData bridge mismatch"
-        );
+        assertEq(decodedBridgeData.bridge, bridgeDataInput.bridge, "AD_ACROSS_02: Decoded BridgeData bridge mismatch");
         assertTrue(decodedBridgeData.hasSourceSwaps, "AD_ACROSS_02: Decoded BridgeData hasSourceSwaps should be true");
 
-        assertEq(
-            decodedSwapData.length, swapDataInput.length, "AD_ACROSS_02: Decoded SwapData array length mismatch"
-        );
+        assertEq(decodedSwapData.length, swapDataInput.length, "AD_ACROSS_02: Decoded SwapData array length mismatch");
         if (decodedSwapData.length > 0 && swapDataInput.length > 0) {
             assertEq(
                 decodedSwapData[0].callTo, swapDataInput[0].callTo, "AD_ACROSS_02: Decoded SwapData[0].callTo mismatch"
@@ -317,9 +253,7 @@ contract AcrossFacetV3WrapperTest is Test {
         );
         assertTrue(decodedBridgeData.hasSourceSwaps, "AD_ACROSS_03: Decoded BridgeData hasSourceSwaps should be true");
 
-        assertEq(
-            decodedSwapData.length, swapDataInput.length, "AD_ACROSS_03: Decoded SwapData array length mismatch"
-        );
+        assertEq(decodedSwapData.length, swapDataInput.length, "AD_ACROSS_03: Decoded SwapData array length mismatch");
         if (decodedSwapData.length > 0 && swapDataInput.length > 0) {
             assertEq(
                 decodedSwapData[0].callTo, swapDataInput[0].callTo, "AD_ACROSS_03: Decoded SwapData[0].callTo mismatch"

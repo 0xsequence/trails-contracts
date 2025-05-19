@@ -3,7 +3,6 @@
 pragma solidity ^0.8.17;
 
 import {Test, console} from "forge-std/Test.sol";
-import {AnypayLifiModifierWrapper} from "src/AnypayLifiModifierWrapper.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
@@ -70,8 +69,7 @@ contract MockStargateFacetV2 {
     }
 }
 
-contract StargateFacetV2WrapperTest is Test {
-    AnypayLifiModifierWrapper public wrapper;
+contract MockStargateFacetV2Test is Test {
     MockStargateFacetV2 public mockFacet;
     address public user = makeAddr("user");
     address public originalReceiver = address(0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF);
@@ -108,67 +106,8 @@ contract StargateFacetV2WrapperTest is Test {
 
     function setUp() public {
         mockFacet = new MockStargateFacetV2();
-        wrapper = new AnypayLifiModifierWrapper(address(mockFacet));
         decoderHelper = new AnypayDecoderTestHelperForStargate();
         deal(user, 10 ether);
-    }
-
-    function test_StartBridge_CalldataParam_ReceivesModifiedReceiver() public {
-        ILiFi.BridgeData memory bridgeData = baseBridgeData;
-        StargateData memory stargateData = baseStargateData;
-        bridgeData.transactionId = bytes32(uint256(0x57A26A7E1));
-        bridgeData.hasSourceSwaps = false;
-        stargateData.sendParams.to = bytes32(uint256(uint160(originalReceiver)));
-
-        bytes memory callData = abi.encodeCall(mockFacet.mockStartBridge, (bridgeData, stargateData));
-
-        bytes4 expectedSelector = mockFacet.mockStartBridge.selector;
-        vm.expectEmit(true, true, true, true, address(wrapper));
-        emit AnypayLifiModifierWrapper.ForwardAttempt(228, expectedSelector, user, true);
-        vm.expectEmit(true, true, false, true, address(mockFacet));
-        emit MockStargateFacetV2.StartBridgeCalled(bridgeData.transactionId, user);
-
-        vm.prank(user);
-        (bool success,) = address(wrapper).call{value: stargateData.fee.nativeFee}(callData);
-
-        // Assert
-        assertTrue(success, "Call failed for startBridge (calldata)");
-        console.log("startBridge (calldata) succeeded with MODIFIED receiver.");
-    }
-
-    function test_SwapAndStartBridge_MemoryParam_ReceivesModifiedReceiver() public {
-        ILiFi.BridgeData memory bridgeData = baseBridgeData;
-        StargateData memory stargateData = baseStargateData;
-        bridgeData.transactionId = bytes32(uint256(0x57A26A7E2));
-        bridgeData.hasSourceSwaps = true;
-        stargateData.sendParams.to = bytes32(uint256(uint160(originalReceiver)));
-
-        LibSwap.SwapData[] memory swapData = new LibSwap.SwapData[](1);
-        swapData[0] = LibSwap.SwapData({
-            callTo: address(0xdead),
-            approveTo: address(0xdead),
-            sendingAssetId: bridgeData.sendingAssetId,
-            receivingAssetId: bridgeData.sendingAssetId,
-            fromAmount: bridgeData.minAmount,
-            callData: hex"",
-            requiresDeposit: false
-        });
-
-        bytes memory callData = abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeData, swapData, stargateData));
-
-        bytes4 expectedSelector = mockFacet.mockSwapAndStartBridge.selector;
-        vm.expectEmit(true, true, true, true, address(wrapper));
-        emit AnypayLifiModifierWrapper.ForwardAttempt(228, expectedSelector, user, false);
-        vm.expectEmit(true, true, true, true, address(wrapper));
-        emit AnypayLifiModifierWrapper.ForwardAttempt(260, expectedSelector, user, true);
-        vm.expectEmit(true, true, false, true, address(mockFacet));
-        emit MockStargateFacetV2.SwapAndStartBridgeCalled(bridgeData.transactionId, user);
-
-        vm.prank(user);
-        (bool success,) = address(wrapper).call{value: stargateData.fee.nativeFee}(callData);
-
-        assertTrue(success, "Call failed for swapAndStartBridge (memory)");
-        console.log("swapAndStartBridge (memory) succeeded with MODIFIED receiver.");
     }
 
     function test_AnypayDecoder_TryDecode_MockStargate_StartBridge() public {
@@ -190,18 +129,14 @@ contract StargateFacetV2WrapperTest is Test {
             bridgeDataInput.transactionId,
             "AD_STARGATE_01: Decoded BridgeData transactionId mismatch"
         );
-        assertEq(
-            decodedBridgeData.bridge, bridgeDataInput.bridge, "AD_STARGATE_01: Decoded BridgeData bridge mismatch"
-        );
+        assertEq(decodedBridgeData.bridge, bridgeDataInput.bridge, "AD_STARGATE_01: Decoded BridgeData bridge mismatch");
         assertEq(
             decodedBridgeData.integrator,
             bridgeDataInput.integrator,
             "AD_STARGATE_01: Decoded BridgeData integrator mismatch"
         );
         assertEq(
-            decodedBridgeData.receiver,
-            bridgeDataInput.receiver,
-            "AD_STARGATE_01: Decoded BridgeData receiver mismatch"
+            decodedBridgeData.receiver, bridgeDataInput.receiver, "AD_STARGATE_01: Decoded BridgeData receiver mismatch"
         );
         assertEq(
             decodedBridgeData.sendingAssetId,
@@ -221,7 +156,9 @@ contract StargateFacetV2WrapperTest is Test {
         assertFalse(
             decodedBridgeData.hasSourceSwaps, "AD_STARGATE_01: Decoded BridgeData hasSourceSwaps should be false"
         );
-        assertEq(decodedSwapData.length, 0, "AD_STARGATE_01: Decoded SwapData array should be empty for mockStartBridge");
+        assertEq(
+            decodedSwapData.length, 0, "AD_STARGATE_01: Decoded SwapData array should be empty for mockStartBridge"
+        );
     }
 
     function test_AnypayDecoder_TryDecode_MockStargate_SwapAndStartBridge() public {
@@ -254,17 +191,15 @@ contract StargateFacetV2WrapperTest is Test {
             bridgeDataInput.transactionId,
             "AD_STARGATE_02: Decoded BridgeData transactionId mismatch"
         );
-        assertEq(
-            decodedBridgeData.bridge, bridgeDataInput.bridge, "AD_STARGATE_02: Decoded BridgeData bridge mismatch"
-        );
+        assertEq(decodedBridgeData.bridge, bridgeDataInput.bridge, "AD_STARGATE_02: Decoded BridgeData bridge mismatch");
         assertTrue(decodedBridgeData.hasSourceSwaps, "AD_STARGATE_02: Decoded BridgeData hasSourceSwaps should be true");
 
-        assertEq(
-            decodedSwapData.length, swapDataInput.length, "AD_STARGATE_02: Decoded SwapData array length mismatch"
-        );
+        assertEq(decodedSwapData.length, swapDataInput.length, "AD_STARGATE_02: Decoded SwapData array length mismatch");
         if (decodedSwapData.length > 0 && swapDataInput.length > 0) {
             assertEq(
-                decodedSwapData[0].callTo, swapDataInput[0].callTo, "AD_STARGATE_02: Decoded SwapData[0].callTo mismatch"
+                decodedSwapData[0].callTo,
+                swapDataInput[0].callTo,
+                "AD_STARGATE_02: Decoded SwapData[0].callTo mismatch"
             );
             assertEq(
                 decodedSwapData[0].approveTo,
@@ -331,12 +266,12 @@ contract StargateFacetV2WrapperTest is Test {
         );
         assertTrue(decodedBridgeData.hasSourceSwaps, "AD_STARGATE_03: Decoded BridgeData hasSourceSwaps should be true");
 
-        assertEq(
-            decodedSwapData.length, swapDataInput.length, "AD_STARGATE_03: Decoded SwapData array length mismatch"
-        );
+        assertEq(decodedSwapData.length, swapDataInput.length, "AD_STARGATE_03: Decoded SwapData array length mismatch");
         if (decodedSwapData.length > 0 && swapDataInput.length > 0) {
             assertEq(
-                decodedSwapData[0].callTo, swapDataInput[0].callTo, "AD_STARGATE_03: Decoded SwapData[0].callTo mismatch"
+                decodedSwapData[0].callTo,
+                swapDataInput[0].callTo,
+                "AD_STARGATE_03: Decoded SwapData[0].callTo mismatch"
             );
             // Add more assertions for other fields in SwapData if necessary
         }
