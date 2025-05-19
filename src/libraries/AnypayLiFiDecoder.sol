@@ -40,36 +40,38 @@ library AnypayLiFiDecodingLogic {
     }
 
     // -------------------------------------------------------------------------
-    // Public Decoding Functions
+    // Internal Decoding Functions (New Structure)
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Attempts to decode (ILiFi.BridgeData, LibSwap.SwapData[]) or just ILiFi.BridgeData from calldata.
-     * @dev Returns default/empty structs if calldata is too short for required offsets.
-     *      If calldata is long enough for offsets but malformed for abi.decode, this function WILL REVERT.
-     * @param data Full calldata including 4-byte function selector, passed as memory.
-     * @return bridgeDataOut The decoded BridgeData struct, or a default one if data is too short.
-     * @return swapDataOut The decoded SwapData array, or an empty one if not present or data is too short.
+     * @notice Attempts to decode (ILiFi.BridgeData, LibSwap.SwapData[]) from calldata (selector skipped).
+     * @dev This function will revert if abi.decode fails (e.g., calldata too short or malformed for the tuple).
+     * @param data Calldata AFTER the 4-byte function selector.
+     * @return bridgeDataOut The decoded BridgeData struct.
+     * @return swapDataOut The decoded SwapData array.
      */
-    function decodeBridgeAndSwapData(bytes memory data)
-        public
+    function decodeAsBridgeDataAndSwapDataTuple(bytes memory data)
+        external
         pure
         returns (ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
     {
-        swapDataOut = new LibSwap.SwapData[](0);
-
-        uint256 minLenForTupleOffsets = 4 + 32 + 32; // selector + offset_bridgeData + offset_swapData
-        uint256 minLenForBridgeDataOffset = 4 + 32; // selector + offset_bridgeData
-
-        if (data.length >= minLenForTupleOffsets) {
-            bytes memory tupleBytes = _getMemorySlice(data, 4); // Skip selector
-            (bridgeDataOut, swapDataOut) = abi.decode(tupleBytes, (ILiFi.BridgeData, LibSwap.SwapData[]));
-        } else if (data.length >= minLenForBridgeDataOffset) {
-            bytes memory bridgeDataOnlyBytes = _getMemorySlice(data, 4); // Skip selector
-            (bridgeDataOut) = abi.decode(bridgeDataOnlyBytes, (ILiFi.BridgeData));
-        }
-        // If neither condition met, bridgeDataOut remains default, swapDataOut is already empty.
+        (bridgeDataOut, swapDataOut) = abi.decode(data, (ILiFi.BridgeData, LibSwap.SwapData[]));
         return (bridgeDataOut, swapDataOut);
+    }
+
+    /**
+     * @notice Attempts to decode a single ILiFi.BridgeData from calldata (selector skipped).
+     * @dev This function will revert if abi.decode fails (e.g., calldata too short or malformed for the struct).
+     * @param data Calldata AFTER the 4-byte function selector.
+     * @return bridgeDataOut The decoded BridgeData struct.
+     */
+    function decodeAsSingleBridgeData(bytes memory data)
+        external
+        pure
+        returns (ILiFi.BridgeData memory bridgeDataOut)
+    {
+        (bridgeDataOut) = abi.decode(data, (ILiFi.BridgeData));
+        return bridgeDataOut;
     }
 
     /**
@@ -84,8 +86,10 @@ library AnypayLiFiDecodingLogic {
         pure
         returns (LibSwap.SwapData[] memory swapDataArrayOut)
     {
-        // 4 (selector) + 5 * 32 (prefix args) + 32 (offset to SwapData[])
         uint256 minCalldataLenForPrefixAndOneOffset = 4 + (6 * 32);
+        if (data.length < 4) {
+             revert CalldataTooShortForPayload();
+        }
         if (data.length < minCalldataLenForPrefixAndOneOffset) {
             revert CalldataTooShortForPayload();
         }
@@ -106,9 +110,10 @@ library AnypayLiFiDecodingLogic {
         pure
         returns (LibSwap.SwapData memory singleSwapDataOut)
     {
-        // 4 (selector) + 5 * 32 (prefix args) + 32 (offset to SwapData)
-        // (Though SwapData itself might be complex, the offset to it is one slot)
         uint256 minCalldataLenForPrefixAndOneOffset = 4 + (6 * 32);
+        if (data.length < 4) {
+             revert CalldataTooShortForPayload();
+        }
         if (data.length < minCalldataLenForPrefixAndOneOffset) {
             revert CalldataTooShortForPayload();
         }
@@ -131,14 +136,29 @@ library AnypayLiFiDecoder {
     error NoLiFiDataDecoded(); // Specific to this orchestrator's logic
 
     // -------------------------------------------------------------------------
-    // Functions
+    // Private Helper Functions (for AnypayLiFiDecoder)
+    // -------------------------------------------------------------------------
+    /**
+     * @dev Internal helper to get calldata slice after the selector.
+     *      Returns empty bytes if data is too short for even a selector.
+     */
+    function _getCalldataAfterSelector(bytes memory data) private pure returns (bytes memory) {
+        if (data.length < 4) {
+            return bytes(""); // Return empty bytes, subsequent decodes will fail as expected
+        }
+        return AnypayLiFiDecodingLogic._getMemorySlice(data, 4);
+    }
+
+    // -------------------------------------------------------------------------
+    // Public Try-Decode Functions
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Attempts to decode (ILiFi.BridgeData, LibSwap.SwapData[]) or just ILiFi.BridgeData from calldata.
-     * @dev Calls AnypayLiFiDecodingLogic.decodeBridgeAndSwapData within a try/catch block.
+     * @notice Attempts to decode ILiFi.BridgeData and optionally LibSwap.SwapData[] from calldata.
+     * @dev Tries to decode as (ILiFi.BridgeData, LibSwap.SwapData[]) first.
+     *      If that fails, tries to decode as a single ILiFi.BridgeData.
      * @param data Full calldata including 4-byte function selector, passed as memory.
-     * @return success True if decoding was successful, false otherwise.
+     * @return success True if any decoding was successful, false otherwise.
      * @return bridgeDataOut The decoded BridgeData struct, or a default one if decoding failed.
      * @return swapDataOut The decoded SwapData array, or an empty one if decoding failed or not present.
      */
@@ -147,11 +167,29 @@ library AnypayLiFiDecoder {
         pure
         returns (bool success, ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
     {
-        try AnypayLiFiDecodingLogic.decodeBridgeAndSwapData(data) returns (
+        bytes memory calldataForDecode = _getCalldataAfterSelector(data);
+        if (calldataForDecode.length == 0 && data.length > 0) {
+            return (false, bridgeDataOut, swapDataOut);
+        }
+
+        // Attempt 1: Decode as (BridgeData, SwapData[]) (with swap data)
+        try AnypayLiFiDecodingLogic.decodeAsBridgeDataAndSwapDataTuple(calldataForDecode) returns (
             ILiFi.BridgeData memory bd, LibSwap.SwapData[] memory sd
         ) {
             return (true, bd, sd);
         } catch {
+            // First attempt failed, proceed to second.
+        }
+
+        // Attempt 2: Decode as single BridgeData (no swap data)
+        try AnypayLiFiDecodingLogic.decodeAsSingleBridgeData(calldataForDecode) returns (
+            ILiFi.BridgeData memory bd
+        ) {
+            // Success, but no swap data from this specific decode.
+            // swapDataOut is already initialized to an empty array.
+            return (true, bd, swapDataOut);
+        } catch {
+            // Both attempts failed.
             return (false, bridgeDataOut, swapDataOut);
         }
     }
@@ -199,13 +237,13 @@ library AnypayLiFiDecoder {
 
     /**
      * @notice Decodes swap data from calldata using multiple strategies, reverting if no data is found OR if an intermediate decoding step fails.
-     * @dev Sequentially attempts different decoding patterns by calling functions from AnypayLiFiDecodingLogic:
-     *      1. `AnypayLiFiDecodingLogic.tryDecodeBridgeAndSwapData`
-     *      2. `AnypayLiFiDecodingLogic.tryDecodeLifiSwapDataPayloadAsArray`
-     *      3. `AnypayLiFiDecodingLogic.tryDecodeLifiSwapDataPayloadAsSingle`
-     *      If a step finds valid SwapData, it returns. If a step encounters an unrecoverable error (e.g., abi.decode failure),
-     *      this function will revert at that point (due to the external call reverting).
+     * @dev Sequentially attempts different decoding patterns:
+     *      1. `tryDecodeBridgeAndSwapData` (which internally tries tuple then single BridgeData)
+     *      2. `tryDecodeLifiSwapDataPayloadAsArray`
+     *      3. `tryDecodeLifiSwapDataPayloadAsSingle`
+     *      If a step successfully decodes SwapData, it returns.
      *      If all strategies complete without finding SwapData suitable for return, it reverts with `NoLiFiDataDecoded`.
+     *      BridgeData is populated if the first strategy (tryDecodeBridgeAndSwapData) finds it.
      * @param data The complete calldata for the function call, including the 4-byte selector.
      * @return finalBridgeData The decoded ILiFi.BridgeData struct. Populated if the first decoding strategy is used and successful.
      * @return finalSwapDataArray The decoded LibSwap.SwapData array. Will not be empty if the function doesn't revert with NoLiFiDataDecoded.
@@ -215,49 +253,43 @@ library AnypayLiFiDecoder {
         pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
     {
-        // finalBridgeData is implicitly initialized to default.
-        // It will be populated ONLY if AnypayLiFiDecodingLogic.decodeBridgeAndSwapData succeeds.
+        // Attempt 1: Using the refactored tryDecodeBridgeAndSwapData
+        bool firstAttemptSuccess;
+        ILiFi.BridgeData memory bridgeDataFromFirstAttempt;
+        LibSwap.SwapData[] memory swapDataFromFirstAttempt;
 
-        // Attempt 1: Using AnypayLiFiDecodingLogic.decodeBridgeAndSwapData
-        try AnypayLiFiDecodingLogic.decodeBridgeAndSwapData(data) returns (
-            ILiFi.BridgeData memory bd, LibSwap.SwapData[] memory sd
-        ) {
-            finalBridgeData = bd; // Store bridge data if this attempt doesn't revert
-            if (sd.length > 0) {
-                finalSwapDataArray = sd;
+        (firstAttemptSuccess, bridgeDataFromFirstAttempt, swapDataFromFirstAttempt) = tryDecodeBridgeAndSwapData(data);
+
+        if (firstAttemptSuccess) {
+            finalBridgeData = bridgeDataFromFirstAttempt;
+            if (swapDataFromFirstAttempt.length > 0) {
+                finalSwapDataArray = swapDataFromFirstAttempt;
                 return (finalBridgeData, finalSwapDataArray);
             }
-            // If no swaps found here, finalBridgeData is set (if bd was populated). Continue to other strategies for swaps.
-        } catch {
-            // AnypayLiFiDecodingLogic.decodeBridgeAndSwapData reverted (e.g., ABI decode error or SliceOutOfBounds).
-            // finalBridgeData remains default (or as it was if this catch is for a later attempt, though here it's the first).
-            // Proceed to other strategies for swaps.
         }
 
-        // Attempt 2: Using AnypayLiFiDecodingLogic.decodeLifiSwapDataPayloadAsArray
-        // This attempt will use the finalBridgeData (either populated from Attempt 1 or default).
-        try AnypayLiFiDecodingLogic.decodeLifiSwapDataPayloadAsArray(data) returns (LibSwap.SwapData[] memory sDataArr)
-        {
-            if (sDataArr.length > 0) {
-                finalSwapDataArray = sDataArr;
-                return (finalBridgeData, finalSwapDataArray);
-            }
-        } catch {
-            // AnypayLiFiDecodingLogic.decodeLifiSwapDataPayloadAsArray reverted. Proceed.
+        // Attempt 2: Using tryDecodeLifiSwapDataPayloadAsArray
+        bool secondAttemptSuccess;
+        LibSwap.SwapData[] memory swapDataFromSecondAttempt;
+        (secondAttemptSuccess, swapDataFromSecondAttempt) = tryDecodeLifiSwapDataPayloadAsArray(data);
+
+        if (secondAttemptSuccess && swapDataFromSecondAttempt.length > 0) {
+            finalSwapDataArray = swapDataFromSecondAttempt;
+            return (finalBridgeData, finalSwapDataArray);
         }
 
-        // Attempt 3: Using AnypayLiFiDecodingLogic.decodeLifiSwapDataPayloadAsSingle
-        try AnypayLiFiDecodingLogic.decodeLifiSwapDataPayloadAsSingle(data) returns (
-            LibSwap.SwapData memory sDataSingle
-        ) {
-            // Basic validity check: ensure some data was decoded into the struct
-            if (sDataSingle.callTo != address(0)) {
+        // Attempt 3: Using tryDecodeLifiSwapDataPayloadAsSingle
+        bool thirdAttemptSuccess;
+        LibSwap.SwapData memory swapDataFromThirdAttempt;
+        (thirdAttemptSuccess, swapDataFromThirdAttempt) = tryDecodeLifiSwapDataPayloadAsSingle(data);
+
+        if (thirdAttemptSuccess) {
+            // If any swap data was decoded, return it.
+             if (swapDataFromThirdAttempt.callTo != address(0) || swapDataFromThirdAttempt.approveTo != address(0) || swapDataFromThirdAttempt.fromAmount > 0) {
                 finalSwapDataArray = new LibSwap.SwapData[](1);
-                finalSwapDataArray[0] = sDataSingle;
+                finalSwapDataArray[0] = swapDataFromThirdAttempt;
                 return (finalBridgeData, finalSwapDataArray);
             }
-        } catch {
-            // AnypayLiFiDecodingLogic.decodeLifiSwapDataPayloadAsSingle reverted.
         }
 
         // If no swap data was found and returned by any strategy.

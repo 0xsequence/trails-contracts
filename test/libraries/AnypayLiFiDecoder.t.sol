@@ -202,7 +202,7 @@ contract AnypayLiFiDecoderTest is Test {
         assertEq(decodedSwapData.length, 0, "TD02: Expected empty SwapData array");
     }
 
-    function test_TryDecode_Reverts_TupleWithMismatchedSecondType() public {
+    function test_TryDecode_SucceedsForBridgeData_WhenTupleSecondElementMismatched() public {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
         localBridgeData.transactionId = bytes32(uint256(0x7D03));
 
@@ -210,21 +210,23 @@ contract AnypayLiFiDecoderTest is Test {
         bytes memory encodedCall = abi.encodeCall(helper.mockStartBridge, (localBridgeData, baseAcrossData));
 
         // tryDecodeBridgeAndSwapData should catch the internal revert and return success=false
-        (bool success,,) = helper.mockTryDecodeBridgeAndSwapData(encodedCall);
-        assertFalse(success, "TD03: Expected decoding to fail due to mismatched tuple type");
+        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) = helper.mockTryDecodeBridgeAndSwapData(encodedCall);
+        assertTrue(success, "TD03: Decoding should succeed for BridgeData even if second tuple element is mismatched for SwapData");
+        assertEq(decodedBridgeData.transactionId, localBridgeData.transactionId, "TD03: BridgeData transactionId mismatch");
+        assertEq(decodedSwapData.length, 0, "TD03: SwapData should be empty when second tuple element is mismatched");
     }
 
-    function test_TryDecode_Reverts_BridgeOnly_CalldataHasOnlyBridgeData() public {
+    function test_TryDecode_Succeeds_BridgeOnly_CalldataHasOnlyBridgeData() public {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
         localBridgeData.transactionId = bytes32(uint256(0x7D06)); // New transaction ID for this test
 
         // Encode calldata for a function that *only* takes ILiFi.BridgeData
         bytes memory encodedCall = abi.encodeCall(helper.mockSingleBridgeArg, (localBridgeData));
 
-        // tryDecodeBridgeAndSwapData should catch the internal revert (likely SliceOutOfBounds or similar
-        // because it tries to read past the end for the second tuple element's offset) and return success=false.
-        (bool success,,) = helper.mockTryDecodeBridgeAndSwapData(encodedCall);
-        assertFalse(success, "TD06: Expected decoding to fail for bridge-only calldata not fitting tuple structure");
+        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) = helper.mockTryDecodeBridgeAndSwapData(encodedCall);
+        assertTrue(success, "TD06: Decoding should succeed for BridgeData when calldata is bridge-only");
+        assertEq(decodedBridgeData.transactionId, localBridgeData.transactionId, "TD06: BridgeData transactionId mismatch");
+        assertEq(decodedSwapData.length, 0, "TD06: SwapData should be empty for bridge-only calldata");
     }
 
     function test_TryDecode_Fail_CalldataTooShortForBridge_ReturnsDefaults() public {
@@ -233,7 +235,7 @@ contract AnypayLiFiDecoderTest is Test {
         (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
             helper.mockTryDecodeBridgeAndSwapData(shortCalldata);
 
-        assertTrue(success, "TD04: Expected decoding to not revert and return defaults for very short calldata");
+        assertFalse(success, "TD04: Decoding should indicate failure (success=false) but return defaults for very short calldata");
         // Assert default/empty BridgeData
         assertEq(decodedBridgeData.transactionId, bytes32(0), "TD04: Expected default transactionId");
         assertEq(decodedBridgeData.bridge, "", "TD04: Expected default bridge name");
