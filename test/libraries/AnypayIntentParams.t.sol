@@ -218,13 +218,13 @@ contract AnypayIntentParamsTest is Test {
         AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](1);
         lifiInfos[0] = AnypayLifiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
-            minAmount: 100 * 10**18,
+            minAmount: 100,
             originChainId: 1,
             destinationChainId: 10
         });
         address attestationAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
 
-        bytes32 expectedHash = 0x5ea50423187913e85efc09b4bebf29ae98352ea11da7123ef565d29d20d016c3;
+        bytes32 expectedHash = 0x21872bd6b64711c4a5aecba95829c612f0b50c63f1a26991c2f76cf4a754aede;
         bytes32 actualHash = AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
         assertEq(actualHash, expectedHash, "SingleInfo hash mismatch");
     }
@@ -233,19 +233,19 @@ contract AnypayIntentParamsTest is Test {
         AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](2);
         lifiInfos[0] = AnypayLifiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
-            minAmount: 100 * 10**18,
+            minAmount: 100,
             originChainId: 1,
             destinationChainId: 10
         });
         lifiInfos[1] = AnypayLifiInfo({
             originToken: 0x2222222222222222222222222222222222222222,
-            minAmount: 200 * 10**18,
+            minAmount: 200,
             originChainId: 137,
             destinationChainId: 42161
         });
         address attestationAddress = 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB;
 
-        bytes32 expectedHash = 0x7cd50ac08dc4f4e290a688fc8c595e983c23f0de5f3bc96af1d43f9dd75ac58e;
+        bytes32 expectedHash = 0xd18e54455db64ba31b9f9a447e181f83977cb70b136228d64ac85d64a6aefe71;
         bytes32 actualHash = AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
         assertEq(actualHash, expectedHash, "MultipleInfo hash mismatch");
     }
@@ -265,7 +265,7 @@ contract AnypayIntentParamsTest is Test {
         AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](1);
         lifiInfos[0] = AnypayLifiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
-            minAmount: 100 * 10**18,
+            minAmount: 100,
             originChainId: 1,
             destinationChainId: 10
         });
