@@ -54,49 +54,55 @@ contract AnypayIntentParamsTest is Test {
         });
     }
 
-    // function testRevertIfUserAddressIsZero() public {
-    //     AnypayIntentParams.IntentParamsData memory params = baseParams;
-    //     params.userAddress = address(0);
-    //     vm.expectRevert(AnypayIntentParams.UserAddressIsZero.selector);
-    //     AnypayIntentParams.hashIntentParams(params);
-    // }
+    /// forge-config: default.allow_internal_expect_revert = true
+    function testRevertIfUserAddressIsZero() public {
+        AnypayIntentParams.IntentParamsData memory params = baseParams;
+        params.userAddress = address(0);
+        vm.expectRevert(AnypayIntentParams.UserAddressIsZero.selector);
+        AnypayIntentParams.hashIntentParams(params);
+    }
 
-    // function testRevertIfOriginTokensIsEmpty() public {
-    //     AnypayIntentParams.IntentParamsData memory params = baseParams;
-    //     params.originTokens = new AnypayIntentParams.OriginToken[](0);
-    //     vm.expectRevert(AnypayIntentParams.OriginTokensIsEmpty.selector);
-    //     AnypayIntentParams.hashIntentParams(params);
-    // }
+    /// forge-config: default.allow_internal_expect_revert = true
+    function testRevertIfOriginTokensIsEmpty() public {
+        AnypayIntentParams.IntentParamsData memory params = baseParams;
+        params.originTokens = new AnypayIntentParams.OriginToken[](0);
+        vm.expectRevert(AnypayIntentParams.OriginTokensIsEmpty.selector);
+        AnypayIntentParams.hashIntentParams(params);
+    }
 
-    // function testRevertIfDestinationCallsIsEmpty() public {
-    //     AnypayIntentParams.IntentParamsData memory params = baseParams;
-    //     params.destinationCalls = new Payload.Decoded[](0);
-    //     vm.expectRevert(AnypayIntentParams.DestinationCallsIsEmpty.selector);
-    //     AnypayIntentParams.hashIntentParams(params);
-    // }
+    /// forge-config: default.allow_internal_expect_revert = true
+    function testRevertIfDestinationCallsIsEmpty() public {
+        AnypayIntentParams.IntentParamsData memory params = baseParams;
+        params.destinationCalls = new Payload.Decoded[](0);
+        vm.expectRevert(AnypayIntentParams.DestinationCallsIsEmpty.selector);
+        AnypayIntentParams.hashIntentParams(params);
+    }
 
-    // function testRevertIfDestinationTokensIsEmpty() public {
-    //     AnypayIntentParams.IntentParamsData memory params = baseParams;
-    //     params.destinationTokens = new AnypayIntentParams.DestinationToken[](0);
-    //     vm.expectRevert(AnypayIntentParams.DestinationTokensIsEmpty.selector);
-    //     AnypayIntentParams.hashIntentParams(params);
-    // }
+    /// forge-config: default.allow_internal_expect_revert = true
+    function testRevertIfDestinationTokensIsEmpty() public {
+        AnypayIntentParams.IntentParamsData memory params = baseParams;
+        params.destinationTokens = new AnypayIntentParams.DestinationToken[](0);
+        vm.expectRevert(AnypayIntentParams.DestinationTokensIsEmpty.selector);
+        AnypayIntentParams.hashIntentParams(params);
+    }
 
-    // function testRevertIfDestinationCallKindIsNotTransactions() public {
-    //     AnypayIntentParams.IntentParamsData memory params = baseParams;
-    //     // Modify the first destination call to have a non-KIND_TRANSACTIONS kind
-    //     params.destinationCalls[0].kind = Payload.KIND_MESSAGE; // Or any other kind
-    //     vm.expectRevert(AnypayIntentParams.InvalidDestinationCallKind.selector);
-    //     AnypayIntentParams.hashIntentParams(params);
-    // }
+    /// forge-config: default.allow_internal_expect_revert = true
+    function testRevertIfDestinationCallKindIsNotTransactions() public {
+        AnypayIntentParams.IntentParamsData memory params = baseParams;
+        // Modify the first destination call to have a non-KIND_TRANSACTIONS kind
+        params.destinationCalls[0].kind = Payload.KIND_MESSAGE; // Or any other kind
+        vm.expectRevert(AnypayIntentParams.InvalidDestinationCallKind.selector);
+        AnypayIntentParams.hashIntentParams(params);
+    }
 
-    // function testRevertIfCallsArrayInDestinationCallIsEmpty() public {
-    //     AnypayIntentParams.IntentParamsData memory params = baseParams;
-    //     // Modify the first destination call to have an empty calls array
-    //     params.destinationCalls[0].calls = new Payload.Call[](0);
-    //     vm.expectRevert(AnypayIntentParams.InvalidCallInDestination.selector);
-    //     AnypayIntentParams.hashIntentParams(params);
-    // }
+    /// forge-config: default.allow_internal_expect_revert = true
+    function testRevertIfCallsArrayInDestinationCallIsEmpty() public {
+        AnypayIntentParams.IntentParamsData memory params = baseParams;
+        // Modify the first destination call to have an empty calls array
+        params.destinationCalls[0].calls = new Payload.Call[](0);
+        vm.expectRevert(AnypayIntentParams.InvalidCallInDestination.selector);
+        AnypayIntentParams.hashIntentParams(params);
+    }
 
     function testHashIntentParams_SingleValidCallPayload() public {
         AnypayIntentParams.IntentParamsData memory params;
