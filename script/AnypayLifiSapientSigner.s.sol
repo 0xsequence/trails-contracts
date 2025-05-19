@@ -7,7 +7,7 @@ import {AnypayLifiSapientSigner} from "../src/AnypayLifiSapientSigner.sol";
 
 contract Deploy is SingletonDeployer {
     // Hardcoded LiFiDiamond address
-    address constant LIFI_DIAMOND = 0x000000000000000000000000000000000000dEaD;
+    address constant LIFI_DIAMOND = 0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE;
 
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
