@@ -44,7 +44,7 @@ contract DecoderTestHelper {
         AcrossV3Data calldata /*_acrossData*/
     ) external pure {}
 
-    function mockDecodeLifiSwapDataPayloadAsArray(bytes memory data)
+    function decodeLifiSwapDataPayloadAsArray(bytes memory data)
         public
         pure
         returns (bool success, LibSwap.SwapData[] memory swapDataArrayOut)
@@ -52,7 +52,7 @@ contract DecoderTestHelper {
         return AnypayLiFiDecoder.tryDecodeLifiSwapDataPayloadAsArray(data);
     }
 
-    function mockDecodeLifiSwapDataPayloadAsSingle(bytes memory data)
+    function decodeLifiSwapDataPayloadAsSingle(bytes memory data)
         public
         pure
         returns (bool success, LibSwap.SwapData memory singleSwapDataOut)
@@ -60,7 +60,7 @@ contract DecoderTestHelper {
         return AnypayLiFiDecoder.tryDecodeLifiSwapDataPayloadAsSingle(data);
     }
 
-    function mockDecodeLiFiDataOrRevert(bytes memory data)
+    function decodeLiFiDataOrRevert(bytes memory data)
         public
         pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
@@ -253,7 +253,7 @@ contract AnypayLiFiDecoderTest is Test {
         );
 
         (bool success, LibSwap.SwapData[] memory decodedSwapData) =
-            helper.mockDecodeLifiSwapDataPayloadAsArray(encodedCall);
+            helper.decodeLifiSwapDataPayloadAsArray(encodedCall);
 
         assertTrue(success, "DPA01: Decoding payload as array should succeed");
         assertEq(decodedSwapData.length, expectedSwapData.length, "DPA01: SwapData array length mismatch");
@@ -274,7 +274,7 @@ contract AnypayLiFiDecoderTest is Test {
         );
         bytes memory encodedCall = abi.encodePacked(mockSwapTokensMultipleSelector, malformedPayload);
 
-        (bool success,) = helper.mockDecodeLifiSwapDataPayloadAsArray(encodedCall);
+        (bool success,) = helper.decodeLifiSwapDataPayloadAsArray(encodedCall);
         assertFalse(success, "DPA02: Expected decoding as array to fail due to ABI decode error");
     }
 
@@ -287,7 +287,7 @@ contract AnypayLiFiDecoderTest is Test {
         );
 
         (bool success, LibSwap.SwapData memory decodedSwapData) =
-            helper.mockDecodeLifiSwapDataPayloadAsSingle(encodedCall);
+            helper.decodeLifiSwapDataPayloadAsSingle(encodedCall);
 
         assertTrue(success, "DPS01: Decoding payload as single should succeed");
         assertEq(decodedSwapData.callTo, expectedSwapData.callTo, "DPS01: SwapData.callTo mismatch");
@@ -310,35 +310,35 @@ contract AnypayLiFiDecoderTest is Test {
         );
         bytes memory encodedCall = abi.encodePacked(mockSwapTokensSingleSelector, malformedPayload);
 
-        (bool success,) = helper.mockDecodeLifiSwapDataPayloadAsSingle(encodedCall);
+        (bool success,) = helper.decodeLifiSwapDataPayloadAsSingle(encodedCall);
         assertFalse(success, "DPS02: Expected decoding as single to fail due to ABI decode error");
     }
 
     function test_DecodeOrRevert_Reverts_CalldataTooShort_WithMinimalCalldata() public {
         bytes memory minimalCalldata = hex"deadbeef";
         vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
-        helper.mockDecodeLiFiDataOrRevert(minimalCalldata);
+        helper.decodeLiFiDataOrRevert(minimalCalldata);
     }
 
     function test_DecodeOrRevert_Reverts_TryDecode_AbiError() public {
         bytes memory encodedCall = abi.encodeCall(helper.mockStartBridge, (baseBridgeData, baseAcrossData));
 
         vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
-        helper.mockDecodeLiFiDataOrRevert(encodedCall);
+        helper.decodeLiFiDataOrRevert(encodedCall);
     }
 
     function test_DecodeOrRevert_Reverts_PayloadAsArray_CalldataTooShort() public {
         bytes memory shortCalldata = hex"0102030405060708";
 
         vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
-        helper.mockDecodeLiFiDataOrRevert(shortCalldata);
+        helper.decodeLiFiDataOrRevert(shortCalldata);
     }
 
     function test_DecodeOrRevert_Reverts_WithUnrelatedCalldata_Short() public {
         bytes memory unrelatedSelectorOnly = abi.encodePacked(mockCompletelyUnrelatedSelector);
 
         vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
-        helper.mockDecodeLiFiDataOrRevert(unrelatedSelectorOnly);
+        helper.decodeLiFiDataOrRevert(unrelatedSelectorOnly);
     }
 
     function test_DecodeOrRevert_Reverts_Panic_WithUnrelatedCalldata_Longer() public {
@@ -347,14 +347,14 @@ contract AnypayLiFiDecoderTest is Test {
         // Length of this calldata is 4 (selector) + 32 (uint256) + 32 (bool) = 68 bytes.
 
         vm.expectRevert();
-        helper.mockDecodeLiFiDataOrRevert(unrelatedFullCall);
+        helper.decodeLiFiDataOrRevert(unrelatedFullCall);
     }
 
     function test_DecodeOrRevert_Reverts_PayloadAsSingle_CalldataTooShort() public {
         bytes memory veryShortCalldata = hex"12345678";
 
         vm.expectRevert(AnypayLiFiDecoder.NoLiFiDataDecoded.selector);
-        helper.mockDecodeLiFiDataOrRevert(veryShortCalldata);
+        helper.decodeLiFiDataOrRevert(veryShortCalldata);
     }
 
     // Test cases for decodeLiFiDataOrRevert
@@ -365,7 +365,7 @@ contract AnypayLiFiDecoderTest is Test {
             abi.encodeCall(helper.mockSwapAndStartBridge, (localBridgeData, singleSwapData, baseAcrossData));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            helper.mockDecodeLiFiDataOrRevert(encodedCall);
+            helper.decodeLiFiDataOrRevert(encodedCall);
 
         assertEq(
             decodedBridgeData.transactionId, localBridgeData.transactionId, "DOR01: BridgeData.transactionId mismatch"
@@ -384,7 +384,7 @@ contract AnypayLiFiDecoderTest is Test {
         );
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            helper.mockDecodeLiFiDataOrRevert(encodedCall);
+            helper.decodeLiFiDataOrRevert(encodedCall);
 
         // BridgeData should be default as first strategy fails to populate it meaningfully for this input type
         assertEq(decodedBridgeData.transactionId, bytes32(0), "DOR02: BridgeData should be default");
@@ -400,7 +400,7 @@ contract AnypayLiFiDecoderTest is Test {
         );
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            helper.mockDecodeLiFiDataOrRevert(encodedCall);
+            helper.decodeLiFiDataOrRevert(encodedCall);
 
         assertEq(decodedBridgeData.transactionId, bytes32(0), "DOR03: BridgeData should be default");
         assertEq(decodedSwapData.length, 1, "DOR03: SwapData array length should be 1");
