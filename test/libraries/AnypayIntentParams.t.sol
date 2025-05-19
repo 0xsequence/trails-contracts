@@ -5,6 +5,7 @@ pragma solidity ^0.8.17;
 import {Test, console} from "forge-std/Test.sol";
 import {AnypayIntentParams} from "src/libraries/AnypayIntentParams.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
+import {AnypayLifiInfo} from "src/libraries/AnypayLiFiInterpreter.sol";
 
 contract AnypayIntentParamsTest is Test {
     AnypayIntentParams.IntentParamsData internal baseParams;
@@ -211,5 +212,66 @@ contract AnypayIntentParamsTest is Test {
         vm.chainId(1);
         bytes32 actualHash = AnypayIntentParams.hashIntentParams(params);
         assertEq(actualHash, expectedHash, "MultipleValidCallPayloads hash mismatch");
+    }
+
+    function testGetAnypayLifiInfoHash_SingleInfo() public {
+        AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](1);
+        lifiInfos[0] = AnypayLifiInfo({
+            originToken: 0x1111111111111111111111111111111111111111,
+            minAmount: 100 * 10**18,
+            originChainId: 1,
+            destinationChainId: 10
+        });
+        address attestationAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
+
+        bytes32 expectedHash = 0x5ea50423187913e85efc09b4bebf29ae98352ea11da7123ef565d29d20d016c3;
+        bytes32 actualHash = AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
+        assertEq(actualHash, expectedHash, "SingleInfo hash mismatch");
+    }
+
+    function testGetAnypayLifiInfoHash_MultipleInfo() public {
+        AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](2);
+        lifiInfos[0] = AnypayLifiInfo({
+            originToken: 0x1111111111111111111111111111111111111111,
+            minAmount: 100 * 10**18,
+            originChainId: 1,
+            destinationChainId: 10
+        });
+        lifiInfos[1] = AnypayLifiInfo({
+            originToken: 0x2222222222222222222222222222222222222222,
+            minAmount: 200 * 10**18,
+            originChainId: 137,
+            destinationChainId: 42161
+        });
+        address attestationAddress = 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB;
+
+        bytes32 expectedHash = 0x7cd50ac08dc4f4e290a688fc8c595e983c23f0de5f3bc96af1d43f9dd75ac58e;
+        bytes32 actualHash = AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
+        assertEq(actualHash, expectedHash, "MultipleInfo hash mismatch");
+    }
+
+
+   /// forge-config: default.allow_internal_expect_revert = true
+    function testGetAnypayLifiInfoHash_EmptyInfo_ShouldRevert() public {
+        AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](0);
+        address attestationAddress = 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC;
+
+        vm.expectRevert(AnypayIntentParams.LifiInfosIsEmpty.selector);
+        AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
+    }
+
+    /// forge-config: default.allow_internal_expect_revert = true
+    function testGetAnypayLifiInfoHash_AttestationAddressIsZero_ShouldRevert() public {
+        AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](1);
+        lifiInfos[0] = AnypayLifiInfo({
+            originToken: 0x1111111111111111111111111111111111111111,
+            minAmount: 100 * 10**18,
+            originChainId: 1,
+            destinationChainId: 10
+        });
+        address attestationAddress = address(0);
+
+        vm.expectRevert(AnypayIntentParams.AttestationAddressIsZero.selector);
+        AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
     }
 }

@@ -21,7 +21,8 @@ library AnypayIntentParams {
     error DestinationTokensIsEmpty();
     error InvalidDestinationCallKind();
     error InvalidCallInDestination();
-
+    error LifiInfosIsEmpty();
+    error AttestationAddressIsZero();
     // -------------------------------------------------------------------------
     // Structs
     // -------------------------------------------------------------------------
@@ -113,6 +114,12 @@ library AnypayIntentParams {
         pure
         returns (bytes32)
     {
+        if (lifiInfos.length == 0) {
+            revert LifiInfosIsEmpty();
+        }
+        if (attestationAddress == address(0)) {
+            revert AttestationAddressIsZero();
+        }
         return keccak256(abi.encode(lifiInfos, attestationAddress));
     }
 }
