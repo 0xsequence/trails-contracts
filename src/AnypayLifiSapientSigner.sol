@@ -85,7 +85,7 @@ contract AnypayLifiSapientSigner is ISapient {
             _decodeSignature(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
-        address attestationSigner = ECDSA.recover(payload.hashFor(address(0)), attestationSignature);
+        address attestationSigner = ECDSA.recover(keccak256(abi.encode(payload.hashFor(address(0)))), attestationSignature);
 
         // 6. Initialize structs to store decoded data
         AnypayLifiInfo[] memory inferredLifiInfos = new AnypayLifiInfo[](payload.calls.length);

@@ -109,7 +109,7 @@ contract AnypayLifiSapientSignerTest is Test {
         });
 
         // 4. Generate the EIP-712 digest.
-        bytes32 digestToSign = payload.hashFor(address(0));
+        bytes32 digestToSign = keccak256(abi.encode(payload.hashFor(address(0))));
 
         AnypayLifiInfo[] memory expectedLifiInfos = new AnypayLifiInfo[](1);
         expectedLifiInfos[0] = AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapData);
@@ -178,7 +178,7 @@ contract AnypayLifiSapientSignerTest is Test {
         });
 
         // 5. Generate the EIP-712 digest.
-        bytes32 digestToSign = payload.hashFor(address(0));
+        bytes32 digestToSign = keccak256(abi.encode(payload.hashFor(address(0))));
 
         // 6. Prepare LifiInfos for encoding
         AnypayLifiInfo[] memory expectedLifiInfos = new AnypayLifiInfo[](1);
