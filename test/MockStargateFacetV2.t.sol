@@ -30,14 +30,6 @@ struct StargateData {
 }
 
 contract AnypayDecoderTestHelperForStargate {
-    function mockDecodeBridgeAndSwapData(bytes memory data)
-        external
-        pure
-        returns (bool success, ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
-    {
-        return AnypayLiFiDecoder.tryDecodeBridgeAndSwapData(data);
-    }
-
     function mockDecodeLiFiDataOrRevert(bytes memory data)
         external
         pure
@@ -119,10 +111,8 @@ contract MockStargateFacetV2Test is Test {
         bytes memory encodedCallForStargate =
             abi.encodeCall(mockFacet.mockStartBridge, (bridgeDataInput, stargateDataInput));
 
-        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            decoderHelper.mockDecodeBridgeAndSwapData(encodedCallForStargate);
-
-        assertTrue(success, "AD_STARGATE_01: Decoding mockStartBridge calldata should succeed");
+        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForStargate);
 
         assertEq(
             decodedBridgeData.transactionId,
@@ -181,10 +171,8 @@ contract MockStargateFacetV2Test is Test {
         bytes memory encodedCallForStargate =
             abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeDataInput, swapDataInput, stargateDataInput));
 
-        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            decoderHelper.mockDecodeBridgeAndSwapData(encodedCallForStargate);
-
-        assertTrue(success, "AD_STARGATE_02: Decoding mockSwapAndStartBridge calldata should succeed");
+        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForStargate);
 
         assertEq(
             decodedBridgeData.transactionId,

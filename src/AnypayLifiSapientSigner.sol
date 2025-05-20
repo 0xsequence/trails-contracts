@@ -39,7 +39,6 @@ contract AnypayLifiSapientSigner is ISapient {
     error InvalidCallsLength();
     error InvalidPayloadKind();
     error InvalidLifiDiamondAddress();
-    error InvalidLiFiData();
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -92,14 +91,10 @@ contract AnypayLifiSapientSigner is ISapient {
 
         // 7. Decode BridgeData and SwapData from calldata using the library
         for (uint256 i = 0; i < payload.calls.length; i++) {
-            (bool success, ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData) =
-                AnypayLiFiDecoder.tryDecodeBridgeAndSwapData(payload.calls[i].data);
+            (ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData) =
+                AnypayLiFiDecoder.decodeLiFiDataOrRevert(payload.calls[i].data);
 
-            if (success) {
-                inferredLifiInfos[i] = AnypayLiFiInterpreter.getOriginSwapInfo(bridgeData, swapData);
-            } else {
-                revert InvalidLiFiData();
-            }
+            inferredLifiInfos[i] = AnypayLiFiInterpreter.getOriginSwapInfo(bridgeData, swapData);
         }
 
         // 8. Validate the attestations

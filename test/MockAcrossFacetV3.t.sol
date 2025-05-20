@@ -21,14 +21,6 @@ struct AcrossV3Data {
 }
 
 contract AnypayDecoderTestHelperForAcross {
-    function mockDecodeBridgeAndSwapData(bytes memory data)
-        external
-        pure
-        returns (bool success, ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
-    {
-        return AnypayLiFiDecoder.tryDecodeBridgeAndSwapData(data);
-    }
-
     function mockDecodeLiFiDataOrRevert(bytes memory data)
         external
         pure
@@ -109,10 +101,8 @@ contract MockAcrossFacetV3Test is Test {
         bytes memory encodedCallForAcross =
             abi.encodeCall(mockFacet.mockStartBridge, (bridgeDataInput, acrossDataInput));
 
-        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            decoderHelper.mockDecodeBridgeAndSwapData(encodedCallForAcross);
-
-        assertTrue(success, "AD_ACROSS_01: Decoding mockStartBridge calldata should succeed");
+        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross);
 
         assertEq(
             decodedBridgeData.transactionId,
@@ -170,10 +160,8 @@ contract MockAcrossFacetV3Test is Test {
         bytes memory encodedCallForAcross =
             abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeDataInput, swapDataInput, acrossDataInput));
 
-        (bool success, ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            decoderHelper.mockDecodeBridgeAndSwapData(encodedCallForAcross);
-
-        assertTrue(success, "AD_ACROSS_02: Decoding mockSwapAndStartBridge calldata should succeed");
+        (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
+            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross);
 
         assertEq(
             decodedBridgeData.transactionId,
