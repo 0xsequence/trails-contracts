@@ -65,9 +65,7 @@ contract AnypayLiFiInterpreterTest is Test {
             result.originToken, MOCK_SENDING_ASSET_SWAP, "Test Case 1 Failed: Origin token should be from swapData"
         );
         assertEq(
-            result.amount,
-            MOCK_FROM_AMOUNT_SWAP,
-            "Test Case 1 Failed: Min amount should be from swapData's fromAmount"
+            result.amount, MOCK_FROM_AMOUNT_SWAP, "Test Case 1 Failed: Min amount should be from swapData's fromAmount"
         );
         assertEq(result.destinationChainId, MOCK_DEST_CHAIN_ID, "Test Case 1 Failed: Destination chain ID mismatch");
     }
@@ -240,7 +238,7 @@ contract AnypayLiFiInterpreterTest is Test {
     function test_ValidateLifiInfos_InferredAmountTooHigh_CurrentChain_Reverts() public {
         _setUpValidateLifiInfosTest();
         _inferredInfos = new AnypayLifiInfo[](1);
-        _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID); 
+        _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
         _attestedInfos = new AnypayLifiInfo[](1);
         _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 50, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
 
