@@ -3,7 +3,7 @@
 pragma solidity ^0.8.17;
 
 import {Test, console} from "forge-std/Test.sol";
-import {AnypayLiFiInterpreter, AnypayLifiInfo, EmptyLibSwapData} from "../../src/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayLiFiInterpreter, AnypayLifiInfo} from "../../src/libraries/AnypayLiFiInterpreter.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 
@@ -65,7 +65,7 @@ contract AnypayLiFiInterpreterTest is Test {
             result.originToken, MOCK_SENDING_ASSET_SWAP, "Test Case 1 Failed: Origin token should be from swapData"
         );
         assertEq(
-            result.minAmount,
+            result.amount,
             MOCK_FROM_AMOUNT_SWAP,
             "Test Case 1 Failed: Min amount should be from swapData's fromAmount"
         );
@@ -87,7 +87,7 @@ contract AnypayLiFiInterpreterTest is Test {
             "Test Case 2 Failed: Origin token should be from bridgeData's sendingAssetId"
         );
         assertEq(
-            result.minAmount,
+            result.amount,
             MOCK_MIN_AMOUNT_BRIDGE,
             "Test Case 2 Failed: Min amount should be from bridgeData's minAmount"
         );
@@ -130,7 +130,7 @@ contract AnypayLiFiInterpreterTest is Test {
             "Test Case 4 Failed: Origin token should be from the first swapData item"
         );
         assertEq(
-            result.minAmount,
+            result.amount,
             MOCK_FROM_AMOUNT_SWAP,
             "Test Case 4 Failed: Min amount should be from the first swapData item's fromAmount"
         );
@@ -211,7 +211,7 @@ contract AnypayLiFiInterpreterTest is Test {
         _inferredInfos = new AnypayLifiInfo[](1);
         _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 200, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID); // Higher inferred
         _attestedInfos = new AnypayLifiInfo[](1);
-        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
+        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 200, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
 
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos); // Should not revert
     }
@@ -237,14 +237,14 @@ contract AnypayLiFiInterpreterTest is Test {
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
-    function test_ValidateLifiInfos_InferredMinAmountTooLow_CurrentChain_Reverts() public {
+    function test_ValidateLifiInfos_InferredAmountTooHigh_CurrentChain_Reverts() public {
         _setUpValidateLifiInfosTest();
         _inferredInfos = new AnypayLifiInfo[](1);
-        _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 50, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID); // Inferred amount too low
+        _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID); 
         _attestedInfos = new AnypayLifiInfo[](1);
-        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
+        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 50, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
 
-        vm.expectRevert(abi.encodeWithSelector(AnypayLiFiInterpreter.InferredMinAmountTooLow.selector, 50, 100));
+        vm.expectRevert(abi.encodeWithSelector(AnypayLiFiInterpreter.InferredAmountTooHigh.selector, 100, 50));
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos);
     }
 
@@ -262,24 +262,24 @@ contract AnypayLiFiInterpreterTest is Test {
     function test_ValidateLifiInfos_MultipleEntries_AllMatch() public {
         _setUpValidateLifiInfosTest();
         _inferredInfos = new AnypayLifiInfo[](2);
-        _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
-        _inferredInfos[1] = AnypayLifiInfo(TOKEN_B, 200, CURRENT_CHAIN_ID, OTHER_CHAIN_ID);
+        _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 200, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
+        _inferredInfos[1] = AnypayLifiInfo(TOKEN_B, 100, CURRENT_CHAIN_ID, OTHER_CHAIN_ID);
 
         _attestedInfos = new AnypayLifiInfo[](2);
-        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
-        _attestedInfos[1] = AnypayLifiInfo(TOKEN_B, 150, CURRENT_CHAIN_ID, OTHER_CHAIN_ID);
+        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 200, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
+        _attestedInfos[1] = AnypayLifiInfo(TOKEN_B, 100, CURRENT_CHAIN_ID, OTHER_CHAIN_ID);
 
-        validateLifiInfosWrapper(_inferredInfos, _attestedInfos); // Should not revert
+        validateLifiInfosWrapper(_inferredInfos, _attestedInfos);
     }
 
     function test_ValidateLifiInfos_MultipleEntries_OneAttestedOtherChain_SkipsAndMatches() public {
         _setUpValidateLifiInfosTest();
         _inferredInfos = new AnypayLifiInfo[](2);
-        _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
-        _inferredInfos[1] = AnypayLifiInfo(TOKEN_B, 200, CURRENT_CHAIN_ID, OTHER_CHAIN_ID); // This matches attested[1]
+        _inferredInfos[0] = AnypayLifiInfo(TOKEN_A, 200, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID);
+        _inferredInfos[1] = AnypayLifiInfo(TOKEN_B, 100, CURRENT_CHAIN_ID, OTHER_CHAIN_ID); // This matches attested[1]
 
         _attestedInfos = new AnypayLifiInfo[](2);
-        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 100, OTHER_CHAIN_ID, MOCK_DEST_CHAIN_ID); // Skipped
+        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 300, OTHER_CHAIN_ID, MOCK_DEST_CHAIN_ID); // Skipped
         _attestedInfos[1] = AnypayLifiInfo(TOKEN_B, 150, CURRENT_CHAIN_ID, OTHER_CHAIN_ID); // Matched
 
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos); // Should not revert
@@ -312,8 +312,8 @@ contract AnypayLiFiInterpreterTest is Test {
         _inferredInfos[1] = AnypayLifiInfo(TOKEN_B, 300, CURRENT_CHAIN_ID, OTHER_CHAIN_ID); // Decoy, different token
 
         _attestedInfos = new AnypayLifiInfo[](2); // Adjusted length to 2
-        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 100, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID); // Matches and uses inferred[0]
-        _attestedInfos[1] = AnypayLifiInfo(TOKEN_A, 150, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID); // Tries to match inferred[0] (used) or inferred[1] (wrong token)
+        _attestedInfos[0] = AnypayLifiInfo(TOKEN_A, 300, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID); // Matches and uses inferred[0]
+        _attestedInfos[1] = AnypayLifiInfo(TOKEN_A, 300, CURRENT_CHAIN_ID, MOCK_DEST_CHAIN_ID); // Tries to match inferred[0] (used) or inferred[1] (wrong token)
 
         vm.expectRevert(
             abi.encodeWithSelector(

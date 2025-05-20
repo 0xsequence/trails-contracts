@@ -224,7 +224,7 @@ contract AnypayIntentParamsTest is Test {
         AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](1);
         lifiInfos[0] = AnypayLifiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
-            minAmount: 100,
+            amount: 100,
             originChainId: 1,
             destinationChainId: 10
         });
@@ -239,13 +239,13 @@ contract AnypayIntentParamsTest is Test {
         AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](2);
         lifiInfos[0] = AnypayLifiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
-            minAmount: 100,
+            amount: 100,
             originChainId: 1,
             destinationChainId: 10
         });
         lifiInfos[1] = AnypayLifiInfo({
             originToken: 0x2222222222222222222222222222222222222222,
-            minAmount: 200,
+            amount: 200,
             originChainId: 137,
             destinationChainId: 42161
         });
@@ -270,7 +270,7 @@ contract AnypayIntentParamsTest is Test {
         AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](1);
         lifiInfos[0] = AnypayLifiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
-            minAmount: 100,
+            amount: 100,
             originChainId: 1,
             destinationChainId: 10
         });

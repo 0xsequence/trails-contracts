@@ -4,15 +4,7 @@ pragma solidity ^0.8.17;
 
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-
-error EmptyLibSwapData();
-
-struct AnypayLifiInfo {
-    address originToken;
-    uint256 minAmount;
-    uint256 originChainId;
-    uint256 destinationChainId;
-}
+import {AnypayLifiInfo} from "../interfaces/AnypayLifi.sol";
 
 /**
  * @title AnypayLiFiInterpreter
@@ -24,6 +16,8 @@ library AnypayLiFiInterpreter {
     // Errors
     // -------------------------------------------------------------------------
 
+    /// @notice Thrown when the LibSwap data is empty.
+    error EmptyLibSwapData();
     /// @notice Thrown when the lengths of attested and inferred LiFi info arrays do not match.
     error MismatchedLifiInfoLengths();
     /// @notice Thrown when an inferred LiFi info has a zero minimum amount.
@@ -33,10 +27,10 @@ library AnypayLiFiInterpreter {
     /// @param destinationChainId The destination chain ID of the attested info.
     /// @param originToken The origin token of the attested info.
     error NoMatchingInferredInfoFound(uint256 originChainId, uint256 destinationChainId, address originToken);
-    /// @notice Thrown when an inferred LiFi info's minimum amount is less than its matched attested one.
-    /// @param inferredAmount The minimum amount from the inferred LiFi info.
-    /// @param attestedAmount The minimum amount from the attested LiFi info.
-    error InferredMinAmountTooLow(uint256 inferredAmount, uint256 attestedAmount);
+    /// @notice Thrown when an inferred LiFi info's inferred amount is larger than its matched attested one.
+    /// @param inferredAmount The amount from the inferred LiFi info.
+    /// @param attestedAmount The amount from the attested LiFi info.
+    error InferredAmountTooHigh(uint256 inferredAmount, uint256 attestedAmount);
 
     // -------------------------------------------------------------------------
     // Functions
@@ -48,7 +42,7 @@ library AnypayLiFiInterpreter {
         returns (AnypayLifiInfo memory)
     {
         address originToken;
-        uint256 minAmount;
+        uint256 amount;
 
         // If the bridge data is not empty
         if (bridgeData.sendingAssetId != address(0)) {
@@ -57,15 +51,15 @@ library AnypayLiFiInterpreter {
                     revert EmptyLibSwapData();
                 }
                 originToken = swapData[0].sendingAssetId;
-                minAmount = swapData[0].fromAmount;
+                amount = swapData[0].fromAmount;
             } else {
                 originToken = bridgeData.sendingAssetId;
-                minAmount = bridgeData.minAmount;
+                amount = bridgeData.minAmount;
             }
 
             return AnypayLifiInfo({
                 originToken: originToken,
-                minAmount: minAmount,
+                amount: amount,
                 originChainId: block.chainid,
                 destinationChainId: bridgeData.destinationChainId
             });
@@ -78,7 +72,7 @@ library AnypayLiFiInterpreter {
 
             return AnypayLifiInfo({
                 originToken: swapData[0].sendingAssetId,
-                minAmount: swapData[0].fromAmount,
+                amount: swapData[0].fromAmount,
                 originChainId: block.chainid,
                 destinationChainId: block.chainid
             });
@@ -112,7 +106,7 @@ library AnypayLiFiInterpreter {
         // Validate all inferredLifiInfos upfront (Check 2 from NatSpec).
         for (uint256 i = 0; i < numInfos; i++) {
             AnypayLifiInfo memory _currentInferredInfo = inferredLifiInfos[i];
-            if (_currentInferredInfo.minAmount == 0) {
+            if (_currentInferredInfo.amount == 0) {
                 revert InvalidInferredMinAmount();
             }
         }
@@ -141,8 +135,8 @@ library AnypayLiFiInterpreter {
                         && currentAttestedInfo.destinationChainId == currentInferredInfo.destinationChainId
                         && currentAttestedInfo.originToken == currentInferredInfo.originToken
                 ) {
-                    if (currentInferredInfo.minAmount < currentAttestedInfo.minAmount) {
-                        revert InferredMinAmountTooLow(currentInferredInfo.minAmount, currentAttestedInfo.minAmount);
+                    if (currentInferredInfo.amount > currentAttestedInfo.amount) {
+                        revert InferredAmountTooHigh(currentInferredInfo.amount, currentAttestedInfo.amount);
                     }
                     inferredInfoUsed[j] = true;
                     foundMatch = true;
