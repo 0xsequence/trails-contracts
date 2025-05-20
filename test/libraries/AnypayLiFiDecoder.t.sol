@@ -252,7 +252,9 @@ contract AnypayLiFiDecoderTest is Test {
 
         assertEq(decodedSwapData[0].callTo, expectedSwapData.callTo, "DPS01: SwapData.callTo mismatch");
         assertEq(
-            decodedSwapData[0].sendingAssetId, expectedSwapData.sendingAssetId, "DPS01: SwapData.sendingAssetId mismatch"
+            decodedSwapData[0].sendingAssetId,
+            expectedSwapData.sendingAssetId,
+            "DPS01: SwapData.sendingAssetId mismatch"
         );
     }
 

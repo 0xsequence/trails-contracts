@@ -19,10 +19,7 @@ library AnypayLiFiValidator {
      * @return True if the swapData is valid and not empty, false otherwise.
      */
     function isSwapDataValid(LibSwap.SwapData memory swapData) internal pure returns (bool) {
-        return
-            swapData.callTo != address(0) ||
-            swapData.approveTo != address(0) ||
-            swapData.fromAmount > 0;
+        return swapData.callTo != address(0) || swapData.approveTo != address(0) || swapData.fromAmount > 0;
     }
 
     /**
@@ -31,15 +28,11 @@ library AnypayLiFiValidator {
      * @param swapDataArray The array of SwapData structs to validate.
      * @return True if the array is valid and contains at least one non-empty swap, false otherwise.
      */
-    function isSwapDataArrayValid(LibSwap.SwapData[] memory swapDataArray)
-        internal
-        pure
-        returns (bool)
-    {
+    function isSwapDataArrayValid(LibSwap.SwapData[] memory swapDataArray) internal pure returns (bool) {
         if (swapDataArray.length == 0) {
             return false;
         }
-        for (uint i = 0; i < swapDataArray.length; i++) {
+        for (uint256 i = 0; i < swapDataArray.length; i++) {
             if (isSwapDataValid(swapDataArray[i])) {
                 return true; // Found at least one valid and non-empty swap
             }
@@ -54,12 +47,8 @@ library AnypayLiFiValidator {
      * @return True if the bridgeData is valid and not empty, false otherwise.
      */
     function isBridgeDataValid(ILiFi.BridgeData memory bridgeData) internal pure returns (bool) {
-        return
-            bridgeData.transactionId != bytes32(0) &&
-            bytes(bridgeData.bridge).length > 0 && 
-            bridgeData.receiver != address(0) &&
-            bridgeData.minAmount > 0 && 
-            bridgeData.destinationChainId != 0; 
+        return bridgeData.transactionId != bytes32(0) && bytes(bridgeData.bridge).length > 0
+            && bridgeData.receiver != address(0) && bridgeData.minAmount > 0 && bridgeData.destinationChainId != 0;
     }
 
     /**
@@ -72,10 +61,11 @@ library AnypayLiFiValidator {
      * @param swapDataArray The array of LibSwap.SwapData structs.
      * @return True if the tuple is valid and consistent swap data, false otherwise.
      */
-    function isBridgeAndSwapDataTupleValid(
-        ILiFi.BridgeData memory bridgeData,
-        LibSwap.SwapData[] memory swapDataArray
-    ) internal pure returns (bool) {
+    function isBridgeAndSwapDataTupleValid(ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapDataArray)
+        internal
+        pure
+        returns (bool)
+    {
         if (!isBridgeDataValid(bridgeData)) {
             return false;
         }
@@ -89,4 +79,4 @@ library AnypayLiFiValidator {
             return !isSwapDataArrayValid(swapDataArray);
         }
     }
-} 
+}

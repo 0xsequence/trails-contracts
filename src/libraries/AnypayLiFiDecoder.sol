@@ -11,6 +11,7 @@ import {AnypayLiFiValidator} from "./AnypayLiFiValidator.sol";
  * @notice Library containing the core decoding logic for ILiFi.BridgeData and LibSwap.SwapData[].
  *         This library's functions are designed to be called externally, often within a try/catch block.
  */
+
 library AnypayLiFiDecodingLogic {
     // -------------------------------------------------------------------------
     // Errors
@@ -203,7 +204,6 @@ library AnypayLiFiDecoder {
             return (false, bridgeDataOut);
         }
 
-
         try AnypayLiFiDecodingLogic.decodeAsSingleBridgeData(calldataForDecode) returns (ILiFi.BridgeData memory bd) {
             return (true, bd);
         } catch {
@@ -299,13 +299,11 @@ library AnypayLiFiDecoder {
             if (decodedSwapData.length == 1) {
                 LibSwap.SwapData memory singleSwap = decodedSwapData[0];
                 // Check if the decoded swap data is valid, return empty bridge data
-                if (
-                    AnypayLiFiValidator.isSwapDataValid(singleSwap)
-                ) {
+                if (AnypayLiFiValidator.isSwapDataValid(singleSwap)) {
                     finalSwapDataArray = decodedSwapData;
                     return (finalBridgeData, finalSwapDataArray);
                 }
-            } else if (decodedSwapData.length > 1) { 
+            } else if (decodedSwapData.length > 1) {
                 // Check if the decoded swap data is valid, return empty bridge data
                 if (AnypayLiFiValidator.isSwapDataArrayValid(decodedSwapData)) {
                     finalSwapDataArray = decodedSwapData;
