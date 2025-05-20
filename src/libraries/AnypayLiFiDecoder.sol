@@ -5,13 +5,13 @@ pragma solidity ^0.8.17;
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiValidator} from "./AnypayLiFiValidator.sol";
+
 /**
  * @title AnypayLiFiDecodingLogic
  * @author Shun Kakinoki
  * @notice Library containing the core decoding logic for ILiFi.BridgeData and LibSwap.SwapData[].
  *         This library's functions are designed to be called externally, often within a try/catch block.
  */
-
 library AnypayLiFiDecodingLogic {
     // -------------------------------------------------------------------------
     // Errors

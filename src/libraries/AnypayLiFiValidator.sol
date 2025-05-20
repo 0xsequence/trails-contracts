@@ -7,7 +7,7 @@ import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 
 /**
  * @title AnypayLiFiValidator
- * @author Gemini
+ * @author Shun Kakinoki w/ help from Gemini
  * @notice Library for validating decoded LiFi Protocol data structures.
  *         Provides functions to check if BridgeData and SwapData are valid and not "empty".
  */
@@ -34,10 +34,12 @@ library AnypayLiFiValidator {
         }
         for (uint256 i = 0; i < swapDataArray.length; i++) {
             if (isSwapDataValid(swapDataArray[i])) {
-                return true; // Found at least one valid and non-empty swap
+                // Found at least one valid and non-empty swap
+                return true;
             }
         }
-        return false; // No valid and non-empty swap found in the array
+        // No valid and non-empty swap found in the array
+        return false;
     }
 
     /**

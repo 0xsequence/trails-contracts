@@ -13,6 +13,7 @@ import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 
 /**
  * @title AnypayLifiSapientSigner
+ * @author Shun Kakinoki
  * @notice An SapientSigner module for Sequence v3 wallets, designed to facilitate LiFi actions
  *         through the sapient signer module. It validates off-chain attestations to authorize
  *         operations on a specific LiFi Diamond contract. This enables relayers to execute LiFi
