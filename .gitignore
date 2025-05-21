@@ -12,3 +12,7 @@ out/
 
 # Dotenv file
 .env
+
+# Abi file
+abi.json
+abi.txt
