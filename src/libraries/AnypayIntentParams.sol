@@ -3,7 +3,7 @@
 pragma solidity ^0.8.30;
 
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-import {AnypayLifiInfo} from "./AnypayLiFiInterpreter.sol";
+import {AnypayLiFiInfo} from "./AnypayLiFiInterpreter.sol";
 
 /**
  * @title AnypayIntentParams
@@ -109,7 +109,7 @@ library AnypayIntentParams {
         intentHash = keccak256(encodedData);
     }
 
-    function getAnypayLifiInfoHash(AnypayLifiInfo[] memory lifiInfos, address attestationAddress)
+    function getAnypayLiFiInfoHash(AnypayLiFiInfo[] memory lifiInfos, address attestationAddress)
         internal
         pure
         returns (bytes32)

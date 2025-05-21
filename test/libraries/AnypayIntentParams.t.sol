@@ -5,7 +5,7 @@ pragma solidity ^0.8.30;
 import {Test, console} from "forge-std/Test.sol";
 import {AnypayIntentParams} from "src/libraries/AnypayIntentParams.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-import {AnypayLifiInfo} from "src/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayLiFiInfo} from "src/libraries/AnypayLiFiInterpreter.sol";
 
 contract AnypayIntentParamsTest is Test {
     AnypayIntentParams.IntentParamsData internal baseParams;
@@ -220,9 +220,9 @@ contract AnypayIntentParamsTest is Test {
         assertEq(actualHash, expectedHash, "MultipleValidCallPayloads hash mismatch");
     }
 
-    function testGetAnypayLifiInfoHash_SingleInfo() public {
-        AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](1);
-        lifiInfos[0] = AnypayLifiInfo({
+    function testGetAnypayLiFiInfoHash_SingleInfo() public {
+        AnypayLiFiInfo[] memory lifiInfos = new AnypayLiFiInfo[](1);
+        lifiInfos[0] = AnypayLiFiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
             amount: 100,
             originChainId: 1,
@@ -231,19 +231,19 @@ contract AnypayIntentParamsTest is Test {
         address attestationAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
 
         bytes32 expectedHash = 0x21872bd6b64711c4a5aecba95829c612f0b50c63f1a26991c2f76cf4a754aede;
-        bytes32 actualHash = AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
+        bytes32 actualHash = AnypayIntentParams.getAnypayLiFiInfoHash(lifiInfos, attestationAddress);
         assertEq(actualHash, expectedHash, "SingleInfo hash mismatch");
     }
 
-    function testGetAnypayLifiInfoHash_MultipleInfo() public {
-        AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](2);
-        lifiInfos[0] = AnypayLifiInfo({
+    function testGetAnypayLiFiInfoHash_MultipleInfo() public {
+        AnypayLiFiInfo[] memory lifiInfos = new AnypayLiFiInfo[](2);
+        lifiInfos[0] = AnypayLiFiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
             amount: 100,
             originChainId: 1,
             destinationChainId: 10
         });
-        lifiInfos[1] = AnypayLifiInfo({
+        lifiInfos[1] = AnypayLiFiInfo({
             originToken: 0x2222222222222222222222222222222222222222,
             amount: 200,
             originChainId: 137,
@@ -252,23 +252,23 @@ contract AnypayIntentParamsTest is Test {
         address attestationAddress = 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB;
 
         bytes32 expectedHash = 0xd18e54455db64ba31b9f9a447e181f83977cb70b136228d64ac85d64a6aefe71;
-        bytes32 actualHash = AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
+        bytes32 actualHash = AnypayIntentParams.getAnypayLiFiInfoHash(lifiInfos, attestationAddress);
         assertEq(actualHash, expectedHash, "MultipleInfo hash mismatch");
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
-    function testGetAnypayLifiInfoHash_EmptyInfo_ShouldRevert() public {
-        AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](0);
+    function testGetAnypayLiFiInfoHash_EmptyInfo_ShouldRevert() public {
+        AnypayLiFiInfo[] memory lifiInfos = new AnypayLiFiInfo[](0);
         address attestationAddress = 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC;
 
         vm.expectRevert(AnypayIntentParams.LifiInfosIsEmpty.selector);
-        AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
+        AnypayIntentParams.getAnypayLiFiInfoHash(lifiInfos, attestationAddress);
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
-    function testGetAnypayLifiInfoHash_AttestationAddressIsZero_ShouldRevert() public {
-        AnypayLifiInfo[] memory lifiInfos = new AnypayLifiInfo[](1);
-        lifiInfos[0] = AnypayLifiInfo({
+    function testGetAnypayLiFiInfoHash_AttestationAddressIsZero_ShouldRevert() public {
+        AnypayLiFiInfo[] memory lifiInfos = new AnypayLiFiInfo[](1);
+        lifiInfos[0] = AnypayLiFiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
             amount: 100,
             originChainId: 1,
@@ -277,6 +277,6 @@ contract AnypayIntentParamsTest is Test {
         address attestationAddress = address(0);
 
         vm.expectRevert(AnypayIntentParams.AttestationAddressIsZero.selector);
-        AnypayIntentParams.getAnypayLifiInfoHash(lifiInfos, attestationAddress);
+        AnypayIntentParams.getAnypayLiFiInfoHash(lifiInfos, attestationAddress);
     }
 }

@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.30;
 
-struct AnypayLifiInfo {
+struct AnypayLiFiInfo {
     address originToken;
     uint256 amount;
     uint256 originChainId;

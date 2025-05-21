@@ -4,12 +4,12 @@ pragma solidity ^0.8.30;
 
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLifiInfo} from "../interfaces/AnypayLifi.sol";
+import {AnypayLiFiInfo} from "../interfaces/AnypayLiFi.sol";
 
 /**
  * @title AnypayLiFiInterpreter
  * @author Shun Kakinoki
- * @notice Library for interpreting LiFi data into AnypayLifiInfo structs.
+ * @notice Library for interpreting LiFi data into AnypayLiFiInfo structs.
  */
 library AnypayLiFiInterpreter {
     // -------------------------------------------------------------------------
@@ -39,7 +39,7 @@ library AnypayLiFiInterpreter {
     function getOriginSwapInfo(ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData)
         internal
         view
-        returns (AnypayLifiInfo memory)
+        returns (AnypayLiFiInfo memory)
     {
         address originToken;
         uint256 amount;
@@ -57,7 +57,7 @@ library AnypayLiFiInterpreter {
                 amount = bridgeData.minAmount;
             }
 
-            return AnypayLifiInfo({
+            return AnypayLiFiInfo({
                 originToken: originToken,
                 amount: amount,
                 originChainId: block.chainid,
@@ -70,7 +70,7 @@ library AnypayLiFiInterpreter {
                 revert EmptyLibSwapData();
             }
 
-            return AnypayLifiInfo({
+            return AnypayLiFiInfo({
                 originToken: swapData[0].sendingAssetId,
                 amount: swapData[0].fromAmount,
                 originChainId: block.chainid,
@@ -80,17 +80,17 @@ library AnypayLiFiInterpreter {
     }
 
     /**
-     * @notice Validates that each attested AnypayLifiInfo struct matches a unique, valid inferred AnypayLifiInfo struct.
+     * @notice Validates that each attested AnypayLiFiInfo struct matches a unique, valid inferred AnypayLiFiInfo struct.
      * @dev This function ensures:
      *      1. Array Lengths: `inferredLifiInfos` and `attestedLifiInfos` must have the same length.
      *      2. Inferred Info Validity: All `inferredLifiInfos` must have a non-zero origin token and a non-zero minimum amount.
      *      3. Match for Current Chain: Each `attestedLifiInfos[i]` with `originChainId == block.chainid` must find a unique `inferredLifiInfos[j]` matching `originChainId`, `destinationChainId`, and `originToken`.
      *      4. Minimum Amount for Current Chain Matches: For such matched pairs (where `attested.originChainId == block.chainid`), `inferred.minAmount` must be >= `attested.minAmount`.
      *      Reverts with specific errors upon validation failure.
-     * @param inferredLifiInfos Array of AnypayLifiInfo structs inferred from current transaction data.
-     * @param attestedLifiInfos Array of AnypayLifiInfo structs derived from attestations (these are the reference).
+     * @param inferredLifiInfos Array of AnypayLiFiInfo structs inferred from current transaction data.
+     * @param attestedLifiInfos Array of AnypayLiFiInfo structs derived from attestations (these are the reference).
      */
-    function validateLifiInfos(AnypayLifiInfo[] memory inferredLifiInfos, AnypayLifiInfo[] memory attestedLifiInfos)
+    function validateLifiInfos(AnypayLiFiInfo[] memory inferredLifiInfos, AnypayLiFiInfo[] memory attestedLifiInfos)
         internal
         view
     {
@@ -105,7 +105,7 @@ library AnypayLiFiInterpreter {
 
         // Validate all inferredLifiInfos upfront (Check 2 from NatSpec).
         for (uint256 i = 0; i < numInfos; i++) {
-            AnypayLifiInfo memory _currentInferredInfo = inferredLifiInfos[i];
+            AnypayLiFiInfo memory _currentInferredInfo = inferredLifiInfos[i];
             if (_currentInferredInfo.amount == 0) {
                 revert InvalidInferredMinAmount();
             }
@@ -116,7 +116,7 @@ library AnypayLiFiInterpreter {
         // For each attestedLifiInfo, find a unique, matching, and valid inferredLifiInfo
         // Only validate if the attestation's originChainId is the current block.chainid
         for (uint256 i = 0; i < numInfos; i++) {
-            AnypayLifiInfo memory currentAttestedInfo = attestedLifiInfos[i];
+            AnypayLiFiInfo memory currentAttestedInfo = attestedLifiInfos[i];
 
             if (currentAttestedInfo.originChainId != block.chainid) {
                 continue;
@@ -128,7 +128,7 @@ library AnypayLiFiInterpreter {
                     continue;
                 }
 
-                AnypayLifiInfo memory currentInferredInfo = inferredLifiInfos[j];
+                AnypayLiFiInfo memory currentInferredInfo = inferredLifiInfos[j];
 
                 if (
                     currentAttestedInfo.originChainId == currentInferredInfo.originChainId

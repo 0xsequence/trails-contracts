@@ -7,7 +7,7 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiDecoder} from "./libraries/AnypayLiFiDecoder.sol";
-import {AnypayLiFiInterpreter, AnypayLifiInfo} from "./libraries/AnypayLiFiInterpreter.sol";
+import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "./libraries/AnypayLiFiInterpreter.sol";
 import {AnypayIntentParams} from "./libraries/AnypayIntentParams.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 
@@ -81,7 +81,7 @@ contract AnypayLiFiSapientSigner is ISapient {
         }
 
         // 4. Decode the signature
-        (AnypayLifiInfo[] memory attestationLifiInfos, bytes memory attestationSignature) =
+        (AnypayLiFiInfo[] memory attestationLifiInfos, bytes memory attestationSignature) =
             _decodeSignature(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
@@ -89,7 +89,7 @@ contract AnypayLiFiSapientSigner is ISapient {
             ECDSA.recover(keccak256(abi.encode(payload.hashFor(address(0)))), attestationSignature);
 
         // 6. Initialize structs to store decoded data
-        AnypayLifiInfo[] memory inferredLifiInfos = new AnypayLifiInfo[](payload.calls.length);
+        AnypayLiFiInfo[] memory inferredLifiInfos = new AnypayLiFiInfo[](payload.calls.length);
 
         // 7. Decode BridgeData and SwapData from calldata using the library
         for (uint256 i = 0; i < payload.calls.length; i++) {
@@ -103,7 +103,7 @@ contract AnypayLiFiSapientSigner is ISapient {
         AnypayLiFiInterpreter.validateLifiInfos(inferredLifiInfos, attestationLifiInfos);
 
         // 9. Hash the lifi intent params
-        bytes32 lifiIntentHash = AnypayIntentParams.getAnypayLifiInfoHash(attestationLifiInfos, attestationSigner);
+        bytes32 lifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(attestationLifiInfos, attestationSigner);
 
         // 10. Return the lifi intent hashed params
         return lifiIntentHash;
@@ -115,17 +115,17 @@ contract AnypayLiFiSapientSigner is ISapient {
 
     /**
      * @notice Decodes a combined signature into LiFi information and the attestation signature.
-     * @dev Assumes _signature is abi.encode(AnypayLifiInfo[] memory, bytes memory).
+     * @dev Assumes _signature is abi.encode(AnypayLiFiInfo[] memory, bytes memory).
      * @param _signature The combined signature bytes.
-     * @return _lifiInfos Array of AnypayLifiInfo structs.
+     * @return _lifiInfos Array of AnypayLiFiInfo structs.
      * @return _attestationSignature The ECDSA signature for attestation.
      */
     function _decodeSignature(bytes calldata _signature)
         internal
         pure
-        returns (AnypayLifiInfo[] memory _lifiInfos, bytes memory _attestationSignature)
+        returns (AnypayLiFiInfo[] memory _lifiInfos, bytes memory _attestationSignature)
     {
-        // Assuming _signature is abi.encode(AnypayLifiInfo[] memory, bytes memory)
-        (_lifiInfos, _attestationSignature) = abi.decode(_signature, (AnypayLifiInfo[], bytes));
+        // Assuming _signature is abi.encode(AnypayLiFiInfo[] memory, bytes memory)
+        (_lifiInfos, _attestationSignature) = abi.decode(_signature, (AnypayLiFiInfo[], bytes));
     }
 }
