@@ -11,6 +11,9 @@ contract Deploy is SingletonDeployer {
 
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
+        address deployerAddress = vm.addr(pk);
+        console.log("Deployer Address:", deployerAddress);
+
         bytes32 salt = bytes32(0);
 
         // Deploy AnypayLifiSapientSigner with hardcoded LiFiDiamond address

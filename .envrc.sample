@@ -1,0 +1,3 @@
+export ADDRESS="0x24E65Cd3d7A8893e6f517a51337568f3F5Ccf5b7"
+export RPC_URL="your_rpc_url_here"
+export ETHERSCAN_API_KEY="your_etherscan_api_key_here"
