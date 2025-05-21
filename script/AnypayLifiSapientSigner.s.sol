@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.30;
 
 import {SingletonDeployer, console} from "erc2470-libs/script/SingletonDeployer.s.sol";
 import {AnypayLifiSapientSigner} from "../src/AnypayLifiSapientSigner.sol";

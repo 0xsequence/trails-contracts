@@ -60,8 +60,11 @@ forge script script/AnypayLifiSapientSigner.s.sol:Deploy --sig "run()" \
     --rpc-url $RPC_URL \
     --broadcast \
     --verify \
+    --chain $CHAIN_ID \
+    --verifier-url $VERIFIER_URL \
     --etherscan-api-key $ETHERSCAN_API_KEY \
     --sender $ADDRESS \
+    --via-ir \
     -vvvv
 ```
 
@@ -78,4 +81,62 @@ forge script script/AnypayLifiSapientSigner.s.sol:Deploy --sig "run()" \
 ## References
 
 For more information on `forge script` and its capabilities, refer to the official Foundry Book documentation:
-[https://book.getfoundry.sh/reference/forge/forge-script](https://book.getfoundry.sh/reference/forge/forge-script) 
+[https://book.getfoundry.sh/reference/forge/forge-script](https://book.getfoundry.sh/reference/forge/forge-script)
+
+## Verifying an Already Deployed Contract
+
+If you have already deployed the `AnypayLifiSapientSigner` contract and want to verify it separately, you can use the `forge verify-contract` command.
+
+**Prerequisites:**
+
+Ensure the following environment variables are set, or provide them as command-line arguments:
+
+*   `ETHERSCAN_API_KEY`: Your Etherscan API key.
+*   `RPC_URL`: The RPC URL of the network where the contract is deployed (used to fetch constructor arguments if not provided directly, and to determine chain ID if not specified).
+    Alternatively, you can use the `--chain <CHAIN_ID>` flag.
+
+**Verification Command:**
+
+```bash
+forge verify-contract 0xcaabd9c48b0c7651cbc9f201beb7b70c59662501 src/AnypayLifiSapientSigner.sol:AnypayLifiSapientSigner \
+    --chain 42161 \
+    --etherscan-api-key $ETHERSCAN_API_KEY \
+    --verifier-url "https://api.arbiscan.io/api" \
+    --constructor-args $(cast abi-encode "constructor(address)" "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE") \
+    --compiler-version 0.8.17 \
+    --num-of-optimizations 200 \
+    --watch
+    # Add --via-ir if you compiled with it during deployment (foundry.toml has viaIR = true)
+    # --via-ir 
+```
+
+```fish
+forge verify-contract 0xcaabd9c48b0c7651cbc9f201beb7b70c59662501 AnypayLifiSapientSigner --verifier-url https://api.arbiscan.io/api
+ --etherscan-api-key HESC9U9BCB7PIEJVSNDEAF8NPHWJR9Y7K1 --watch --chain-id 42161 --constructor-args 0000000000000000000000001231deb6f
+5749ef6ce6943a275a1d3e7486f4eae
+```
+
+**Explanation of flags:**
+
+*   `<DEPLOYED_CONTRACT_ADDRESS>`: The address of the `AnypayLifiSapientSigner` contract on the blockchain.
+*   `src/AnypayLifiSapientSigner.sol:AnypayLifiSapientSigner`: The path to the source file and the contract name.
+*   `--chain <CHAIN_ID>`: The chain ID of the network (e.g., `1` for Ethereum Mainnet, `11155111` for Sepolia). You can often omit this if your `RPC_URL` points to the correct network.
+*   `--etherscan-api-key $ETHERSCAN_API_KEY`: Your Etherscan API key.
+*   `--constructor-args $(cast abi-encode "constructor(address)" "<LIFI_DIAMOND_ADDRESS>")`: The ABI-encoded constructor arguments. The `AnypayLifiSapientSigner` constructor takes one argument: `address _lifiDiamondAddress`.
+    *   Replace `<LIFI_DIAMOND_ADDRESS>` with the actual LiFi Diamond address that was used when the contract was deployed.
+*   `--compiler-version <YOUR_SOLC_VERSION>`: The Solidity compiler version used to compile your contract (e.g., `0.8.17`). You might need to specify the full version string (e.g., `v0.8.17+commit.8df45f5f`).
+*   `--num-of-optimizations <OPTIMIZER_RUNS>`: The number of optimizer runs used during compilation. If you didn't specify this during compilation, it might be the default (e.g., `200`). Check your `foundry.toml` or compilation output.
+*   `--watch`: Waits for the verification result from Etherscan.
+*   `--via-ir`: Include this flag if your `foundry.toml` has `viaIR = true` or if you used this flag during the initial deployment.
+
+**Important Notes:**
+
+*   **Compiler Version and Optimizer Runs:** Getting the exact compiler version and number of optimizer runs correct is crucial for successful verification. If verification fails, these are common culprits. You can often find this information in your `foundry.toml` or the compilation artifacts (e.g., in the `out/` directory).
+*   **LiFi Diamond Address:** Ensure the `<LIFI_DIAMOND_ADDRESS>` in the `--constructor-args` matches the one used when the specific contract instance was deployed.
+
+*   **Error: No matching artifact found:** If you encounter an error like `Error: No matching artifact found for AnypayLifiSapientSigner`, it means Foundry cannot locate the compiled contract artifact. 
+    1.  Ensure you are running the command from the project root directory.
+    2.  Run `forge build` in your project root to compile your contracts and generate the necessary artifacts. 
+    3.  If the issue persists, try forcefully recompiling with `forge build --force` or cleaning and rebuilding with `forge clean && forge build`.
+
+For more details, refer to the [Foundry Book - `forge verify-contract`](https://book.getfoundry.sh/reference/forge/forge-verify-contract).
