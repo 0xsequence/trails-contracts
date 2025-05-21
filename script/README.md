@@ -112,8 +112,7 @@ forge verify-contract 0xcaabd9c48b0c7651cbc9f201beb7b70c59662501 src/AnypayLiFiS
 
 ```fish
 forge verify-contract 0xcaabd9c48b0c7651cbc9f201beb7b70c59662501 AnypayLiFiSapientSigner --verifier-url https://api.arbiscan.io/api
- --etherscan-api-key HESC9U9BCB7PIEJVSNDEAF8NPHWJR9Y7K1 --watch --chain-id 42161 --constructor-args 0000000000000000000000001231deb6f
-5749ef6ce6943a275a1d3e7486f4eae
+ --etherscan-api-key HESC9U9BCB7PIEJVSNDEAF8NPHWJR9Y7K1 --watch --chain-id 42161 --constructor-args 0000000000000000000000001231deb6f5749ef6ce6943a275a1d3e7486f4eae
 ```
 
 **Explanation of flags:**
