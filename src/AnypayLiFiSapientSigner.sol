@@ -107,7 +107,7 @@ contract AnypayLiFiSapientSignerLite is ISapient {
 
         // 9. Hash the lifi intent params
         // bytes32 lifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(attestationLifiInfos, attestationSigner);
-        bytes32 lifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(attestationLifiInfos, address(0));
+        bytes32 lifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(attestationLifiInfos, address(1));
 
         // 10. Return the lifi intent hashed params
         return lifiIntentHash;
