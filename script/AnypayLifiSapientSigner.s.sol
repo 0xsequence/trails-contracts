@@ -3,7 +3,7 @@
 pragma solidity ^0.8.30;
 
 import {SingletonDeployer, console} from "erc2470-libs/script/SingletonDeployer.s.sol";
-import {AnypayLifiSapientSigner} from "../src/AnypayLifiSapientSigner.sol";
+import {AnypayLiFiSapientSigner} from "../src/AnypayLiFiSapientSigner.sol";
 
 contract Deploy is SingletonDeployer {
     // Hardcoded LiFiDiamond address
@@ -16,10 +16,10 @@ contract Deploy is SingletonDeployer {
 
         bytes32 salt = bytes32(0);
 
-        // Deploy AnypayLifiSapientSigner with hardcoded LiFiDiamond address
-        bytes memory initCode = abi.encodePacked(type(AnypayLifiSapientSigner).creationCode, abi.encode(LIFI_DIAMOND));
-        address wrapper = _deployIfNotAlready("AnypayLifiSapientSigner", initCode, salt, pk);
+        // Deploy AnypayLiFiSapientSigner with hardcoded LiFiDiamond address
+        bytes memory initCode = abi.encodePacked(type(AnypayLiFiSapientSigner).creationCode, abi.encode(LIFI_DIAMOND));
+        address wrapper = _deployIfNotAlready("AnypayLiFiSapientSigner", initCode, salt, pk);
 
-        console.log("AnypayLifiSapientSigner deployed at:", wrapper);
+        console.log("AnypayLiFiSapientSigner deployed at:", wrapper);
     }
 }
