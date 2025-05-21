@@ -45,7 +45,7 @@ library AnypayLiFiInterpreter {
         uint256 amount;
 
         // If the bridge data is not empty
-        if (bridgeData.sendingAssetId != address(0)) {
+        if (bridgeData.transactionId != bytes32(0)) {
             if (bridgeData.hasSourceSwaps) {
                 if (swapData.length == 0) {
                     revert EmptyLibSwapData();
