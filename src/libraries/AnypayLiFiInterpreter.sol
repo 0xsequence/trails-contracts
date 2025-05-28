@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiInfo} from "../interfaces/AnypayLiFis.sol";
+import {AnypayLiFiInfo} from "../interfaces/AnypayLiFi.sol";
 
 /**
  * @title AnypayLiFiInterpreter
