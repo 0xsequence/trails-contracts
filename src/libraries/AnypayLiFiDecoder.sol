@@ -26,18 +26,26 @@ library AnypayLiFiDecodingLogic {
      * @dev Copies a slice of a bytes memory array to a new bytes memory array.
      * @param data The source bytes array.
      * @param start The starting index (0-based) of the slice in the source array.
-     * @return A new bytes memory array containing the slice.
+     * @return copy A new bytes memory array containing the slice.
      */
-    function _getMemorySlice(bytes memory data, uint256 start) internal pure returns (bytes memory) {
+    function _getMemorySlice(bytes memory data, uint256 start) internal pure returns (bytes memory copy) {
         if (start > data.length) {
             revert SliceOutOfBounds();
         }
-        uint256 len = data.length - start;
-        bytes memory slice = new bytes(len);
-        for (uint256 i = 0; i < len; i++) {
-            slice[i] = data[start + i];
+
+        assembly ("memory-safe") {
+            let fmp := mload(0x40)
+            copy := fmp
+
+            let slice_len := sub(mload(data), start)
+
+            mstore(fmp, slice_len)
+            mcopy(add(fmp, 0x20), add(add(data, 0x20), start), slice_len)
+
+            let padded_len := mul(div(add(slice_len, 31), 32), 32)
+            let new_fmp := add(add(fmp, padded_len), 0x20)
+            mstore(0x40, new_fmp)
         }
-        return slice;
     }
 
     // -------------------------------------------------------------------------
