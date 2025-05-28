@@ -239,7 +239,7 @@ contract AnypayLiFiSapientSignerTest is Test {
     //         gasLimit: 0,
     //         delegateCall: false,
     //         onlyFallback: false,
-    //         behaviorOnError: 0 
+    //         behaviorOnError: 0
     //     });
     //     payload.space = 0;
     //     payload.nonce = 0;
@@ -257,7 +257,6 @@ contract AnypayLiFiSapientSignerTest is Test {
 
     //     assertEq(lifiInfos.length, 1, "Decoded LiFi Infos length mismatch");
     //     assertEq(actualAttestationSignature.length, 65, "Decoded signature length mismatch");
-
 
     //     bytes32 digestToSign = keccak256(abi.encode(payload.hashFor(address(0))));
 
