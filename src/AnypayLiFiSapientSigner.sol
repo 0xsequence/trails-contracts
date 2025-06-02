@@ -10,6 +10,7 @@ import {AnypayLiFiDecoder} from "./libraries/AnypayLiFiDecoder.sol";
 import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "./libraries/AnypayLiFiInterpreter.sol";
 import {AnypayIntentParams} from "./libraries/AnypayIntentParams.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
+import {AnypayDecodingStrategy} from "./interfaces/AnypayLifi.sol";
 
 /**
  * @title AnypayLiFiSapientSigner
@@ -126,15 +127,16 @@ contract AnypayLiFiSapientSignerLite is ISapient {
      * @dev Assumes _signature is abi.encode(AnypayLiFiInfo[] memory, bytes memory).
      * @param _signature The combined signature bytes.
      * @return _lifiInfos Array of AnypayLiFiInfo structs.
+     * @return _decodingStrategy The decoding strategy used.
      * @return _attestationSignature The ECDSA signature for attestation.
      */
     function decodeSignature(bytes calldata _signature)
         public
         pure
-        returns (AnypayLiFiInfo[] memory _lifiInfos, bytes memory _attestationSignature)
+        returns (AnypayLiFiInfo[] memory _lifiInfos, AnypayDecodingStrategy _decodingStrategy, bytes memory _attestationSignature)
     {
-        // Assuming _signature is abi.encode(AnypayLiFiInfo[] memory, bytes memory)
-        (_lifiInfos, _attestationSignature) = abi.decode(_signature, (AnypayLiFiInfo[], bytes));
+        // Assuming _signature is abi.encode(AnypayLiFiInfo[] memory, AnypayDecodingStrategy, bytes memory)
+        (_lifiInfos, _decodingStrategy, _attestationSignature) = abi.decode(_signature, (AnypayLiFiInfo[], AnypayDecodingStrategy, bytes));
     }
 
     /**
