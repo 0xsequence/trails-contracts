@@ -133,10 +133,6 @@ contract AnypayLiFiFlagDecoderTest is Test {
         });
     }
 
-    // -------------------------------------------------------------------------
-    // Tests for BRIDGE_DATA_AND_SWAP_DATA_TUPLE Strategy
-    // -------------------------------------------------------------------------
-
     function test_BridgeDataAndSwapDataTuple_Success_WithSwaps() public {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
         localBridgeData.transactionId = bytes32(uint256(0x7001));
@@ -172,25 +168,25 @@ contract AnypayLiFiFlagDecoderTest is Test {
 
     function test_BridgeDataAndSwapDataTuple_Reverts_InvalidBridgeData() public {
         ILiFi.BridgeData memory invalidBridgeData = baseBridgeData;
-        invalidBridgeData.transactionId = bytes32(0); // Invalid
-        invalidBridgeData.bridge = ""; // Invalid
+        invalidBridgeData.transactionId = bytes32(0); 
+        invalidBridgeData.bridge = ""; 
 
         bytes memory encodedCall =
             abi.encodeCall(helper.mockSwapAndStartBridge, (invalidBridgeData, singleSwapData, baseAcrossData));
 
-        vm.expectRevert(AnypayLiFiFlagDecoder.NoLiFiDataDecoded.selector);
+        vm.expectRevert(AnypayLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
     }
 
     function test_BridgeDataAndSwapDataTuple_Reverts_InconsistentSwapFlag() public {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
-        localBridgeData.hasSourceSwaps = true; // Says it has swaps
-        LibSwap.SwapData[] memory emptySwapDataArray = new LibSwap.SwapData[](0); // But no swaps provided
+        localBridgeData.hasSourceSwaps = true; 
+        LibSwap.SwapData[] memory emptySwapDataArray = new LibSwap.SwapData[](0); 
 
         bytes memory encodedCall =
             abi.encodeCall(helper.mockSwapAndStartBridge, (localBridgeData, emptySwapDataArray, baseAcrossData));
 
-        vm.expectRevert(AnypayLiFiFlagDecoder.NoLiFiDataDecoded.selector);
+        vm.expectRevert(AnypayLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
     }
 
@@ -214,12 +210,12 @@ contract AnypayLiFiFlagDecoderTest is Test {
 
     function test_SingleBridgeData_Reverts_InvalidBridgeData() public {
         ILiFi.BridgeData memory invalidBridgeData = baseBridgeData;
-        invalidBridgeData.transactionId = bytes32(0); // Invalid
-        invalidBridgeData.receiver = address(0); // Invalid
+        invalidBridgeData.transactionId = bytes32(0); 
+        invalidBridgeData.receiver = address(0); 
 
         bytes memory encodedCall = abi.encodeCall(helper.mockSingleBridgeArg, (invalidBridgeData));
 
-        vm.expectRevert(AnypayLiFiFlagDecoder.NoLiFiDataDecoded.selector);
+        vm.expectRevert(AnypayLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA);
     }
 
@@ -228,8 +224,6 @@ contract AnypayLiFiFlagDecoderTest is Test {
         bytes memory wrongEncodedCall =
             abi.encodeCall(helper.mockSwapAndStartBridge, (baseBridgeData, singleSwapData, baseAcrossData));
 
-        // This actually succeeds because the decoder just takes the first parameter
-        // which is valid bridge data, so let's test with truly invalid calldata
         bytes memory invalidCalldata = hex"deadbeef11111111";
 
         vm.expectRevert();
@@ -276,18 +270,18 @@ contract AnypayLiFiFlagDecoderTest is Test {
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, emptySwapData)
         );
 
-        vm.expectRevert(AnypayLiFiFlagDecoder.NoLiFiDataDecoded.selector);
+        vm.expectRevert(AnypayLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, AnypayDecodingStrategy.SWAP_DATA_ARRAY);
     }
 
     function test_SwapDataArray_Reverts_InvalidSwapData() public {
         LibSwap.SwapData[] memory invalidSwapData = new LibSwap.SwapData[](1);
         invalidSwapData[0] = LibSwap.SwapData({
-            callTo: address(0), // Invalid
-            approveTo: address(0), // Invalid
+            callTo: address(0), 
+            approveTo: address(0), 
             sendingAssetId: address(0),
             receivingAssetId: address(0),
-            fromAmount: 0, // Invalid
+            fromAmount: 0, 
             callData: hex"",
             requiresDeposit: false
         });
@@ -297,7 +291,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, invalidSwapData)
         );
 
-        vm.expectRevert(AnypayLiFiFlagDecoder.NoLiFiDataDecoded.selector);
+        vm.expectRevert(AnypayLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, AnypayDecodingStrategy.SWAP_DATA_ARRAY);
     }
 
@@ -332,11 +326,11 @@ contract AnypayLiFiFlagDecoderTest is Test {
 
     function test_SingleSwapData_Reverts_InvalidSwapData() public {
         LibSwap.SwapData memory invalidSwap = LibSwap.SwapData({
-            callTo: address(0), // Invalid
-            approveTo: address(0), // Invalid
+            callTo: address(0), 
+            approveTo: address(0), 
             sendingAssetId: address(0),
             receivingAssetId: address(0),
-            fromAmount: 0, // Invalid
+            fromAmount: 0, 
             callData: hex"",
             requiresDeposit: false
         });
@@ -346,7 +340,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, invalidSwap)
         );
 
-        vm.expectRevert(AnypayLiFiFlagDecoder.NoLiFiDataDecoded.selector);
+        vm.expectRevert(AnypayLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, AnypayDecodingStrategy.SINGLE_SWAP_DATA);
     }
 
@@ -420,10 +414,6 @@ contract AnypayLiFiFlagDecoderTest is Test {
         helper.decodeLiFiDataOrRevert(unrelatedCalldata, AnypayDecodingStrategy.SINGLE_SWAP_DATA);
     }
 
-    // -------------------------------------------------------------------------
-    // Tests for getMemorySlice Helper Function (via edge cases)
-    // -------------------------------------------------------------------------
-
     function test_GetMemorySlice_OutOfBounds() public {
         // This tests the SliceOutOfBounds error indirectly through the main function
         bytes memory data = hex"deadbeef";
@@ -435,10 +425,6 @@ contract AnypayLiFiFlagDecoderTest is Test {
         vm.expectRevert();
         helper.decodeLiFiDataOrRevert(malformedCalldata, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA);
     }
-
-    // -------------------------------------------------------------------------
-    // Gas Usage Tests
-    // -------------------------------------------------------------------------
 
     function test_GasUsage_BridgeDataAndSwapDataTuple() public {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
@@ -467,11 +453,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         console2.log("Gas used for SWAP_DATA_ARRAY:", gasUsed);
         assertLt(gasUsed, 50000, "Gas usage should be reasonable");
     }
-
-    // -------------------------------------------------------------------------
-    // Fuzz Tests
-    // -------------------------------------------------------------------------
-
+  
     function testFuzz_BridgeDataTransactionId(bytes32 txId) public {
         vm.assume(txId != bytes32(0)); // Must be non-zero for valid bridge data
 

@@ -19,7 +19,8 @@ library AnypayLiFiFlagDecoder {
 
     error SliceOutOfBounds();
     error CalldataTooShortForPayload();
-    error NoLiFiDataDecoded();
+    error InvalidDecodingStrategy();
+    error InvalidLiFiData();
 
     // -------------------------------------------------------------------------
     // Internal Helper Functions
@@ -162,7 +163,7 @@ library AnypayLiFiFlagDecoder {
 
             // Validate the decoded data
             if (!AnypayLiFiValidator.isBridgeAndSwapDataTupleValid(finalBridgeData, finalSwapDataArray)) {
-                revert NoLiFiDataDecoded();
+                revert InvalidLiFiData();
             }
         } else if (strategy == AnypayDecodingStrategy.SINGLE_BRIDGE_DATA) {
             // Decode as single BridgeData
@@ -171,7 +172,7 @@ library AnypayLiFiFlagDecoder {
 
             // Validate the decoded data
             if (!AnypayLiFiValidator.isBridgeDataValid(finalBridgeData)) {
-                revert NoLiFiDataDecoded();
+                revert InvalidLiFiData();
             }
         } else if (strategy == AnypayDecodingStrategy.SWAP_DATA_ARRAY) {
             // Decode payload as SwapData[]
@@ -179,7 +180,7 @@ library AnypayLiFiFlagDecoder {
 
             // Validate the decoded data
             if (!AnypayLiFiValidator.isSwapDataArrayValid(finalSwapDataArray)) {
-                revert NoLiFiDataDecoded();
+                revert InvalidLiFiData();
             }
         } else if (strategy == AnypayDecodingStrategy.SINGLE_SWAP_DATA) {
             // Decode payload as single SwapData
@@ -187,12 +188,14 @@ library AnypayLiFiFlagDecoder {
 
             // Validate the decoded data
             if (!AnypayLiFiValidator.isSwapDataValid(singleSwapData)) {
-                revert NoLiFiDataDecoded();
+                revert InvalidLiFiData();
             }
 
             // Convert single SwapData to array
             finalSwapDataArray = new LibSwap.SwapData[](1);
             finalSwapDataArray[0] = singleSwapData;
+        } else {
+            revert InvalidDecodingStrategy();
         }
     }
 }
