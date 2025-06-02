@@ -133,10 +133,15 @@ contract AnypayLiFiSapientSignerLite is ISapient {
     function decodeSignature(bytes calldata _signature)
         public
         pure
-        returns (AnypayLiFiInfo[] memory _lifiInfos, AnypayDecodingStrategy _decodingStrategy, bytes memory _attestationSignature)
+        returns (
+            AnypayLiFiInfo[] memory _lifiInfos,
+            AnypayDecodingStrategy _decodingStrategy,
+            bytes memory _attestationSignature
+        )
     {
         // Assuming _signature is abi.encode(AnypayLiFiInfo[] memory, AnypayDecodingStrategy, bytes memory)
-        (_lifiInfos, _decodingStrategy, _attestationSignature) = abi.decode(_signature, (AnypayLiFiInfo[], AnypayDecodingStrategy, bytes));
+        (_lifiInfos, _decodingStrategy, _attestationSignature) =
+            abi.decode(_signature, (AnypayLiFiInfo[], AnypayDecodingStrategy, bytes));
     }
 
     /**

@@ -97,7 +97,7 @@ library AnypayLiFiDecoder {
         if (data.length < minCalldataLenForPrefixAndOneOffset) {
             revert CalldataTooShortForPayload();
         }
-        bytes memory argsData = getMemorySlice(data, 4); 
+        bytes memory argsData = getMemorySlice(data, 4);
         (,,,,, swapDataArrayOut) = abi.decode(argsData, (bytes32, string, string, address, uint256, LibSwap.SwapData[]));
     }
 
@@ -118,7 +118,7 @@ library AnypayLiFiDecoder {
         if (data.length < minCalldataLenForPrefixAndOneOffset) {
             revert CalldataTooShortForPayload();
         }
-        bytes memory argsData = getMemorySlice(data, 4); 
+        bytes memory argsData = getMemorySlice(data, 4);
         (,,,,, singleSwapDataOut) = abi.decode(argsData, (bytes32, string, string, address, uint256, LibSwap.SwapData));
     }
 
@@ -131,7 +131,7 @@ library AnypayLiFiDecoder {
      */
     function getCalldataAfterSelector(bytes memory data) private pure returns (bytes memory) {
         if (data.length < 4) {
-            return bytes(""); 
+            return bytes("");
         }
         return getMemorySlice(data, 4);
     }
@@ -158,40 +158,37 @@ library AnypayLiFiDecoder {
             // Decode as (BridgeData, SwapData[])
             bytes memory calldataForDecode = getCalldataAfterSelector(data);
             (finalBridgeData, finalSwapDataArray) = decodeAsBridgeDataAndSwapDataTuple(calldataForDecode);
-            
+
             // Validate the decoded data
             if (!AnypayLiFiValidator.isBridgeAndSwapDataTupleValid(finalBridgeData, finalSwapDataArray)) {
                 revert NoLiFiDataDecoded();
             }
-            
         } else if (strategy == AnypayDecodingStrategy.SINGLE_BRIDGE_DATA) {
             // Decode as single BridgeData
             bytes memory calldataForDecode = getCalldataAfterSelector(data);
             finalBridgeData = decodeAsSingleBridgeData(calldataForDecode);
-            
+
             // Validate the decoded data
             if (!AnypayLiFiValidator.isBridgeDataValid(finalBridgeData)) {
                 revert NoLiFiDataDecoded();
             }
-            
         } else if (strategy == AnypayDecodingStrategy.SWAP_DATA_ARRAY) {
             // Decode payload as SwapData[]
             finalSwapDataArray = decodeLifiSwapDataPayloadAsArray(data);
-            
+
             // Validate the decoded data
             if (!AnypayLiFiValidator.isSwapDataArrayValid(finalSwapDataArray)) {
                 revert NoLiFiDataDecoded();
             }
-            
         } else if (strategy == AnypayDecodingStrategy.SINGLE_SWAP_DATA) {
             // Decode payload as single SwapData
             LibSwap.SwapData memory singleSwapData = decodeLifiSwapDataPayloadAsSingle(data);
-            
+
             // Validate the decoded data
             if (!AnypayLiFiValidator.isSwapDataValid(singleSwapData)) {
                 revert NoLiFiDataDecoded();
             }
-            
+
             // Convert single SwapData to array
             finalSwapDataArray = new LibSwap.SwapData[](1);
             finalSwapDataArray[0] = singleSwapData;
