@@ -168,8 +168,8 @@ contract AnypayLiFiFlagDecoderTest is Test {
 
     function test_BridgeDataAndSwapDataTuple_Reverts_InvalidBridgeData() public {
         ILiFi.BridgeData memory invalidBridgeData = baseBridgeData;
-        invalidBridgeData.transactionId = bytes32(0); 
-        invalidBridgeData.bridge = ""; 
+        invalidBridgeData.transactionId = bytes32(0);
+        invalidBridgeData.bridge = "";
 
         bytes memory encodedCall =
             abi.encodeCall(helper.mockSwapAndStartBridge, (invalidBridgeData, singleSwapData, baseAcrossData));
@@ -180,8 +180,8 @@ contract AnypayLiFiFlagDecoderTest is Test {
 
     function test_BridgeDataAndSwapDataTuple_Reverts_InconsistentSwapFlag() public {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
-        localBridgeData.hasSourceSwaps = true; 
-        LibSwap.SwapData[] memory emptySwapDataArray = new LibSwap.SwapData[](0); 
+        localBridgeData.hasSourceSwaps = true;
+        LibSwap.SwapData[] memory emptySwapDataArray = new LibSwap.SwapData[](0);
 
         bytes memory encodedCall =
             abi.encodeCall(helper.mockSwapAndStartBridge, (localBridgeData, emptySwapDataArray, baseAcrossData));
@@ -210,8 +210,8 @@ contract AnypayLiFiFlagDecoderTest is Test {
 
     function test_SingleBridgeData_Reverts_InvalidBridgeData() public {
         ILiFi.BridgeData memory invalidBridgeData = baseBridgeData;
-        invalidBridgeData.transactionId = bytes32(0); 
-        invalidBridgeData.receiver = address(0); 
+        invalidBridgeData.transactionId = bytes32(0);
+        invalidBridgeData.receiver = address(0);
 
         bytes memory encodedCall = abi.encodeCall(helper.mockSingleBridgeArg, (invalidBridgeData));
 
@@ -277,11 +277,11 @@ contract AnypayLiFiFlagDecoderTest is Test {
     function test_SwapDataArray_Reverts_InvalidSwapData() public {
         LibSwap.SwapData[] memory invalidSwapData = new LibSwap.SwapData[](1);
         invalidSwapData[0] = LibSwap.SwapData({
-            callTo: address(0), 
-            approveTo: address(0), 
+            callTo: address(0),
+            approveTo: address(0),
             sendingAssetId: address(0),
             receivingAssetId: address(0),
-            fromAmount: 0, 
+            fromAmount: 0,
             callData: hex"",
             requiresDeposit: false
         });
@@ -326,11 +326,11 @@ contract AnypayLiFiFlagDecoderTest is Test {
 
     function test_SingleSwapData_Reverts_InvalidSwapData() public {
         LibSwap.SwapData memory invalidSwap = LibSwap.SwapData({
-            callTo: address(0), 
-            approveTo: address(0), 
+            callTo: address(0),
+            approveTo: address(0),
             sendingAssetId: address(0),
             receivingAssetId: address(0),
-            fromAmount: 0, 
+            fromAmount: 0,
             callData: hex"",
             requiresDeposit: false
         });
@@ -453,7 +453,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         console2.log("Gas used for SWAP_DATA_ARRAY:", gasUsed);
         assertLt(gasUsed, 50000, "Gas usage should be reasonable");
     }
-  
+
     function testFuzz_BridgeDataTransactionId(bytes32 txId) public {
         vm.assume(txId != bytes32(0)); // Must be non-zero for valid bridge data
 
