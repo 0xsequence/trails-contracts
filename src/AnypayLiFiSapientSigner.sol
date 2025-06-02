@@ -10,7 +10,7 @@ import {AnypayLiFiDecoder} from "./libraries/AnypayLiFiDecoder.sol";
 import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "./libraries/AnypayLiFiInterpreter.sol";
 import {AnypayIntentParams} from "./libraries/AnypayIntentParams.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
-import {AnypayDecodingStrategy} from "./interfaces/AnypayLifi.sol";
+import {AnypayDecodingStrategy} from "./interfaces/AnypayLiFi.sol";
 
 /**
  * @title AnypayLiFiSapientSigner
