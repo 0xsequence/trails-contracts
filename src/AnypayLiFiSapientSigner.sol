@@ -87,10 +87,13 @@ contract AnypayLiFiSapientSignerLite is ISapient {
         }
 
         // 4. Decode the signature
-        (AnypayLiFiInfo[] memory attestationLifiInfos, AnypayDecodingStrategy decodingStrategy, bytes memory attestationSignature) =
-        decodeSignature(encodedSignature);
+        (
+            AnypayLiFiInfo[] memory attestationLifiInfos,
+            AnypayDecodingStrategy decodingStrategy,
+            bytes memory attestationSignature
+        ) = decodeSignature(encodedSignature);
         // (AnypayLiFiInfo[] memory attestationLifiInfos, address attestationSigner) =
-            // decodeSignatureLite(encodedSignature);
+        // decodeSignatureLite(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
         // address attestationSigner =

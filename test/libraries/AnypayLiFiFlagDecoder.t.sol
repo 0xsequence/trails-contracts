@@ -32,10 +32,7 @@ contract FlagDecoderTestHelper {
     }
 
     // Mock functions for various LiFi patterns
-    function mockStartBridge(ILiFi.BridgeData memory _bridgeData, AcrossV3Data calldata _acrossData)
-        external
-        pure
-    {}
+    function mockStartBridge(ILiFi.BridgeData memory _bridgeData, AcrossV3Data calldata _acrossData) external pure {}
 
     function mockSingleBridgeArg(ILiFi.BridgeData memory _bridgeData) external pure {}
 
@@ -234,7 +231,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         // This actually succeeds because the decoder just takes the first parameter
         // which is valid bridge data, so let's test with truly invalid calldata
         bytes memory invalidCalldata = hex"deadbeef11111111";
-        
+
         vm.expectRevert();
         helper.decodeLiFiDataOrRevert(invalidCalldata, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA);
     }
@@ -325,7 +322,9 @@ contract AnypayLiFiFlagDecoderTest is Test {
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
             helper.decodeLiFiDataOrRevert(encodedCall, AnypayDecodingStrategy.SINGLE_SWAP_DATA);
 
-        assertEq(decodedBridgeData.transactionId, bytes32(0), "BridgeData should be empty for SINGLE_SWAP_DATA strategy");
+        assertEq(
+            decodedBridgeData.transactionId, bytes32(0), "BridgeData should be empty for SINGLE_SWAP_DATA strategy"
+        );
         assertEq(decodedSwapData.length, 1, "SwapData should be converted to array of length 1");
         assertEq(decodedSwapData[0].callTo, singleSwap.callTo, "SwapData.callTo mismatch");
         assertEq(decodedSwapData[0].fromAmount, singleSwap.fromAmount, "SwapData.fromAmount mismatch");
@@ -428,10 +427,10 @@ contract AnypayLiFiFlagDecoderTest is Test {
     function test_GetMemorySlice_OutOfBounds() public {
         // This tests the SliceOutOfBounds error indirectly through the main function
         bytes memory data = hex"deadbeef";
-        
+
         // Create calldata that would cause out of bounds access
         bytes memory malformedCalldata = abi.encodePacked(bytes4(0x12345678), data);
-        
+
         // This should eventually hit SliceOutOfBounds when trying to process
         vm.expectRevert();
         helper.decodeLiFiDataOrRevert(malformedCalldata, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA);
@@ -506,4 +505,4 @@ contract AnypayLiFiFlagDecoderTest is Test {
 
         assertEq(decodedSwapData[0].fromAmount, amount, "Swap amount should match");
     }
-} 
+}
