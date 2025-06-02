@@ -23,6 +23,7 @@ library AnypayIntentParams {
     error InvalidCallInDestination();
     error LifiInfosIsEmpty();
     error AttestationAddressIsZero();
+
     // -------------------------------------------------------------------------
     // Structs
     // -------------------------------------------------------------------------

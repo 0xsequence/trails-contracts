@@ -26,6 +26,10 @@ contract AnypayLiFiSapientSignerLite is ISapient {
     // -------------------------------------------------------------------------
 
     using Payload for Payload.Decoded;
+    using AnypayLiFiDecoder for bytes;
+    using AnypayLiFiInterpreter for AnypayLiFiInfo[];
+    using AnypayLiFiInterpreter for ILiFi.BridgeData;
+    using AnypayIntentParams for AnypayLiFiInfo[];
 
     // -------------------------------------------------------------------------
     // Immutables
@@ -97,17 +101,17 @@ contract AnypayLiFiSapientSignerLite is ISapient {
         // 7. Decode BridgeData and SwapData from calldata using the library
         for (uint256 i = 0; i < payload.calls.length; i++) {
             (ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData) =
-                AnypayLiFiDecoder.decodeLiFiDataOrRevert(payload.calls[i].data);
+                payload.calls[i].data.decodeLiFiDataOrRevert();
 
-            inferredLifiInfos[i] = AnypayLiFiInterpreter.getOriginSwapInfo(bridgeData, swapData);
+            inferredLifiInfos[i] = bridgeData.getOriginSwapInfo(swapData);
         }
 
         // 8. Validate the attestations
-        AnypayLiFiInterpreter.validateLifiInfos(inferredLifiInfos, attestationLifiInfos);
+        inferredLifiInfos.validateLifiInfos(attestationLifiInfos);
 
         // 9. Hash the lifi intent params
-        // bytes32 lifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(attestationLifiInfos, attestationSigner);
-        bytes32 lifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(attestationLifiInfos, address(1));
+        // bytes32 lifiIntentHash = attestationLifiInfos.getAnypayLiFiInfoHash(attestationSigner);
+        bytes32 lifiIntentHash = attestationLifiInfos.getAnypayLiFiInfoHash(address(1));
 
         // 10. Return the lifi intent hashed params
         return lifiIntentHash;

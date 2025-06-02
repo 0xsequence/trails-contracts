@@ -30,12 +30,14 @@ struct StargateData {
 }
 
 contract AnypayDecoderTestHelperForStargate {
+    using AnypayLiFiDecoder for bytes;
+
     function mockDecodeLiFiDataOrRevert(bytes memory data)
         external
         pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
     {
-        return AnypayLiFiDecoder.decodeLiFiDataOrRevert(data);
+        return data.decodeLiFiDataOrRevert();
     }
 }
 

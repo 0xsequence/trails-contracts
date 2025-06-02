@@ -3,7 +3,7 @@
 pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
-import {AnypayLiFiDecoder, AnypayLiFiDecodingLogic} from "src/libraries/AnypayLiFiDecoder.sol";
+import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 
@@ -22,12 +22,14 @@ struct AcrossV3Data {
 
 // Helper contract to test internal functions of AnypayLiFiDecoder library
 contract DecoderTestHelper {
+    using AnypayLiFiDecoder for bytes;
+
     function decodeBridgeAndSwapData(bytes memory data)
         external
         view
         returns (ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
     {
-        return AnypayLiFiDecoder.decodeLiFiDataOrRevert(data);
+        return data.decodeLiFiDataOrRevert();
     }
 
     // Needed for abi.encodeCall to have a target for mock function signatures
@@ -49,7 +51,7 @@ contract DecoderTestHelper {
         pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
     {
-        return AnypayLiFiDecoder.decodeLiFiDataOrRevert(data);
+        return data.decodeLiFiDataOrRevert();
     }
 
     function mockSwapTokensSingle(
