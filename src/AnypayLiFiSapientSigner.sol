@@ -6,7 +6,7 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiDecoder} from "./libraries/AnypayLiFiDecoder.sol";
+import {AnypayLiFiFlagDecoder} from "./libraries/AnypayLiFiFlagDecoder.sol";
 import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "./libraries/AnypayLiFiInterpreter.sol";
 import {AnypayIntentParams} from "./libraries/AnypayIntentParams.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
@@ -27,7 +27,7 @@ contract AnypayLiFiSapientSignerLite is ISapient {
     // -------------------------------------------------------------------------
 
     using Payload for Payload.Decoded;
-    using AnypayLiFiDecoder for bytes;
+    using AnypayLiFiFlagDecoder for bytes;
     using AnypayLiFiInterpreter for AnypayLiFiInfo[];
     using AnypayLiFiInterpreter for ILiFi.BridgeData;
     using AnypayIntentParams for AnypayLiFiInfo[];
@@ -87,10 +87,10 @@ contract AnypayLiFiSapientSignerLite is ISapient {
         }
 
         // 4. Decode the signature
-        // (AnypayLiFiInfo[] memory attestationLifiInfos, bytes memory attestationSignature) =
-        // decodeSignature(encodedSignature);
-        (AnypayLiFiInfo[] memory attestationLifiInfos, address attestationSigner) =
-            decodeSignatureLite(encodedSignature);
+        (AnypayLiFiInfo[] memory attestationLifiInfos, AnypayDecodingStrategy decodingStrategy, bytes memory attestationSignature) =
+        decodeSignature(encodedSignature);
+        // (AnypayLiFiInfo[] memory attestationLifiInfos, address attestationSigner) =
+            // decodeSignatureLite(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
         // address attestationSigner =
@@ -102,7 +102,7 @@ contract AnypayLiFiSapientSignerLite is ISapient {
         // 7. Decode BridgeData and SwapData from calldata using the library
         for (uint256 i = 0; i < payload.calls.length; i++) {
             (ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData) =
-                payload.calls[i].data.decodeLiFiDataOrRevert();
+                payload.calls[i].data.decodeLiFiDataOrRevert(decodingStrategy);
 
             inferredLifiInfos[i] = bridgeData.getOriginSwapInfo(swapData);
         }

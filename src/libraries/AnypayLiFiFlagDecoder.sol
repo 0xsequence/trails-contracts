@@ -8,14 +8,15 @@ import {AnypayLiFiValidator} from "./AnypayLiFiValidator.sol";
 import {AnypayDecodingStrategy} from "../interfaces/AnypayLiFi.sol";
 
 /**
- * @title AnypayLiFiDecoder
+ * @title AnypayLiFiFlagDecoder
  * @author Shun Kakinoki
  * @notice Library to decode ILiFi.BridgeData and LibSwap.SwapData[] from calldata with efficient flag-based decoding.
  */
-library AnypayLiFiDecoder {
+library AnypayLiFiFlagDecoder {
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
+
     error SliceOutOfBounds();
     error CalldataTooShortForPayload();
     error NoLiFiDataDecoded();
