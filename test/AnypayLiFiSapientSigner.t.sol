@@ -2,8 +2,7 @@
 pragma solidity ^0.8.18;
 
 import {Test, console} from "forge-std/Test.sol";
-// import {AnypayLiFiSapientSigner} from "src/AnypayLiFiSapientSigner.sol";
-import {AnypayLiFiSapientSignerLite} from "src/AnypayLiFiSapientSigner.sol";
+import {AnypayLiFiSapientSigner} from "src/AnypayLiFiSapientSigner.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
@@ -34,8 +33,7 @@ contract MockLiFiDiamond {
 contract AnypayLiFiSapientSignerTest is Test {
     using Payload for Payload.Decoded;
 
-    // AnypayLiFiSapientSigner public signerContract;
-    AnypayLiFiSapientSignerLite public signerContract;
+    AnypayLiFiSapientSigner public signerContract;
     MockLiFiDiamond public mockLiFiDiamond;
     address public userWalletAddress;
     uint256 public userSignerPrivateKey;
@@ -60,8 +58,7 @@ contract AnypayLiFiSapientSignerTest is Test {
     function setUp() public {
         mockLiFiDiamond = new MockLiFiDiamond();
         // The AnypayLiFiSapientSigner is configured with the address of the LiFi diamond it will interact with.
-        // signerContract = new AnypayLiFiSapientSigner(address(mockLiFiDiamond));
-        signerContract = new AnypayLiFiSapientSignerLite(address(mockLiFiDiamond));
+        signerContract = new AnypayLiFiSapientSigner(address(mockLiFiDiamond));
 
         userSignerPrivateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
         userSignerAddress = vm.addr(userSignerPrivateKey);

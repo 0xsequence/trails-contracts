@@ -46,6 +46,8 @@ contract AnypayLiFiSapientSigner is ISapient {
     error InvalidCallsLength();
     error InvalidPayloadKind();
     error InvalidLifiDiamondAddress();
+    error InvalidAttestationSigner(address expectedSigner, address actualSigner);
+    error InvalidAttestation();
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -95,13 +97,18 @@ contract AnypayLiFiSapientSigner is ISapient {
         ) = decodeSignature(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
-        address attestationSigner =
+        address recoveredAttestationSigner =
             ECDSA.recover(keccak256(abi.encode(payload.hashFor(address(0)))), attestationSignature);
 
-        // 6. Initialize structs to store decoded data
+        // 6. Validate the attestation signer
+        if (recoveredAttestationSigner != attestationSigner) {
+            revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
+        }
+
+        // 7. Initialize structs to store decoded data
         AnypayLiFiInfo[] memory inferredLifiInfos = new AnypayLiFiInfo[](payload.calls.length);
 
-        // 7. Decode BridgeData and SwapData from calldata using the library
+        // 8. Decode BridgeData and SwapData from calldata using the library
         for (uint256 i = 0; i < payload.calls.length; i++) {
             (ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData) =
                 payload.calls[i].data.decodeLiFiDataOrRevert(decodingStrategy);
@@ -109,13 +116,14 @@ contract AnypayLiFiSapientSigner is ISapient {
             inferredLifiInfos[i] = bridgeData.getOriginSwapInfo(swapData);
         }
 
-        // 8. Validate the attestations
-        inferredLifiInfos.validateLifiInfos(attestationLifiInfos);
+        // 9. Validate the attestations
+        if (!inferredLifiInfos.validateLifiInfos(attestationLifiInfos)) {
+            revert InvalidAttestation();
+        }
 
-        // 9. Hash the lifi intent params
+        // 10. Hash the lifi intent params
         bytes32 lifiIntentHash = attestationLifiInfos.getAnypayLiFiInfoHash(attestationSigner);
 
-        // 10. Return the lifi intent hashed params
         return lifiIntentHash;
     }
 
@@ -141,7 +149,6 @@ contract AnypayLiFiSapientSigner is ISapient {
             address _attestationSigner
         )
     {
-        // Assuming _signature is abi.encode(AnypayLiFiInfo[] memory, AnypayDecodingStrategy, bytes memory)
         (_lifiInfos, _decodingStrategy, _attestationSignature, _attestationSigner) =
             abi.decode(_signature, (AnypayLiFiInfo[], AnypayDecodingStrategy, bytes, address));
     }
