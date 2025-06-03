@@ -5,7 +5,8 @@ pragma solidity ^0.8.30;
 import {Test, console} from "forge-std/Test.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
+import {AnypayLiFiFlagDecoder} from "src/libraries/AnypayLifiFlagDecoder.sol";
+import {AnypayDecodingStrategy} from "src/interfaces/AnypayLiFi.sol";
 
 struct AcrossV3Data {
     address receiverAddress;
@@ -21,14 +22,14 @@ struct AcrossV3Data {
 }
 
 contract AnypayDecoderTestHelperForAcross {
-    using AnypayLiFiDecoder for bytes;
+    using AnypayLiFiFlagDecoder for bytes;
 
-    function mockDecodeLiFiDataOrRevert(bytes memory data)
+    function mockDecodeLiFiDataOrRevert(bytes memory data, AnypayDecodingStrategy strategy)
         external
         pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
     {
-        return data.decodeLiFiDataOrRevert();
+        return data.decodeLiFiDataOrRevert(strategy);
     }
 }
 
@@ -104,7 +105,7 @@ contract MockAcrossFacetV3Test is Test {
             abi.encodeCall(mockFacet.mockStartBridge, (bridgeDataInput, acrossDataInput));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross);
+            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA);
 
         assertEq(
             decodedBridgeData.transactionId,
@@ -163,7 +164,7 @@ contract MockAcrossFacetV3Test is Test {
             abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeDataInput, swapDataInput, acrossDataInput));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross);
+            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
 
         assertEq(
             decodedBridgeData.transactionId,
@@ -232,7 +233,7 @@ contract MockAcrossFacetV3Test is Test {
             abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeDataInput, swapDataInput, acrossDataInput));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross);
+            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
 
         assertTrue(true, "AD_ACROSS_03: decodeLiFiDataOrRevert should succeed for mockSwapAndStartBridge calldata");
 

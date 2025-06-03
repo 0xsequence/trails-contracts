@@ -61,7 +61,7 @@ library AnypayLiFiFlagDecoder {
      * @return bridgeDataOut The decoded BridgeData struct.
      * @return swapDataOut The decoded SwapData array.
      */
-    function decodeAsBridgeDataAndSwapDataTuple(bytes memory data)
+    function decodeAsBridgeDataAndSwapDataTuple(bytes calldata data)
         internal
         pure
         returns (ILiFi.BridgeData memory bridgeDataOut, LibSwap.SwapData[] memory swapDataOut)
@@ -74,7 +74,7 @@ library AnypayLiFiFlagDecoder {
      * @param data Calldata AFTER the 4-byte function selector.
      * @return bridgeDataOut The decoded BridgeData struct.
      */
-    function decodeAsSingleBridgeData(bytes memory data)
+    function decodeAsSingleBridgeData(bytes calldata data)
         internal
         pure
         returns (ILiFi.BridgeData memory bridgeDataOut)
@@ -84,31 +84,28 @@ library AnypayLiFiFlagDecoder {
 
     /**
      * @dev Decodes the LiFi payload (6th argument onwards) as LibSwap.SwapData[].
-     * @param data The complete calldata for the function call, including the 4-byte selector.
+     * @param data The complete calldata for the function call, AFTER the 4-byte selector.
      * @return swapDataArrayOut The decoded LibSwap.SwapData array.
      */
-    function decodeLifiSwapDataPayloadAsArray(bytes memory data)
+    function decodeLifiSwapDataPayloadAsArray(bytes calldata data)
         internal
         pure
         returns (LibSwap.SwapData[] memory swapDataArrayOut)
     {
-        uint256 minCalldataLenForPrefixAndOneOffset = 4 + (6 * 32);
-        if (data.length < 4) {
-            revert CalldataTooShortForPayload();
-        }
+        // Minimum length for the prefix (5 args * 32 bytes) and one offset for the SwapData[] array itself.
+        uint256 minCalldataLenForPrefixAndOneOffset = (5 * 32) + 32;
         if (data.length < minCalldataLenForPrefixAndOneOffset) {
             revert CalldataTooShortForPayload();
         }
-        bytes memory argsData = getMemorySlice(data, 4);
-        (,,,,, swapDataArrayOut) = abi.decode(argsData, (bytes32, string, string, address, uint256, LibSwap.SwapData[]));
+        (,,,,, swapDataArrayOut) = abi.decode(data, (bytes32, string, string, address, uint256, LibSwap.SwapData[]));
     }
 
     /**
      * @dev Decodes the LiFi payload (6th argument onwards) as a single LibSwap.SwapData struct.
-     * @param data The complete calldata for the function call, including the 4-byte selector.
+     * @param data The complete calldata for the function call, AFTER the 4-byte selector.
      * @return singleSwapDataOut The decoded LibSwap.SwapData struct.
      */
-    function decodeLifiSwapDataPayloadAsSingle(bytes memory data)
+    function decodeLifiSwapDataPayloadAsSingle(bytes calldata data)
         internal
         pure
         returns (LibSwap.SwapData memory singleSwapDataOut)
@@ -121,7 +118,7 @@ library AnypayLiFiFlagDecoder {
             revert CalldataTooShortForPayload();
         }
         bytes memory argsData = getMemorySlice(data, 4);
-        (,,,,, singleSwapDataOut) = abi.decode(argsData, (bytes32, string, string, address, uint256, LibSwap.SwapData));
+        (,,,,, singleSwapDataOut) = abi.decode(data, (bytes32, string, string, address, uint256, LibSwap.SwapData));
     }
 
     // -------------------------------------------------------------------------
@@ -151,15 +148,19 @@ library AnypayLiFiFlagDecoder {
      * @return finalBridgeData The decoded ILiFi.BridgeData struct. Will be empty for swap data strategies.
      * @return finalSwapDataArray The decoded LibSwap.SwapData array. Will be empty for SINGLE_BRIDGE_DATA strategy.
      */
-    function decodeLiFiDataOrRevert(bytes memory data, AnypayDecodingStrategy strategy)
+    function decodeLiFiDataOrRevert(bytes calldata data, AnypayDecodingStrategy strategy)
         external
         pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
     {
+        if (data.length < 4) {
+             revert CalldataTooShortForPayload();
+        }
+        bytes calldata calldataAfterSelector = data[4:];
+
         if (strategy == AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE) {
             // Decode as (BridgeData, SwapData[])
-            bytes memory calldataForDecode = getCalldataAfterSelector(data);
-            (finalBridgeData, finalSwapDataArray) = decodeAsBridgeDataAndSwapDataTuple(calldataForDecode);
+            (finalBridgeData, finalSwapDataArray) = decodeAsBridgeDataAndSwapDataTuple(calldataAfterSelector);
 
             // Validate the decoded data
             if (!AnypayLiFiValidator.isBridgeAndSwapDataTupleValid(finalBridgeData, finalSwapDataArray)) {
@@ -167,8 +168,7 @@ library AnypayLiFiFlagDecoder {
             }
         } else if (strategy == AnypayDecodingStrategy.SINGLE_BRIDGE_DATA) {
             // Decode as single BridgeData
-            bytes memory calldataForDecode = getCalldataAfterSelector(data);
-            finalBridgeData = decodeAsSingleBridgeData(calldataForDecode);
+            finalBridgeData = decodeAsSingleBridgeData(calldataAfterSelector);
 
             // Validate the decoded data
             if (!AnypayLiFiValidator.isBridgeDataValid(finalBridgeData)) {
@@ -176,7 +176,9 @@ library AnypayLiFiFlagDecoder {
             }
         } else if (strategy == AnypayDecodingStrategy.SWAP_DATA_ARRAY) {
             // Decode payload as SwapData[]
-            finalSwapDataArray = decodeLifiSwapDataPayloadAsArray(data);
+            // For SWAP_DATA_ARRAY and SINGLE_SWAP_DATA, the abi.decode expects the *arguments* part of calldata.
+            // The original calldata 'data' includes the selector. The slice 'calldataAfterSelector' is what we need.
+            finalSwapDataArray = decodeLifiSwapDataPayloadAsArray(calldataAfterSelector);
 
             // Validate the decoded data
             if (!AnypayLiFiValidator.isSwapDataArrayValid(finalSwapDataArray)) {
@@ -184,7 +186,7 @@ library AnypayLiFiFlagDecoder {
             }
         } else if (strategy == AnypayDecodingStrategy.SINGLE_SWAP_DATA) {
             // Decode payload as single SwapData
-            LibSwap.SwapData memory singleSwapData = decodeLifiSwapDataPayloadAsSingle(data);
+            LibSwap.SwapData memory singleSwapData = decodeLifiSwapDataPayloadAsSingle(calldataAfterSelector);
 
             // Validate the decoded data
             if (!AnypayLiFiValidator.isSwapDataValid(singleSwapData)) {

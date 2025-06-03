@@ -6,10 +6,10 @@ import {AnypayLiFiSapientSigner} from "src/AnypayLiFiSapientSigner.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
 import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "src/libraries/AnypayLiFiInterpreter.sol";
 import {AnypayIntentParams} from "src/libraries/AnypayIntentParams.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {AnypayDecodingStrategy} from "src/interfaces/AnypayLiFi.sol";
 
 // Mock LiFi Diamond contract to receive calls
 contract MockLiFiDiamond {
@@ -118,8 +118,8 @@ contract AnypayLiFiSapientSignerTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
 
-        // 7. Encode LifiInfos and ECDSA signature together
-        bytes memory combinedSignature = abi.encode(expectedLifiInfos, ecdsaSignature);
+        // 7. Encode LifiInfos, ECDSA signature, and strategy together
+        bytes memory combinedSignature = abi.encode(expectedLifiInfos, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE, ecdsaSignature, userSignerAddress);
 
         // 8. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
@@ -188,8 +188,8 @@ contract AnypayLiFiSapientSignerTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
 
-        // 8. Encode LifiInfos and ECDSA signature together
-        bytes memory combinedSignature = abi.encode(expectedLifiInfos, ecdsaSignature);
+        // 8. Encode LifiInfos, ECDSA signature, and strategy together
+        bytes memory combinedSignature = abi.encode(expectedLifiInfos, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA, ecdsaSignature, userSignerAddress);
 
         // 9. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);

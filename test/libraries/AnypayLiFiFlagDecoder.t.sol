@@ -23,7 +23,7 @@ struct AcrossV3Data {
 
 // Helper contract to test the AnypayLiFiFlagDecoder library
 contract FlagDecoderTestHelper {
-    function decodeLiFiDataOrRevert(bytes memory data, AnypayDecodingStrategy strategy)
+    function decodeLiFiDataOrRevert(bytes calldata data, AnypayDecodingStrategy strategy)
         external
         pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
