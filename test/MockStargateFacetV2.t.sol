@@ -5,7 +5,7 @@ pragma solidity ^0.8.30;
 import {Test, console} from "forge-std/Test.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiFlagDecoder} from "src/libraries/AnypayLifiFlagDecoder.sol";
+import {AnypayLiFiFlagDecoder} from "src/libraries/AnypayLiFiFlagDecoder.sol";
 import {AnypayDecodingStrategy} from "src/interfaces/AnypayLiFi.sol";
 
 struct StargateSendParam {

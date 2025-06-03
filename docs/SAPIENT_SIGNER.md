@@ -61,7 +61,7 @@ function recoverSapientSignature(
     4.  **LiFi Data Decoding & Interpretation:**
         *   Initializes an array `lifiInfos` to store `AnypayLiFiInfo` structs, one for each call in `payload.calls`.
         *   For each `call` in `payload.calls`:
-            *   It attempts to decode `ILiFi.BridgeData` and `LibSwap.SwapData[]` from `call.data` using the `AnypayLifiFlagDecoder.decodeLiFiDataOrRevert` library function (utilizing a decoding strategy provided in the `encodedSignature`).
+            *   It attempts to decode `ILiFi.BridgeData` and `LibSwap.SwapData[]` from `call.data` using the `AnypayLiFiFlagDecoder.decodeLiFiDataOrRevert` library function (utilizing a decoding strategy provided in the `encodedSignature`).
             *   It then uses `AnypayLiFiInterpreter.getOriginSwapInfo` to process the decoded `bridgeData` and `swapData` to extract a standardized `AnypayLiFiInfo` struct. This struct contains key details of the LiFi operation, such as sending and receiving chain IDs, tokens, amounts, and the receiver address.
     5.  **LiFi Intent Hashing:**
         *   After processing all calls and gathering their respective `AnypayLiFiInfo`, it computes a single `lifiIntentHash`. This is done by calling `AnypayLiFiInterpreter.getAnypayLiFiInfoHash` with the array of `lifiInfos` and the recovered `attestationSigner`. This hash uniquely represents the complete set of LiFi operations being authorized by this specific user attestation.
@@ -74,7 +74,7 @@ function recoverSapientSignature(
 *   `ECDSA` (from `@openzeppelin/contracts/utils/cryptography/ECDSA.sol`): For elliptic curve digital signature recovery.
 *   `ILiFi` (from `lifi-contracts/Interfaces/ILiFi.sol`): Interface for LiFi bridge data.
 *   `LibSwap` (from `lifi-contracts/Libraries/LibSwap.sol`): Library for LiFi swap data.
-*   `AnypayLifiFlagDecoder` (from `./libraries/AnypayLifiFlagDecoder.sol`): Custom library to decode LiFi call data using a flag-based strategy.
+*   `AnypayLiFiFlagDecoder` (from `./libraries/AnypayLiFiFlagDecoder.sol`): Custom library to decode LiFi call data using a flag-based strategy.
 *   `AnypayLiFiInterpreter`, `AnypayLiFiInfo` (from `./libraries/AnypayLiFiInterpreter.sol`): Custom library and struct to interpret and standardize LiFi operation details.
 
 ### 3.4. Errors
@@ -84,7 +84,7 @@ function recoverSapientSignature(
 *   **`InvalidPayloadKind()`**: Emitted if `payload.kind` is not `Payload.KIND_TRANSACTIONS`.
 *   **`InvalidCallsLength()`**: Emitted if the `payload.calls` array is empty.
 *   **Specificity of `TARGET_LIFI_DIAMOND`:** The `AnypayLiFiSapientSigner` is hardcoded at deployment to a single LiFi Diamond contract instance. This is a key security feature, preventing the module from being tricked into authorizing calls to arbitrary contracts.
-*   **Integrity of Decoder and Interpreter Libraries:** The correctness and security of `AnypayLifiFlagDecoder.sol` and `AnypayLiFiInterpreter.sol` are paramount. Any vulnerabilities in these libraries could lead to misinterpretation of the LiFi call data, potentially resulting in an `lifiIntentHash` that does not accurately reflect the user's true intent or the actual operations being performed.
+*   **Integrity of Decoder and Interpreter Libraries:** The correctness and security of `AnypayLiFiFlagDecoder.sol` and `AnypayLiFiInterpreter.sol` are paramount. Any vulnerabilities in these libraries could lead to misinterpretation of the LiFi call data, potentially resulting in an `lifiIntentHash` that does not accurately reflect the user's true intent or the actual operations being performed.
 *   **Attestation Security:** The private key corresponding to the `attestationSigner` must be kept secure. If this key is compromised, an attacker could forge attestations and potentially authorize malicious LiFi operations if a corresponding `imageHash` is configured in a Sapient Signer Leaf.
 *   **Wallet Configuration Accuracy:** Users (or systems managing their configurations) must ensure that the `imageHash` stored in a Sapient Signer Leaf accurately corresponds to the hash of the LiFi intent they genuinely wish to authorize with that specific `attestationSigner`. A mismatch will simply result in the authorization failing. Configuring a leaf with an overly broad or incorrect `imageHash` could lead to unintended authorizations. This module is designed for specific, attested intents.
 *   **No Direct State Management:** The `AnypayLiFiSapientSigner` itself does not store any state regarding approvals (like nonces or usage counts). Each call to `recoverSapientSignature` is a stateless validation based on the provided payload and attestation, resulting in a hash to be checked by the Sequence wallet against its configured `imageHash`.
@@ -92,5 +92,5 @@ function recoverSapientSignature(
 ## 5. Security Considerations
 
 *   **Specificity of `TARGET_LIFI_DIAMOND`:** The `AnypayLiFiSapientSigner` is hardcoded at deployment to a single LiFi Diamond contract instance. This is a key security feature, preventing the module from being tricked into authorizing calls to arbitrary contracts.
-*   **Integrity of Decoder and Interpreter Libraries:** The correctness and security of `AnypayLifiFlagDecoder.sol` and `AnypayLiFiInterpreter.sol` are paramount. Any vulnerabilities in these libraries could lead to misinterpretation of the LiFi call data, potentially resulting in an `lifiIntentHash` that does not accurately reflect the user's true intent or the actual operations being performed.
+*   **Integrity of Decoder and Interpreter Libraries:** The correctness and security of `AnypayLiFiFlagDecoder.sol` and `AnypayLiFiInterpreter.sol` are paramount. Any vulnerabilities in these libraries could lead to misinterpretation of the LiFi call data, potentially resulting in an `lifiIntentHash` that does not accurately reflect the user's true intent or the actual operations being performed.
 *   **Attestation Security:** The private key corresponding to the `attestationSigner` must be kept secure. If this key is compromised, an attacker could forge attestations and potentially authorize malicious LiFi operations if a corresponding `imageHash` is configured in a Sapient Signer Leaf.
