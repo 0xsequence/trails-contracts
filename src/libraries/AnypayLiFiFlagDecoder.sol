@@ -117,7 +117,6 @@ library AnypayLiFiFlagDecoder {
         if (data.length < minCalldataLenForPrefixAndOneOffset) {
             revert CalldataTooShortForPayload();
         }
-        bytes memory argsData = getMemorySlice(data, 4);
         (,,,,, singleSwapDataOut) = abi.decode(data, (bytes32, string, string, address, uint256, LibSwap.SwapData));
     }
 
@@ -142,7 +141,6 @@ library AnypayLiFiFlagDecoder {
     /**
      * @notice Decodes LiFi data from calldata using a specific strategy, reverting if decoding fails.
      * @dev Uses the specified decoding strategy to decode the data. Only one strategy is attempted based on the flag.
-     *      No try/catch logic - functions will revert naturally if decoding fails.
      * @param data The complete calldata for the function call, including the 4-byte selector.
      * @param strategy The decoding strategy to use.
      * @return finalBridgeData The decoded ILiFi.BridgeData struct. Will be empty for swap data strategies.
