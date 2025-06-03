@@ -119,7 +119,9 @@ contract AnypayLiFiSapientSignerTest is Test {
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
 
         // 7. Encode LifiInfos, ECDSA signature, and strategy together
-        bytes memory combinedSignature = abi.encode(expectedLifiInfos, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE, ecdsaSignature, userSignerAddress);
+        bytes memory combinedSignature = abi.encode(
+            expectedLifiInfos, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE, ecdsaSignature, userSignerAddress
+        );
 
         // 8. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
@@ -189,7 +191,8 @@ contract AnypayLiFiSapientSignerTest is Test {
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
 
         // 8. Encode LifiInfos, ECDSA signature, and strategy together
-        bytes memory combinedSignature = abi.encode(expectedLifiInfos, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA, ecdsaSignature, userSignerAddress);
+        bytes memory combinedSignature =
+            abi.encode(expectedLifiInfos, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA, ecdsaSignature, userSignerAddress);
 
         // 9. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);

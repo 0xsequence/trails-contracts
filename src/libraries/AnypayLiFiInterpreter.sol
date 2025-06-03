@@ -99,7 +99,7 @@ library AnypayLiFiInterpreter {
             revert MismatchedLifiInfoLengths();
         }
 
-        uint256 numInfos = attestedLifiInfos.length; 
+        uint256 numInfos = attestedLifiInfos.length;
         if (numInfos == 0) {
             return false;
         }

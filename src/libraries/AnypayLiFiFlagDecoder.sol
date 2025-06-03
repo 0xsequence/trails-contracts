@@ -154,7 +154,7 @@ library AnypayLiFiFlagDecoder {
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
     {
         if (data.length < 4) {
-             revert CalldataTooShortForPayload();
+            revert CalldataTooShortForPayload();
         }
         bytes calldata calldataAfterSelector = data[4:];
 
