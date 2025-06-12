@@ -106,4 +106,4 @@ contract AnypayTokenSweeperTest is Test {
         uint256 recipientErc20BalanceAfter = erc20.balanceOf(recipient);
         assertEq(recipientErc20BalanceAfter, recipientErc20BalanceBefore);
     }
-} 
+}

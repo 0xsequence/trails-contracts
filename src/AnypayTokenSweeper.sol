@@ -71,10 +71,10 @@ contract AnypayTokenSweeper {
         require(balance >= _amount, "AnypayTokenSweeper: insufficient balance");
 
         if (_token == address(0)) {
-            (bool success, ) = recipient.call{value: _amount}("");
+            (bool success,) = recipient.call{value: _amount}("");
             require(success, "AnypayTokenSweeper: Native token transfer failed");
         } else {
             IERC20(_token).safeTransfer(recipient, _amount);
         }
     }
-} 
+}
