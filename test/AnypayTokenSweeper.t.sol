@@ -57,6 +57,44 @@ contract AnypayTokenSweeperTest is Test {
         assertEq(recipientBalanceAfter - recipientBalanceBefore, amount);
     }
 
+    function test_sweep_erc20Token_withAmount() public {
+        uint256 initialAmount = 100 * 1e18;
+        uint256 sweepAmount = 30 * 1e18;
+        erc20.mint(address(sweeper), initialAmount);
+
+        uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
+        sweeper.sweep(address(erc20), sweepAmount);
+        uint256 recipientBalanceAfter = erc20.balanceOf(recipient);
+
+        assertEq(sweeper.getBalance(address(erc20)), initialAmount - sweepAmount);
+        assertEq(recipientBalanceAfter - recipientBalanceBefore, sweepAmount);
+    }
+
+    function test_sweep_nativeToken_withAmount() public {
+        uint256 initialAmount = 2 ether;
+        uint256 sweepAmount = 1 ether;
+        vm.deal(address(sweeper), initialAmount);
+
+        uint256 recipientBalanceBefore = recipient.balance;
+        sweeper.sweep(address(0), sweepAmount);
+        uint256 recipientBalanceAfter = recipient.balance;
+
+        assertEq(sweeper.getBalance(address(0)), initialAmount - sweepAmount);
+        assertEq(recipientBalanceAfter - recipientBalanceBefore, sweepAmount);
+    }
+
+    function test_sweep_revertsIfAmountIsGreaterThanBalance() public {
+        uint256 amount = 1 ether;
+        vm.deal(address(sweeper), amount);
+        vm.expectRevert("AnypayTokenSweeper: insufficient balance");
+        sweeper.sweep(address(0), amount + 1);
+
+        uint256 erc20Amount = 100 * 1e18;
+        erc20.mint(address(sweeper), erc20Amount);
+        vm.expectRevert("AnypayTokenSweeper: insufficient balance");
+        sweeper.sweep(address(erc20), erc20Amount + 1);
+    }
+
     function test_sweep_noBalance() public {
         uint256 recipientNativeBalanceBefore = recipient.balance;
         sweeper.sweep(address(0));

@@ -41,6 +41,7 @@ contract AnypayTokenSweeper {
             return IERC20(_token).balanceOf(address(this));
         }
     }
+
     /**
      * @notice Sweeps the entire balance of a given token to the immutable recipient address.
      * @dev Anyone can call this function.
@@ -48,16 +49,32 @@ contract AnypayTokenSweeper {
      */
     function sweep(address _token) external {
         uint256 balance = getBalance(_token);
-        
-        if (balance == 0) {
+        _sweep(_token, balance);
+    }
+
+    /**
+     * @notice Sweeps a specified amount of a given token to the immutable recipient address.
+     * @dev Anyone can call this function.
+     * @param _token The address of the token to sweep. Use address(0) for the native token.
+     * @param _amount The amount of the token to sweep.
+     */
+    function sweep(address _token, uint256 _amount) external {
+        _sweep(_token, _amount);
+    }
+
+    function _sweep(address _token, uint256 _amount) internal {
+        if (_amount == 0) {
             return;
         }
 
+        uint256 balance = getBalance(_token);
+        require(balance >= _amount, "AnypayTokenSweeper: insufficient balance");
+
         if (_token == address(0)) {
-            (bool success, ) = recipient.call{value: balance}("");
+            (bool success, ) = recipient.call{value: _amount}("");
             require(success, "AnypayTokenSweeper: Native token transfer failed");
         } else {
-            IERC20(_token).safeTransfer(recipient, balance);
+            IERC20(_token).safeTransfer(recipient, _amount);
         }
     }
 } 
