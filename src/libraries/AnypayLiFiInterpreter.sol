@@ -93,17 +93,18 @@ library AnypayLiFiInterpreter {
     function validateLifiInfos(AnypayLiFiInfo[] memory inferredLifiInfos, AnypayLiFiInfo[] memory attestedLifiInfos)
         internal
         view
+        returns (bool)
     {
         if (inferredLifiInfos.length != attestedLifiInfos.length) {
             revert MismatchedLifiInfoLengths();
         }
 
-        uint256 numInfos = attestedLifiInfos.length; // Or inferredLifiInfos.length, they are equal here
+        uint256 numInfos = attestedLifiInfos.length;
         if (numInfos == 0) {
-            return;
+            return false;
         }
 
-        // Validate all inferredLifiInfos upfront (Check 2 from NatSpec).
+        // Validate all inferredLifiInfos upfront
         for (uint256 i = 0; i < numInfos; i++) {
             AnypayLiFiInfo memory _currentInferredInfo = inferredLifiInfos[i];
             if (_currentInferredInfo.amount == 0) {
@@ -152,5 +153,7 @@ library AnypayLiFiInterpreter {
                 );
             }
         }
+
+        return true;
     }
 }

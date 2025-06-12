@@ -2,15 +2,14 @@
 pragma solidity ^0.8.18;
 
 import {Test, console} from "forge-std/Test.sol";
-// import {AnypayLiFiSapientSigner} from "src/AnypayLiFiSapientSigner.sol";
-import {AnypayLiFiSapientSignerLite} from "src/AnypayLiFiSapientSigner.sol";
+import {AnypayLiFiSapientSigner} from "src/AnypayLiFiSapientSigner.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiDecoder} from "src/libraries/AnypayLiFiDecoder.sol";
 import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "src/libraries/AnypayLiFiInterpreter.sol";
 import {AnypayIntentParams} from "src/libraries/AnypayIntentParams.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {AnypayDecodingStrategy} from "src/interfaces/AnypayLiFi.sol";
 
 // Mock LiFi Diamond contract to receive calls
 contract MockLiFiDiamond {
@@ -34,8 +33,7 @@ contract MockLiFiDiamond {
 contract AnypayLiFiSapientSignerTest is Test {
     using Payload for Payload.Decoded;
 
-    // AnypayLiFiSapientSigner public signerContract;
-    AnypayLiFiSapientSignerLite public signerContract;
+    AnypayLiFiSapientSigner public signerContract;
     MockLiFiDiamond public mockLiFiDiamond;
     address public userWalletAddress;
     uint256 public userSignerPrivateKey;
@@ -60,8 +58,7 @@ contract AnypayLiFiSapientSignerTest is Test {
     function setUp() public {
         mockLiFiDiamond = new MockLiFiDiamond();
         // The AnypayLiFiSapientSigner is configured with the address of the LiFi diamond it will interact with.
-        // signerContract = new AnypayLiFiSapientSigner(address(mockLiFiDiamond));
-        signerContract = new AnypayLiFiSapientSignerLite(address(mockLiFiDiamond));
+        signerContract = new AnypayLiFiSapientSigner(address(mockLiFiDiamond));
 
         userSignerPrivateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
         userSignerAddress = vm.addr(userSignerPrivateKey);
@@ -121,8 +118,10 @@ contract AnypayLiFiSapientSignerTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
 
-        // 7. Encode LifiInfos and ECDSA signature together
-        bytes memory combinedSignature = abi.encode(expectedLifiInfos, ecdsaSignature);
+        // 7. Encode LifiInfos, ECDSA signature, and strategy together
+        bytes memory combinedSignature = abi.encode(
+            expectedLifiInfos, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE, ecdsaSignature, userSignerAddress
+        );
 
         // 8. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
@@ -191,8 +190,9 @@ contract AnypayLiFiSapientSignerTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
 
-        // 8. Encode LifiInfos and ECDSA signature together
-        bytes memory combinedSignature = abi.encode(expectedLifiInfos, ecdsaSignature);
+        // 8. Encode LifiInfos, ECDSA signature, and strategy together
+        bytes memory combinedSignature =
+            abi.encode(expectedLifiInfos, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA, ecdsaSignature, userSignerAddress);
 
         // 9. Manually derive the expected lifiIntentHash
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
