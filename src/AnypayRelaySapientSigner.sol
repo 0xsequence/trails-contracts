@@ -45,21 +45,6 @@ contract AnypayRelaySapientSigner is ISapient {
     address public constant NON_EVM_ADDRESS = 0x11f111f111f111F111f111f111F111f111f111F1;
 
     // -------------------------------------------------------------------------
-    // Function Selectors
-    // -------------------------------------------------------------------------
-
-    bytes4 private constant _START_BRIDGE_TOKENS_VIA_RELAY = bytes4(
-        keccak256(
-            "startBridgeTokensViaRelay((bytes32,string,string,address,address,address,uint256,uint256,bool,bool),(bytes32,bytes32,bytes32,bytes))"
-        )
-    );
-    bytes4 private constant _SWAP_AND_START_BRIDGE_TOKENS_VIA_RELAY = bytes4(
-        keccak256(
-            "swapAndStartBridgeTokensViaRelay((bytes32,string,string,address,address,address,uint256,uint256,bool,bool),(address,address,address,address,uint256,bytes,bool)[],(bytes32,bytes32,bytes32,bytes))"
-        )
-    );
-
-    // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
 
@@ -96,44 +81,25 @@ contract AnypayRelaySapientSigner is ISapient {
         view
         returns (bytes32)
     {
-        // 1. Validate outer Payload
-        if (payload.kind != Payload.KIND_TRANSACTIONS) {
-            revert InvalidPayloadKind();
-        }
+        // 1. Decode the signature
+        (bytes memory attestationSignature, AnypayRelayInfo[] memory attestedRelayInfos) =
+            decodeSignature(encodedSignature);
 
-        if (payload.calls.length == 0) {
-            revert InvalidCallsLength();
-        }
-
-        // 2. Decode the signature
-        (
-            AnypayRelayInfo[] memory attestedRelayInfos,
-            bytes memory attestationSignature,
-            address attestationSigner
-        ) = decodeSignature(encodedSignature);
-
-        // 3. Recover the signer from the attestation signature
+        // 2. Recover the signer from the attestation signature
         address recoveredAttestationSigner =
             keccak256(abi.encode(payload.hashFor(address(0)))).recover(attestationSignature);
 
-        if (recoveredAttestationSigner != attestationSigner) {
-            revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
+        if (recoveredAttestationSigner == address(0)) {
+            revert InvalidAttestationSigner(address(0), recoveredAttestationSigner);
         }
 
-        // 4. Decode and validate calls
-        AnypayRelayInfo[] memory inferredRelayInfos = new AnypayRelayInfo[](payload.calls.length);
-
-        for (uint256 i = 0; i < payload.calls.length; i++) {
-            inferredRelayInfos[i] = _decodeRelayCalldata(payload.calls[i].data, payload.calls[i].to);
-        }
-
-        // 5. Validate attestations
-        if (!_validateRelayInfos(inferredRelayInfos, attestedRelayInfos)) {
+        // 3. Validate attestations
+        if (!_validateRelayInfos(attestedRelayInfos)) {
             revert InvalidAttestation();
         }
 
-        // 6. Hash the relay intent params
-        bytes32 relayIntentHash = keccak256(abi.encode(attestedRelayInfos, attestationSigner));
+        // 4. Hash the relay intent params
+        bytes32 relayIntentHash = keccak256(abi.encode(attestedRelayInfos, recoveredAttestationSigner));
 
         return relayIntentHash;
     }
@@ -142,101 +108,34 @@ contract AnypayRelaySapientSigner is ISapient {
     // Internal Functions
     // -------------------------------------------------------------------------
 
-    function _decodeRelayCalldata(bytes calldata callData, address target) internal pure returns (AnypayRelayInfo memory) {
-        bytes4 selector = bytes4(callData[:4]);
-        ILiFi.BridgeData memory bridgeData;
-        RelayData memory relayData;
-
-        if (selector == _START_BRIDGE_TOKENS_VIA_RELAY) {
-            (bridgeData, relayData) = abi.decode(callData[4:], (ILiFi.BridgeData, RelayData));
-        } else if (selector == _SWAP_AND_START_BRIDGE_TOKENS_VIA_RELAY) {
-            (bridgeData, , relayData) = abi.decode(callData[4:], (ILiFi.BridgeData, LibSwap.SwapData[], RelayData));
-        } else {
-            revert InvalidCalldata();
-        }
-
-        return AnypayRelayInfo({
-            requestId: relayData.requestId,
-            signature: relayData.signature,
-            nonEVMReceiver: relayData.nonEVMReceiver,
-            receivingAssetId: relayData.receivingAssetId,
-            sendingAssetId: bridgeData.sendingAssetId,
-            receiver: bridgeData.receiver,
-            destinationChainId: bridgeData.destinationChainId,
-            minAmount: bridgeData.minAmount,
-            target: target
-        });
-    }
-
-    function _validateRelayInfos(
-        AnypayRelayInfo[] memory inferredRelayInfos,
-        AnypayRelayInfo[] memory attestedRelayInfos
-    ) internal view returns (bool) {
-        if (inferredRelayInfos.length != attestedRelayInfos.length) {
+    function _validateRelayInfos(AnypayRelayInfo[] memory attestedRelayInfos) internal view returns (bool) {
+        if (attestedRelayInfos.length == 0) {
             revert MismatchedRelayInfoLengths();
         }
 
         uint256 numInfos = attestedRelayInfos.length;
-        if (numInfos == 0) {
-            return true;
-        }
-
-        bool[] memory inferredInfoUsed = new bool[](numInfos);
 
         for (uint256 i = 0; i < numInfos; i++) {
             AnypayRelayInfo memory attestedInfo = attestedRelayInfos[i];
-            bool foundMatch = false;
 
-            for (uint256 j = 0; j < numInfos; j++) {
-                if (inferredInfoUsed[j]) {
-                    continue;
-                }
+            // Check relay solver signature
+            bytes32 message = keccak256(
+                abi.encodePacked(
+                    attestedInfo.requestId,
+                    block.chainid,
+                    bytes32(uint256(uint160(attestedInfo.target))),
+                    bytes32(uint256(uint160(attestedInfo.sendingAssetId))),
+                    attestedInfo.destinationChainId,
+                    attestedInfo.receiver == NON_EVM_ADDRESS
+                        ? attestedInfo.nonEVMReceiver
+                        : bytes32(uint256(uint160(attestedInfo.receiver))),
+                    attestedInfo.receivingAssetId
+                )
+            );
 
-                AnypayRelayInfo memory inferredInfo = inferredRelayInfos[j];
-
-                // Main matching logic
-                if (
-                    attestedInfo.requestId == inferredInfo.requestId &&
-                    attestedInfo.target == inferredInfo.target &&
-                    attestedInfo.sendingAssetId == inferredInfo.sendingAssetId &&
-                    attestedInfo.destinationChainId == inferredInfo.destinationChainId &&
-                    attestedInfo.receiver == inferredInfo.receiver &&
-                    attestedInfo.nonEVMReceiver == inferredInfo.nonEVMReceiver &&
-                    attestedInfo.receivingAssetId == inferredInfo.receivingAssetId
-                ) {
-                    // Check amount
-                    if (inferredInfo.minAmount > attestedInfo.minAmount) {
-                        revert InferredAmountTooHigh(inferredInfo.minAmount, attestedInfo.minAmount);
-                    }
-
-                    // Check relay solver signature
-                    bytes32 message = keccak256(
-                        abi.encodePacked(
-                            inferredInfo.requestId,
-                            block.chainid,
-                            bytes32(uint256(uint160(inferredInfo.target))),
-                            bytes32(uint256(uint160(inferredInfo.sendingAssetId))),
-                            _getMappedChainId(inferredInfo.destinationChainId),
-                            inferredInfo.receiver == NON_EVM_ADDRESS
-                                ? inferredInfo.nonEVMReceiver
-                                : bytes32(uint256(uint160(inferredInfo.receiver))),
-                            inferredInfo.receivingAssetId
-                        )
-                    );
-
-                    address signer = message.recover(inferredInfo.signature);
-                    if (signer != RELAY_SOLVER) {
-                        revert InvalidRelayQuote();
-                    }
-
-                    inferredInfoUsed[j] = true;
-                    foundMatch = true;
-                    break;
-                }
-            }
-
-            if (!foundMatch) {
-                revert NoMatchingInferredInfoFound(attestedInfo.requestId);
+            address signer = message.recover(attestedInfo.signature);
+            if (signer != RELAY_SOLVER) {
+                revert InvalidRelayQuote();
             }
         }
 
@@ -245,43 +144,16 @@ contract AnypayRelaySapientSigner is ISapient {
 
     /**
      * @notice Decodes a combined signature into Relay information and the attestation signature.
-     * @dev Assumes _signature is abi.encode(AnypayRelayInfo[] memory, bytes memory, address).
+     * @dev Assumes _signature is abi.encode(bytes memory, AnypayRelayInfo[] memory).
      * @param _signature The combined signature bytes.
-     * @return _relayInfos Array of AnypayRelayInfo structs.
      * @return _attestationSignature The ECDSA signature for attestation.
-     * @return _attestationSigner The address of the signer of the attestation.
+     * @return _relayInfos Array of AnypayRelayInfo structs.
      */
     function decodeSignature(bytes calldata _signature)
         public
         pure
-        returns (
-            AnypayRelayInfo[] memory _relayInfos,
-            bytes memory _attestationSignature,
-            address _attestationSigner
-        )
+        returns (bytes memory _attestationSignature, AnypayRelayInfo[] memory _relayInfos)
     {
-        (_relayInfos, _attestationSignature, _attestationSigner) =
-            abi.decode(_signature, (AnypayRelayInfo[], bytes, address));
-    }
-
-    /**
-     * @notice get Relay specific chain id for non-EVM chains
-     *         IDs found here  https://li.quest/v1/chains?chainTypes=UTXO,SVM
-     * @param chainId LIFI specific chain id
-     */
-    function _getMappedChainId(
-        uint256 chainId
-    ) public pure returns (uint256) {
-        // Bitcoin
-        if (chainId == 20000000000001) {
-            return 8253038;
-        }
-
-        // Solana
-        if (chainId == 1151111081099710) {
-            return 792703809;
-        }
-
-        return chainId;
+        (_attestationSignature, _relayInfos) = abi.decode(_signature, (bytes, AnypayRelayInfo[]));
     }
 } 
