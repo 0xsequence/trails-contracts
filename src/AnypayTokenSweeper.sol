@@ -12,9 +12,22 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * The recipient address is set at deployment and is immutable.
  */
 contract AnypayTokenSweeper {
+    // -------------------------------------------------------------------------
+    // Libraries
+    // -------------------------------------------------------------------------
+
     using SafeERC20 for IERC20;
 
+    // -------------------------------------------------------------------------
+    // Immutables
+    // -------------------------------------------------------------------------
+
+    /// @dev The address to send the swept tokens to.
     address payable public immutable recipient;
+
+    // -------------------------------------------------------------------------
+    // Constructor
+    // -------------------------------------------------------------------------
 
     /**
      * @dev Sets the recipient address.
@@ -24,10 +37,18 @@ contract AnypayTokenSweeper {
         recipient = _recipient;
     }
 
+    // -------------------------------------------------------------------------
+    // Receive Function
+    // -------------------------------------------------------------------------
+
     /**
      * @dev Allows the contract to receive Ether.
      */
     receive() external payable {}
+
+    // -------------------------------------------------------------------------
+    // View Functions
+    // -------------------------------------------------------------------------
 
     /**
      * @notice Gets the balance of a given token.
@@ -41,6 +62,11 @@ contract AnypayTokenSweeper {
             return IERC20(_token).balanceOf(address(this));
         }
     }
+
+    // -------------------------------------------------------------------------
+    // External Functions
+    // -------------------------------------------------------------------------
+
     /**
      * @notice Sweeps the entire balance of a given token to the immutable recipient address.
      * @dev Anyone can call this function.
