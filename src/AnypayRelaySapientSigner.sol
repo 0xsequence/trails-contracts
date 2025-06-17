@@ -76,8 +76,23 @@ contract AnypayRelaySapientSigner is ISapient {
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ISapient
-    function recoverSapientSignature(address _wallet, Payload.Decoded calldata payload, bytes calldata encodedSignature)
+    function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata encodedSignature)
         external
+        view
+        returns (bytes32)
+    {
+        return _recoverSapientSignature(msg.sender, payload, encodedSignature);
+    }
+
+    /**
+     * @notice Recovers the root hash of a given signature with wallet context.
+     * @param _wallet The address of the wallet.
+     * @param payload The decoded payload.
+     * @param encodedSignature The encoded signature.
+     * @return The hash of the relay intent parameters.
+     */
+    function _recoverSapientSignature(address _wallet, Payload.Decoded calldata payload, bytes calldata encodedSignature)
+        internal
         view
         returns (bytes32)
     {
