@@ -109,7 +109,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         });
 
         // 4. Generate the EIP-712 digest.
-        bytes32 digestToSign = keccak256(abi.encode(payload.hashFor(address(0))));
+        bytes32 digestToSign = payload.hashFor(userWalletAddress);
 
         AnypayLiFiInfo[] memory expectedLifiInfos = new AnypayLiFiInfo[](1);
         expectedLifiInfos[0] = AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapData);
@@ -127,7 +127,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 9. Call recoverSapientSignature
-        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
+        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(userWalletAddress, payload, combinedSignature);
 
         // 10. Assert equality
         assertEq(actualLifiIntentHash, expectedLifiIntentHash, "Recovered LiFi intent hash mismatch");
@@ -180,7 +180,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         });
 
         // 5. Generate the EIP-712 digest.
-        bytes32 digestToSign = keccak256(abi.encode(payload.hashFor(address(0))));
+        bytes32 digestToSign = payload.hashFor(userWalletAddress);
 
         // 6. Prepare LifiInfos for encoding
         AnypayLiFiInfo[] memory expectedLifiInfos = new AnypayLiFiInfo[](1);
@@ -198,7 +198,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 10. Call recoverSapientSignature
-        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
+        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(userWalletAddress, payload, combinedSignature);
 
         // 11. Assert equality
         assertEq(

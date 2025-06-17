@@ -76,7 +76,7 @@ contract AnypayRelaySapientSigner is ISapient {
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ISapient
-    function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata encodedSignature)
+    function recoverSapientSignature(address _wallet, Payload.Decoded calldata payload, bytes calldata encodedSignature)
         external
         view
         returns (bytes32)
@@ -87,7 +87,7 @@ contract AnypayRelaySapientSigner is ISapient {
 
         // 2. Recover the signer from the attestation signature
         address recoveredAttestationSigner =
-            keccak256(abi.encode(payload.hashFor(address(0)))).recover(attestationSignature);
+            payload.hashFor(_wallet).recover(attestationSignature);
 
         if (recoveredAttestationSigner == address(0)) {
             revert InvalidAttestationSigner(address(0), recoveredAttestationSigner);
@@ -133,7 +133,7 @@ contract AnypayRelaySapientSigner is ISapient {
                 )
             );
 
-            address signer = message.recover(attestedInfo.signature);
+            address signer = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", message)).recover(attestedInfo.signature);
             if (signer != RELAY_SOLVER) {
                 revert InvalidRelayQuote();
             }
