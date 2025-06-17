@@ -5,9 +5,8 @@ pragma solidity ^0.8.18;
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
-import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
-import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
+import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
 
 /**
  * @title AnypayRelaySapientSigner
@@ -26,23 +25,11 @@ contract AnypayRelaySapientSigner is ISapient {
     using ECDSA for bytes32;
 
     // -------------------------------------------------------------------------
-    // Structs
-    // -------------------------------------------------------------------------
-
-    /// @dev Relay specific parameters from RelayFacet
-    struct RelayData {
-        bytes32 requestId;
-        bytes32 nonEVMReceiver;
-        bytes32 receivingAssetId;
-        bytes signature;
-    }
-
-    // -------------------------------------------------------------------------
     // Immutables
     // -------------------------------------------------------------------------
 
     address public immutable RELAY_SOLVER;
-    address public constant NON_EVM_ADDRESS = 0x11f111f111f111F111f111f111F111f111f111F1;
+    address public constant NON_EVM_ADDRESS = 0x1111111111111111111111111111111111111111;
 
     // -------------------------------------------------------------------------
     // Errors
@@ -54,11 +41,8 @@ contract AnypayRelaySapientSigner is ISapient {
     error InvalidRelaySolverAddress();
     error InvalidAttestationSigner(address expectedSigner, address actualSigner);
     error InvalidAttestation();
-    error InvalidCalldata();
     error MismatchedRelayInfoLengths();
     error InvalidRelayQuote();
-    error NoMatchingInferredInfoFound(bytes32 requestId);
-    error InferredAmountTooHigh(uint256 inferredAmount, uint256 attestedAmount);
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -96,43 +80,45 @@ contract AnypayRelaySapientSigner is ISapient {
         Payload.Decoded calldata payload,
         bytes calldata encodedSignature
     ) internal view returns (bytes32) {
-        // 1. Decode the signature
-        (bytes memory attestationSignature, AnypayRelayInfo[] memory attestedRelayInfos) =
+        // 1. Validate outer Payload
+        if (payload.kind != Payload.KIND_TRANSACTIONS) {
+            revert InvalidPayloadKind();
+        }
+
+        // 2. Validate inner Payload
+        if (payload.calls.length == 0) {
+            revert InvalidCallsLength();
+        }
+
+        // 3. Decode the signature
+        (AnypayRelayInfo[] memory attestedRelayInfos, bytes memory attestationSignature, address attestationSigner) =
             decodeSignature(encodedSignature);
 
-        // 2. Recover the signer from the attestation signature
-        address recoveredAttestationSigner = payload.hashFor(_wallet).recover(attestationSignature);
-
-        if (recoveredAttestationSigner == address(0)) {
-            revert InvalidAttestationSigner(address(0), recoveredAttestationSigner);
-        }
-
-        // 3. Validate attestations
-        if (!_validateRelayInfos(attestedRelayInfos)) {
-            revert InvalidAttestation();
-        }
-
-        // 4. Hash the relay intent params
-        bytes32 relayIntentHash = keccak256(abi.encode(attestedRelayInfos, recoveredAttestationSigner));
-
-        return relayIntentHash;
-    }
-
-    // -------------------------------------------------------------------------
-    // Internal Functions
-    // -------------------------------------------------------------------------
-
-    function _validateRelayInfos(AnypayRelayInfo[] memory attestedRelayInfos) internal view returns (bool) {
-        if (attestedRelayInfos.length == 0) {
+        // 4. Check that calls and relay infos have the same length
+        if (payload.calls.length != attestedRelayInfos.length) {
             revert MismatchedRelayInfoLengths();
         }
 
-        uint256 numInfos = attestedRelayInfos.length;
+        // 5. Recover the signer from the attestation signature
+        address recoveredAttestationSigner = payload.hashFor(_wallet).recover(attestationSignature);
+        if (recoveredAttestationSigner != attestationSigner) {
+            revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
+        }
 
-        for (uint256 i = 0; i < numInfos; i++) {
+        // 6. Validate attestations and compare with inferred data
+        for (uint256 i = 0; i < payload.calls.length; i++) {
+            Payload.Call memory call = payload.calls[i];
             AnypayRelayInfo memory attestedInfo = attestedRelayInfos[i];
+            AnypayRelayDecoder.DecodedRelayData memory inferredInfo =
+                AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
 
-            // Check relay solver signature
+            // a. Validate relay parameters
+            if (inferredInfo.requestId != attestedInfo.requestId || inferredInfo.token != attestedInfo.sendingAssetId
+                || inferredInfo.receiver != attestedInfo.receiver) {
+                revert InvalidAttestation();
+            }
+
+            // b. Check relay solver signature
             bytes32 message = keccak256(
                 abi.encodePacked(
                     attestedInfo.requestId,
@@ -154,21 +140,34 @@ contract AnypayRelaySapientSigner is ISapient {
             }
         }
 
-        return true;
+        // 7. Hash the relay intent params
+        bytes32 relayIntentHash = keccak256(abi.encode(attestedRelayInfos, attestationSigner));
+
+        return relayIntentHash;
     }
+
+    // -------------------------------------------------------------------------
+    // Internal Functions
+    // -------------------------------------------------------------------------
 
     /**
      * @notice Decodes a combined signature into Relay information and the attestation signature.
-     * @dev Assumes _signature is abi.encode(bytes memory, AnypayRelayInfo[] memory).
+     * @dev Assumes _signature is abi.encode(AnypayRelayInfo[] memory, bytes memory, address).
      * @param _signature The combined signature bytes.
-     * @return _attestationSignature The ECDSA signature for attestation.
      * @return _relayInfos Array of AnypayRelayInfo structs.
+     * @return _attestationSignature The ECDSA signature for attestation.
+     * @return _attestationSigner The address of the signer.
      */
     function decodeSignature(bytes calldata _signature)
         public
         pure
-        returns (bytes memory _attestationSignature, AnypayRelayInfo[] memory _relayInfos)
+        returns (
+            AnypayRelayInfo[] memory _relayInfos,
+            bytes memory _attestationSignature,
+            address _attestationSigner
+        )
     {
-        (_attestationSignature, _relayInfos) = abi.decode(_signature, (bytes, AnypayRelayInfo[]));
+        (_relayInfos, _attestationSignature, _attestationSigner) =
+            abi.decode(_signature, (AnypayRelayInfo[], bytes, address));
     }
 }

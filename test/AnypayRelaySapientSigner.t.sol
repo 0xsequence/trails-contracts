@@ -6,6 +6,7 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 import {AnypayRelaySapientSigner} from "@/AnypayRelaySapientSigner.sol";
 import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
+import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
 
 contract AnypayRelaySapientSignerTest is Test {
     using ECDSA for bytes32;
@@ -25,20 +26,34 @@ contract AnypayRelaySapientSignerTest is Test {
         userWalletAddress = address(this);
         anypayRelaySapientSigner = new AnypayRelaySapientSigner(relaySolver);
 
+        // Sample relay info
+        AnypayRelayInfo memory info = AnypayRelayInfo({
+            requestId: bytes32("requestId"),
+            signature: new bytes(0),
+            nonEVMReceiver: bytes32("nonEVMReceiver"),
+            receivingAssetId: bytes32("receivingAssetId"),
+            sendingAssetId: address(0x2),
+            receiver: address(0x3),
+            destinationChainId: 1,
+            minAmount: 100,
+            target: address(0x4)
+        });
+
         // Sample payload
-        address target = address(0x1);
-        bytes memory callData = abi.encode("callData");
+        bytes memory callData = abi.encode(info.requestId);
 
         Payload.Call[] memory calls = new Payload.Call[](1);
         calls[0] = Payload.Call({
-            to: target,
+            to: info.target,
             value: 0,
-            data: callData,
+            data: abi.encodePacked(bytes4(0xa9059cbb), abi.encode(info.receiver, info.minAmount, info.requestId)),
             gasLimit: 0,
             delegateCall: false,
             onlyFallback: false,
             behaviorOnError: 0
         });
+
+        calls[0].to = info.sendingAssetId;
 
         payload = Payload.Decoded({
             kind: Payload.KIND_TRANSACTIONS,
@@ -52,18 +67,6 @@ contract AnypayRelaySapientSignerTest is Test {
             parentWallets: new address[](0)
         });
 
-        // Sample relay info
-        AnypayRelayInfo memory info = AnypayRelayInfo({
-            requestId: "requestId",
-            signature: new bytes(0),
-            nonEVMReceiver: "nonEVMReceiver",
-            receivingAssetId: "receivingAssetId",
-            sendingAssetId: address(0x2),
-            receiver: address(0x3),
-            destinationChainId: 1,
-            minAmount: 100,
-            target: address(0x4)
-        });
 
         bytes32 message = keccak256(
             abi.encodePacked(
@@ -88,27 +91,41 @@ contract AnypayRelaySapientSignerTest is Test {
     }
 
     function test_recoverSapientSignature_succeeds() public {
-        bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos);
+        // We need to adjust the payload to match the attested info
+        payload.calls[0].to = attestedRelayInfos[0].sendingAssetId;
+        payload.calls[0].data = abi.encodePacked(
+            bytes4(0xa9059cbb),
+            abi.encode(
+                attestedRelayInfos[0].receiver, attestedRelayInfos[0].minAmount, attestedRelayInfos[0].requestId
+            )
+        );
+
+        bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos, signer);
 
         vm.prank(userWalletAddress);
         bytes32 result = anypayRelaySapientSigner.recoverSapientSignature(payload, encodedSignature);
 
         bytes32 expectedHash = keccak256(abi.encode(attestedRelayInfos, signer));
         assertEq(result, expectedHash);
+        console.log("AnypayRelaySapientSigner.recoverSapientSignature an successfully recovered sapient signature");
     }
 
     function testRevert_whenInvalidAttestationSigner() public {
-        bytes memory wrongSig = "wrong signature";
-        bytes memory encodedSignature = abi.encode(wrongSig, attestedRelayInfos);
+        address wrongSigner = address(0xdead);
+        bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos, wrongSigner);
 
         vm.prank(userWalletAddress);
-        vm.expectRevert("InvalidSignature()");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AnypayRelaySapientSigner.InvalidAttestationSigner.selector, wrongSigner, signer
+            )
+        );
         anypayRelaySapientSigner.recoverSapientSignature(payload, encodedSignature);
     }
 
     function testRevert_whenEmptyRelayInfos() public {
         AnypayRelayInfo[] memory emptyInfos = new AnypayRelayInfo[](0);
-        bytes memory encodedSignature = createEncodedSignature(emptyInfos);
+        bytes memory encodedSignature = createEncodedSignature(emptyInfos, signer);
 
         vm.prank(userWalletAddress);
         vm.expectRevert(abi.encodeWithSelector(AnypayRelaySapientSigner.MismatchedRelayInfoLengths.selector));
@@ -118,7 +135,7 @@ contract AnypayRelaySapientSignerTest is Test {
     function testRevert_whenInvalidRelayQuote() public {
         // Tamper with the signature
         attestedRelayInfos[0].signature[5] = 0x00;
-        bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos);
+        bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos, signer);
 
         vm.prank(userWalletAddress);
         vm.expectRevert(abi.encodeWithSelector(AnypayRelaySapientSigner.InvalidRelayQuote.selector));
@@ -126,8 +143,8 @@ contract AnypayRelaySapientSignerTest is Test {
     }
 
     function test_decodeSignature() public {
-        bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos);
-        (bytes memory attestationSignature, AnypayRelayInfo[] memory decodedRelayInfos) =
+        bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos, signer);
+        (AnypayRelayInfo[] memory decodedRelayInfos, bytes memory attestationSignature, address attestationSigner) =
             anypayRelaySapientSigner.decodeSignature(encodedSignature);
 
         bytes32 payloadHash = payload.hashFor(userWalletAddress);
@@ -137,13 +154,18 @@ contract AnypayRelaySapientSignerTest is Test {
         assertEq(attestationSignature, expectedAttestationSignature);
         assertEq(decodedRelayInfos.length, attestedRelayInfos.length);
         assertEq(decodedRelayInfos[0].requestId, attestedRelayInfos[0].requestId);
+        assertEq(attestationSigner, signer);
     }
 
-    function createEncodedSignature(AnypayRelayInfo[] memory infos) internal view returns (bytes memory) {
+    function createEncodedSignature(AnypayRelayInfo[] memory infos, address _signer)
+        internal
+        view
+        returns (bytes memory)
+    {
         bytes32 payloadHash = payload.hashFor(userWalletAddress);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, payloadHash);
         bytes memory attestationSignature = abi.encodePacked(r, s, v);
 
-        return abi.encode(attestationSignature, infos);
+        return abi.encode(infos, attestationSignature, _signer);
     }
 }

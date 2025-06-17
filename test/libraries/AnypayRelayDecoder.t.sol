@@ -4,11 +4,40 @@ pragma solidity ^0.8.30;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
+import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
 // Helper contract to test the AnypayRelayDecoder library
 contract RelayDecoderTestHelper {
     function decode(bytes calldata data) public payable returns (AnypayRelayDecoder.DecodedRelayData memory) {
         return AnypayRelayDecoder.decodeRelayCalldata(data);
+    }
+
+    function decodeForSapient_native(bytes calldata data, uint256 value, address to)
+        public
+        pure
+        returns (AnypayRelayDecoder.DecodedRelayData memory)
+    {
+        Payload.Call memory call = Payload.Call({
+            to: to,
+            value: value,
+            data: data,
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: 0
+        });
+        return AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
+    }
+
+    function decodeForSapient_erc20(bytes calldata data, address to)
+        public
+        pure
+        returns (AnypayRelayDecoder.DecodedRelayData memory)
+    {
+        Payload.Call memory call = Payload.Call(
+            {to: to, value: 0, data: data, gasLimit: 0, delegateCall: false, onlyFallback: false, behaviorOnError: 0}
+        );
+        return AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
     }
 }
 
@@ -119,6 +148,41 @@ contract AnypayRelayDecoderTest is Test {
         assertEq(decodedData.requestId, requestId, "requestId mismatch");
         assertEq(decodedData.token, address(helper), "token should be address(this)");
         assertEq(decodedData.amount, transferAmount, "amount mismatch");
+        assertEq(decodedData.receiver, receiver, "receiver mismatch");
+    }
+
+    // -------------------------------------------------------------------------
+    // Sapient Decoder Tests
+    // -------------------------------------------------------------------------
+
+    function test_decodeForSapient_native_success() public {
+        uint256 sentValue = 1 ether;
+        bytes memory calldataToDecode = abi.encode(TEST_REQUEST_ID);
+        address to = makeAddr("to");
+
+        AnypayRelayDecoder.DecodedRelayData memory decodedData =
+            helper.decodeForSapient_native(calldataToDecode, sentValue, to);
+
+        assertEq(decodedData.requestId, TEST_REQUEST_ID, "requestId mismatch");
+        assertEq(decodedData.token, address(0), "token should be address(0)");
+        assertEq(decodedData.amount, sentValue, "amount should be value");
+        assertEq(decodedData.receiver, to, "receiver should be to");
+    }
+
+    function test_decodeForSapient_erc20_success() public {
+        address receiver = makeAddr("receiver");
+        uint256 amount = 100 ether;
+        address to = makeAddr("to");
+
+        bytes memory calldataToDecode =
+            abi.encodePacked(bytes4(0xa9059cbb), abi.encode(receiver, amount, TEST_REQUEST_ID));
+
+        AnypayRelayDecoder.DecodedRelayData memory decodedData =
+            helper.decodeForSapient_erc20(calldataToDecode, to);
+
+        assertEq(decodedData.requestId, TEST_REQUEST_ID, "requestId mismatch");
+        assertEq(decodedData.token, to, "token should be to address");
+        assertEq(decodedData.amount, amount, "amount mismatch");
         assertEq(decodedData.receiver, receiver, "receiver mismatch");
     }
 }
