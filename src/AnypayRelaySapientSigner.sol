@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.18;
 
+import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayRelayInfo} from "./interfaces/AnypayRelay.sol";
-import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
+import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
 
 /**
  * @title AnypayRelaySapientSigner

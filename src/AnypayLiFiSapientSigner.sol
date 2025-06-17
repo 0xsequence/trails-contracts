@@ -6,11 +6,11 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiFlagDecoder} from "./libraries/AnypayLiFiFlagDecoder.sol";
-import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "./libraries/AnypayLiFiInterpreter.sol";
-import {AnypayIntentParams} from "./libraries/AnypayIntentParams.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
-import {AnypayDecodingStrategy} from "./interfaces/AnypayLiFi.sol";
+import {AnypayLiFiFlagDecoder} from "@/libraries/AnypayLiFiFlagDecoder.sol";
+import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayIntentParams} from "@/libraries/AnypayIntentParams.sol";
+import {AnypayDecodingStrategy} from "@/interfaces/AnypayLiFi.sol";
 
 /**
  * @title AnypayLiFiSapientSigner

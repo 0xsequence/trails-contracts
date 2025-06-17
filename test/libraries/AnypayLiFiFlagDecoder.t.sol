@@ -3,10 +3,10 @@
 pragma solidity ^0.8.30;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {AnypayLiFiFlagDecoder} from "src/libraries/AnypayLiFiFlagDecoder.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayDecodingStrategy} from "src/interfaces/AnypayLiFi.sol";
+import {AnypayLiFiFlagDecoder} from "@/libraries/AnypayLiFiFlagDecoder.sol";
+import {AnypayDecodingStrategy} from "@/interfaces/AnypayLiFi.sol";
 
 struct AcrossV3Data {
     address receiverAddress;
