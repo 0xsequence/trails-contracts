@@ -13,4 +13,4 @@ struct AnypayRelayInfo {
     uint256 destinationChainId;
     uint256 minAmount;
     address target;
-} 
+}

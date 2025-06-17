@@ -74,16 +74,16 @@ contract AnypayTokenSweeper {
      */
     function sweep(address _token) external {
         uint256 balance = getBalance(_token);
-        
+
         if (balance == 0) {
             return;
         }
 
         if (_token == address(0)) {
-            (bool success, ) = recipient.call{value: balance}("");
+            (bool success,) = recipient.call{value: balance}("");
             require(success, "AnypayTokenSweeper: Native token transfer failed");
         } else {
             IERC20(_token).safeTransfer(recipient, balance);
         }
     }
-} 
+}

@@ -98,8 +98,7 @@ contract AnypayLiFiSapientSigner is ISapient {
         ) = decodeSignature(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
-        address recoveredAttestationSigner =
-            payload.hashFor(_wallet).recover(attestationSignature);
+        address recoveredAttestationSigner = payload.hashFor(_wallet).recover(attestationSignature);
 
         // 6. Validate the attestation signer
         if (recoveredAttestationSigner != attestationSigner) {

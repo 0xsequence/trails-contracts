@@ -26,7 +26,7 @@ contract AnypayRelaySapientSignerTest is Test {
         // Sample payload
         address target = address(0x1);
         bytes memory callData = abi.encode("callData");
-        
+
         Payload.Call[] memory calls = new Payload.Call[](1);
         calls[0] = Payload.Call({
             to: target,
@@ -77,10 +77,8 @@ contract AnypayRelaySapientSignerTest is Test {
             )
         );
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            relaySolverPrivateKey,
-            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", message))
-        );
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(relaySolverPrivateKey, keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", message)));
         info.signature = abi.encodePacked(r, s, v);
 
         attestedRelayInfos = new AnypayRelayInfo[](1);
@@ -91,7 +89,7 @@ contract AnypayRelaySapientSignerTest is Test {
         bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos);
 
         bytes32 result = anypayRelaySapientSigner.recoverSapientSignature(address(this), payload, encodedSignature);
-        
+
         bytes32 expectedHash = keccak256(abi.encode(attestedRelayInfos, signer));
         assertEq(result, expectedHash);
     }
@@ -125,11 +123,11 @@ contract AnypayRelaySapientSignerTest is Test {
         bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos);
         (bytes memory attestationSignature, AnypayRelayInfo[] memory decodedRelayInfos) =
             anypayRelaySapientSigner.decodeSignature(encodedSignature);
-        
+
         bytes32 payloadHash = payload.hashFor(address(this));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, payloadHash);
         bytes memory expectedAttestationSignature = abi.encodePacked(r, s, v);
-        
+
         assertEq(attestationSignature, expectedAttestationSignature);
         assertEq(decodedRelayInfos.length, attestedRelayInfos.length);
         assertEq(decodedRelayInfos[0].requestId, attestedRelayInfos[0].requestId);
@@ -142,4 +140,4 @@ contract AnypayRelaySapientSignerTest is Test {
 
         return abi.encode(attestationSignature, infos);
     }
-} 
+}
