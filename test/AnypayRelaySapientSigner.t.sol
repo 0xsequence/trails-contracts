@@ -2,10 +2,10 @@
 pragma solidity ^0.8.18;
 
 import {Test, console} from "forge-std/Test.sol";
-import {AnypayRelaySapientSigner} from "../../src/AnypayRelaySapientSigner.sol";
-import {AnypayRelayInfo} from "../../src/interfaces/AnypayRelay.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
+import {AnypayRelaySapientSigner} from "@/AnypayRelaySapientSigner.sol";
+import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
 
 contract AnypayRelaySapientSignerTest is Test {
     using ECDSA for bytes32;
