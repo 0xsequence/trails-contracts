@@ -81,11 +81,11 @@ contract AnypayLiFiSapientSigner is ISapient {
      * @param encodedSignature The encoded signature.
      * @return The hash of the LiFi intent parameters.
      */
-    function _recoverSapientSignature(address _wallet, Payload.Decoded calldata payload, bytes calldata encodedSignature)
-        internal
-        view
-        returns (bytes32)
-    {
+    function _recoverSapientSignature(
+        address _wallet,
+        Payload.Decoded calldata payload,
+        bytes calldata encodedSignature
+    ) internal view returns (bytes32) {
         // 1. Validate outer Payload
         if (payload.kind != Payload.KIND_TRANSACTIONS) {
             revert InvalidPayloadKind();

@@ -128,8 +128,7 @@ contract AnypayLiFiSapientSignerTest is Test {
 
         // 9. Call recoverSapientSignature
         vm.prank(userWalletAddress);
-        bytes32 actualLifiIntentHash =
-            signerContract.recoverSapientSignature(payload, combinedSignature);
+        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
 
         // 10. Assert equality
         assertEq(actualLifiIntentHash, expectedLifiIntentHash, "Recovered LiFi intent hash mismatch");
@@ -201,8 +200,7 @@ contract AnypayLiFiSapientSignerTest is Test {
 
         // 10. Call recoverSapientSignature
         vm.prank(userWalletAddress);
-        bytes32 actualLifiIntentHash =
-            signerContract.recoverSapientSignature(payload, combinedSignature);
+        bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
 
         // 11. Assert equality
         assertEq(

@@ -91,11 +91,11 @@ contract AnypayRelaySapientSigner is ISapient {
      * @param encodedSignature The encoded signature.
      * @return The hash of the relay intent parameters.
      */
-    function _recoverSapientSignature(address _wallet, Payload.Decoded calldata payload, bytes calldata encodedSignature)
-        internal
-        view
-        returns (bytes32)
-    {
+    function _recoverSapientSignature(
+        address _wallet,
+        Payload.Decoded calldata payload,
+        bytes calldata encodedSignature
+    ) internal view returns (bytes32) {
         // 1. Decode the signature
         (bytes memory attestationSignature, AnypayRelayInfo[] memory attestedRelayInfos) =
             decodeSignature(encodedSignature);
