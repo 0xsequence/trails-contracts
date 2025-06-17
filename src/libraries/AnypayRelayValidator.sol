@@ -63,7 +63,8 @@ library AnypayRelayValidator {
                 bytes32(uint256(uint160(attestedInfo.sendingAssetId))),
                 attestedInfo.destinationChainId,
                 attestedInfo.receiver == NON_EVM_ADDRESS
-                    ? attestedInfo.nonEVMReceiver : bytes32(uint256(uint160(attestedInfo.receiver))),
+                    ? attestedInfo.nonEVMReceiver
+                    : bytes32(uint256(uint160(attestedInfo.receiver))),
                 attestedInfo.receivingAssetId,
                 attestedInfo.minAmount
             )
@@ -76,4 +77,4 @@ library AnypayRelayValidator {
             revert InvalidRelayQuote();
         }
     }
-} 
+}
