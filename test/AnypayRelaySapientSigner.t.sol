@@ -7,6 +7,7 @@ import {ECDSA} from "solady/utils/ECDSA.sol";
 import {AnypayRelaySapientSigner} from "@/AnypayRelaySapientSigner.sol";
 import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
+import {AnypayRelayValidator} from "@/libraries/AnypayRelayValidator.sol";
 
 contract AnypayRelaySapientSignerTest is Test {
     using ECDSA for bytes32;
@@ -67,7 +68,6 @@ contract AnypayRelaySapientSignerTest is Test {
             parentWallets: new address[](0)
         });
 
-
         bytes32 message = keccak256(
             abi.encodePacked(
                 info.requestId,
@@ -75,10 +75,11 @@ contract AnypayRelaySapientSignerTest is Test {
                 bytes32(uint256(uint160(info.target))),
                 bytes32(uint256(uint160(info.sendingAssetId))),
                 info.destinationChainId,
-                info.receiver == anypayRelaySapientSigner.NON_EVM_ADDRESS()
+                info.receiver == AnypayRelayValidator.NON_EVM_ADDRESS
                     ? info.nonEVMReceiver
                     : bytes32(uint256(uint160(info.receiver))),
-                info.receivingAssetId
+                info.receivingAssetId,
+                info.minAmount
             )
         );
 
@@ -95,9 +96,7 @@ contract AnypayRelaySapientSignerTest is Test {
         payload.calls[0].to = attestedRelayInfos[0].sendingAssetId;
         payload.calls[0].data = abi.encodePacked(
             bytes4(0xa9059cbb),
-            abi.encode(
-                attestedRelayInfos[0].receiver, attestedRelayInfos[0].minAmount, attestedRelayInfos[0].requestId
-            )
+            abi.encode(attestedRelayInfos[0].receiver, attestedRelayInfos[0].minAmount, attestedRelayInfos[0].requestId)
         );
 
         bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos, signer);
@@ -116,9 +115,7 @@ contract AnypayRelaySapientSignerTest is Test {
 
         vm.prank(userWalletAddress);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                AnypayRelaySapientSigner.InvalidAttestationSigner.selector, wrongSigner, signer
-            )
+            abi.encodeWithSelector(AnypayRelaySapientSigner.InvalidAttestationSigner.selector, wrongSigner, signer)
         );
         anypayRelaySapientSigner.recoverSapientSignature(payload, encodedSignature);
     }
@@ -138,7 +135,7 @@ contract AnypayRelaySapientSignerTest is Test {
         bytes memory encodedSignature = createEncodedSignature(attestedRelayInfos, signer);
 
         vm.prank(userWalletAddress);
-        vm.expectRevert(abi.encodeWithSelector(AnypayRelaySapientSigner.InvalidRelayQuote.selector));
+        vm.expectRevert(ECDSA.InvalidSignature.selector);
         anypayRelaySapientSigner.recoverSapientSignature(payload, encodedSignature);
     }
 

@@ -7,6 +7,7 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
+import {AnypayRelayValidator} from "@/libraries/AnypayRelayValidator.sol";
 
 /**
  * @title AnypayRelaySapientSigner
@@ -23,13 +24,13 @@ contract AnypayRelaySapientSigner is ISapient {
 
     using Payload for Payload.Decoded;
     using ECDSA for bytes32;
+    using AnypayRelayValidator for AnypayRelayInfo;
 
     // -------------------------------------------------------------------------
     // Immutables
     // -------------------------------------------------------------------------
 
     address public immutable RELAY_SOLVER;
-    address public constant NON_EVM_ADDRESS = 0x1111111111111111111111111111111111111111;
 
     // -------------------------------------------------------------------------
     // Errors
@@ -40,9 +41,7 @@ contract AnypayRelaySapientSigner is ISapient {
     error InvalidPayloadKind();
     error InvalidRelaySolverAddress();
     error InvalidAttestationSigner(address expectedSigner, address actualSigner);
-    error InvalidAttestation();
     error MismatchedRelayInfoLengths();
-    error InvalidRelayQuote();
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -112,32 +111,8 @@ contract AnypayRelaySapientSigner is ISapient {
             AnypayRelayDecoder.DecodedRelayData memory inferredInfo =
                 AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
 
-            // a. Validate relay parameters
-            if (inferredInfo.requestId != attestedInfo.requestId || inferredInfo.token != attestedInfo.sendingAssetId
-                || inferredInfo.receiver != attestedInfo.receiver) {
-                revert InvalidAttestation();
-            }
-
-            // b. Check relay solver signature
-            bytes32 message = keccak256(
-                abi.encodePacked(
-                    attestedInfo.requestId,
-                    block.chainid,
-                    bytes32(uint256(uint160(attestedInfo.target))),
-                    bytes32(uint256(uint160(attestedInfo.sendingAssetId))),
-                    attestedInfo.destinationChainId,
-                    attestedInfo.receiver == NON_EVM_ADDRESS
-                        ? attestedInfo.nonEVMReceiver
-                        : bytes32(uint256(uint160(attestedInfo.receiver))),
-                    attestedInfo.receivingAssetId
-                )
-            );
-
-            address signer =
-                keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", message)).recover(attestedInfo.signature);
-            if (signer != RELAY_SOLVER) {
-                revert InvalidRelayQuote();
-            }
+            // Validate the relay information using the new library
+            attestedInfo.validateRelayInfo(inferredInfo, RELAY_SOLVER);
         }
 
         // 7. Hash the relay intent params
@@ -161,11 +136,7 @@ contract AnypayRelaySapientSigner is ISapient {
     function decodeSignature(bytes calldata _signature)
         public
         pure
-        returns (
-            AnypayRelayInfo[] memory _relayInfos,
-            bytes memory _attestationSignature,
-            address _attestationSigner
-        )
+        returns (AnypayRelayInfo[] memory _relayInfos, bytes memory _attestationSignature, address _attestationSigner)
     {
         (_relayInfos, _attestationSignature, _attestationSigner) =
             abi.decode(_signature, (AnypayRelayInfo[], bytes, address));

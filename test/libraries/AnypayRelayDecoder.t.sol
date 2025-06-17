@@ -34,9 +34,15 @@ contract RelayDecoderTestHelper {
         pure
         returns (AnypayRelayDecoder.DecodedRelayData memory)
     {
-        Payload.Call memory call = Payload.Call(
-            {to: to, value: 0, data: data, gasLimit: 0, delegateCall: false, onlyFallback: false, behaviorOnError: 0}
-        );
+        Payload.Call memory call = Payload.Call({
+            to: to,
+            value: 0,
+            data: data,
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: 0
+        });
         return AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
     }
 }
@@ -124,8 +130,7 @@ contract AnypayRelayDecoderTest is Test {
         bytes memory calldataToDecode = abi.encode(requestId);
 
         // The test contract is the msg.sender to the helper
-        AnypayRelayDecoder.DecodedRelayData memory decodedData =
-            helper.decode{value: sentValue}(calldataToDecode);
+        AnypayRelayDecoder.DecodedRelayData memory decodedData = helper.decode{value: sentValue}(calldataToDecode);
 
         assertEq(decodedData.requestId, requestId, "requestId mismatch");
         assertEq(decodedData.token, address(0), "token should be address(0)");
@@ -177,8 +182,7 @@ contract AnypayRelayDecoderTest is Test {
         bytes memory calldataToDecode =
             abi.encodePacked(bytes4(0xa9059cbb), abi.encode(receiver, amount, TEST_REQUEST_ID));
 
-        AnypayRelayDecoder.DecodedRelayData memory decodedData =
-            helper.decodeForSapient_erc20(calldataToDecode, to);
+        AnypayRelayDecoder.DecodedRelayData memory decodedData = helper.decodeForSapient_erc20(calldataToDecode, to);
 
         assertEq(decodedData.requestId, TEST_REQUEST_ID, "requestId mismatch");
         assertEq(decodedData.token, to, "token should be to address");
