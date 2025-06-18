@@ -1,4 +1,4 @@
-.PHONY: all install submodules update-submodules
+.PHONY: all install submodules update-submodules reset-submodules
 
 all: install
 
@@ -16,3 +16,10 @@ update-submodules:
 	@echo "Updating git submodules to latest versions..."
 	git submodule update --init --recursive --remote
 	@echo "Git submodules updated." 
+
+# Reset git submodules to their checked-in versions
+reset-submodules:
+	@echo "Resetting git submodules..."
+	git submodule foreach --recursive 'git clean -dfx && git reset --hard'
+	git submodule update --init --recursive
+	@echo "Git submodules reset."
