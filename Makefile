@@ -20,6 +20,7 @@ update-submodules:
 # Reset git submodules to their checked-in versions
 reset-submodules:
 	@echo "Resetting git submodules..."
-	git submodule foreach --recursive 'git clean -dfx && git reset --hard'
+	git submodule deinit --all -f
+	git clean -dfx
 	git submodule update --init --recursive
 	@echo "Git submodules reset."
