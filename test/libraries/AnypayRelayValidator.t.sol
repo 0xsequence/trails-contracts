@@ -108,7 +108,6 @@ contract AnypayRelayValidatorTest is Test {
         AnypayRelayValidator.validateRelayInfo(attestedInfo, inferredInfo, RELAY_SOLVER);
     }
 
-    /// forge-config: default.allow_internal_expect_revert = true
     // function test_Revert_When_InvalidSignature() public {
     //     AnypayRelayInfo memory attestedInfo = baseAttestedInfo;
     //     attestedInfo.signature = _signRelayInfo(attestedInfo, OTHER_USER_PK);
