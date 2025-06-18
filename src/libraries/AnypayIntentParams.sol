@@ -3,7 +3,7 @@
 pragma solidity ^0.8.30;
 
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-import {AnypayLiFiInfo} from "./AnypayLiFiInterpreter.sol";
+import {AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
 
 /**
  * @title AnypayIntentParams
