@@ -37,4 +37,4 @@ library AnypayRelayParams {
         if (attestationAddress == address(0)) revert AttestationAddressIsZero();
         return keccak256(abi.encode(relayInfos, attestationAddress));
     }
-} 
+}

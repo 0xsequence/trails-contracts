@@ -43,4 +43,4 @@ contract AnypayLifiParamsTest is Test {
         vm.expectRevert(AnypayLifiParams.AttestationAddressIsZero.selector);
         AnypayLifiParams.getAnypayLiFiInfoHash(lifiInfos, attestationAddress);
     }
-} 
+}

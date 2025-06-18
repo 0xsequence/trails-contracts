@@ -48,4 +48,4 @@ contract AnypayRelayParamsTest is Test {
         vm.expectRevert(AnypayRelayParams.AttestationAddressIsZero.selector);
         AnypayRelayParams.getAnypayRelayInfoHash(relayInfos, attestationAddress);
     }
-} 
+}

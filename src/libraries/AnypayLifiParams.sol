@@ -37,4 +37,4 @@ library AnypayLifiParams {
         if (attestationAddress == address(0)) revert AttestationAddressIsZero();
         return keccak256(abi.encode(lifiInfos, attestationAddress));
     }
-} 
+}
