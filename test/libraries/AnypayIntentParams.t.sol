@@ -6,6 +6,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {AnypayIntentParams} from "@/libraries/AnypayIntentParams.sol";
 import {AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
 
 contract AnypayIntentParamsTest is Test {
     AnypayIntentParams.IntentParamsData internal baseParams;
@@ -220,7 +221,7 @@ contract AnypayIntentParamsTest is Test {
         assertEq(actualHash, expectedHash, "MultipleValidCallPayloads hash mismatch");
     }
 
-    function testGetAnypayLiFiInfoHash_SingleInfo() public {
+    function testGetAnypayLiFiInfoHash_SingleInfo() public pure {
         AnypayLiFiInfo[] memory lifiInfos = new AnypayLiFiInfo[](1);
         lifiInfos[0] = AnypayLiFiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
@@ -235,7 +236,7 @@ contract AnypayIntentParamsTest is Test {
         assertEq(actualHash, expectedHash, "SingleInfo hash mismatch");
     }
 
-    function testGetAnypayLiFiInfoHash_MultipleInfo() public {
+    function testGetAnypayLiFiInfoHash_MultipleInfo() public pure {
         AnypayLiFiInfo[] memory lifiInfos = new AnypayLiFiInfo[](2);
         lifiInfos[0] = AnypayLiFiInfo({
             originToken: 0x1111111111111111111111111111111111111111,
@@ -278,5 +279,85 @@ contract AnypayIntentParamsTest is Test {
 
         vm.expectRevert(AnypayIntentParams.AttestationAddressIsZero.selector);
         AnypayIntentParams.getAnypayLiFiInfoHash(lifiInfos, attestationAddress);
+    }
+
+    function testGetAnypayRelayInfoHash_SingleInfo() public pure {
+        AnypayRelayInfo[] memory relayInfos = new AnypayRelayInfo[](1);
+        relayInfos[0] = AnypayRelayInfo({
+            requestId: 0x0000000000000000000000000000000000000000000000000000000000000001,
+            signature: hex"abcd",
+            nonEVMReceiver: 0x0000000000000000000000000000000000000000000000000000000000000002,
+            receivingAssetId: 0x0000000000000000000000000000000000000000000000000000000000000003,
+            sendingAssetId: 0x5555555555555555555555555555555555555555,
+            receiver: 0x6666666666666666666666666666666666666666,
+            destinationChainId: 137,
+            minAmount: 1000,
+            target: 0x7777777777777777777777777777777777777777
+        });
+        address attestationAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
+
+        bytes32 expectedHash = 0x34b1669f0dccfb1e185ee9012c92a17c8548dc504d7a3dc0fedf08522c8c5a63;
+        bytes32 actualHash = AnypayIntentParams.getAnypayRelayInfoHash(relayInfos, attestationAddress);
+        assertEq(actualHash, expectedHash, "Single Relay Info hash mismatch");
+    }
+
+    function testGetAnypayRelayInfoHash_MultipleInfo() public pure {
+        AnypayRelayInfo[] memory relayInfos = new AnypayRelayInfo[](2);
+        relayInfos[0] = AnypayRelayInfo({
+            requestId: 0x0000000000000000000000000000000000000000000000000000000000000001,
+            signature: hex"abcd",
+            nonEVMReceiver: 0x0000000000000000000000000000000000000000000000000000000000000002,
+            receivingAssetId: 0x0000000000000000000000000000000000000000000000000000000000000003,
+            sendingAssetId: 0x5555555555555555555555555555555555555555,
+            receiver: 0x6666666666666666666666666666666666666666,
+            destinationChainId: 137,
+            minAmount: 1000,
+            target: 0x7777777777777777777777777777777777777777
+        });
+        relayInfos[1] = AnypayRelayInfo({
+            requestId: 0x1000000000000000000000000000000000000000000000000000000000000001,
+            signature: hex"dcba",
+            nonEVMReceiver: 0x1000000000000000000000000000000000000000000000000000000000000002,
+            receivingAssetId: 0x1000000000000000000000000000000000000000000000000000000000000003,
+            sendingAssetId: 0x8888888888888888888888888888888888888888,
+            receiver: 0x9999999999999999999999999999999999999999,
+            destinationChainId: 42161,
+            minAmount: 2000,
+            target: 0x7777777777777777777777777777777777777777
+        });
+        address attestationAddress = 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB;
+
+        bytes32 expectedHash = 0xe36f2474265f43cea2e68e83112443c9dc35b844f7039d96450adcf1acd6a7e8;
+        bytes32 actualHash = AnypayIntentParams.getAnypayRelayInfoHash(relayInfos, attestationAddress);
+        assertEq(actualHash, expectedHash, "Multiple Relay Info hash mismatch");
+    }
+
+    /// forge-config: default.allow_internal_expect_revert = true
+    function testGetAnypayRelayInfoHash_EmptyInfo_ShouldRevert() public {
+        AnypayRelayInfo[] memory relayInfos = new AnypayRelayInfo[](0);
+        address attestationAddress = 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC;
+
+        vm.expectRevert(AnypayIntentParams.RelayInfosIsEmpty.selector);
+        AnypayIntentParams.getAnypayRelayInfoHash(relayInfos, attestationAddress);
+    }
+
+    /// forge-config: default.allow_internal_expect_revert = true
+    function testGetAnypayRelayInfoHash_AttestationAddressIsZero_ShouldRevert() public {
+        AnypayRelayInfo[] memory relayInfos = new AnypayRelayInfo[](1);
+        relayInfos[0] = AnypayRelayInfo({
+            requestId: 0x0000000000000000000000000000000000000000000000000000000000000001,
+            signature: hex"abcd",
+            nonEVMReceiver: 0x0000000000000000000000000000000000000000000000000000000000000002,
+            receivingAssetId: 0x0000000000000000000000000000000000000000000000000000000000000003,
+            sendingAssetId: 0x5555555555555555555555555555555555555555,
+            receiver: 0x6666666666666666666666666666666666666666,
+            destinationChainId: 137,
+            minAmount: 1000,
+            target: 0x7777777777777777777777777777777777777777
+        });
+        address attestationAddress = address(0);
+
+        vm.expectRevert(AnypayIntentParams.AttestationAddressIsZero.selector);
+        AnypayIntentParams.getAnypayRelayInfoHash(relayInfos, attestationAddress);
     }
 }
