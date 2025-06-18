@@ -4,6 +4,7 @@ pragma solidity ^0.8.30;
 
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayRelayInfo} from "@/libraries/AnypayRelayInterpreter.sol";
 
 /**
  * @title AnypayIntentParams
@@ -23,6 +24,7 @@ library AnypayIntentParams {
     error InvalidCallInDestination();
     error LifiInfosIsEmpty();
     error AttestationAddressIsZero();
+    error RelayInfosIsEmpty();
 
     // -------------------------------------------------------------------------
     // Structs
@@ -122,5 +124,19 @@ library AnypayIntentParams {
             revert AttestationAddressIsZero();
         }
         return keccak256(abi.encode(lifiInfos, attestationAddress));
+    }
+
+    function getAnypayRelayInfoHash(AnypayRelayInfo[] memory relayInfos, address attestationAddress)
+        internal
+        pure
+        returns (bytes32)
+    {
+        if (relayInfos.length == 0) {
+            revert RelayInfosIsEmpty();
+        }
+        if (attestationAddress == address(0)) {
+            revert AttestationAddressIsZero();
+        }
+        return keccak256(abi.encode(relayInfos, attestationAddress));
     }
 }
