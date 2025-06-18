@@ -3,9 +3,9 @@
 pragma solidity ^0.8.30;
 
 import {Test, console} from "forge-std/Test.sol";
-import {AnypayIntentParams} from "src/libraries/AnypayIntentParams.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-import {AnypayLiFiInfo} from "src/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayIntentParams} from "@/libraries/AnypayIntentParams.sol";
+import {AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
 
 contract AnypayIntentParamsTest is Test {
     AnypayIntentParams.IntentParamsData internal baseParams;

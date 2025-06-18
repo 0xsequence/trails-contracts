@@ -3,14 +3,14 @@
 pragma solidity ^0.8.18;
 
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ECDSA} from "solady/utils/ECDSA.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiFlagDecoder} from "./libraries/AnypayLiFiFlagDecoder.sol";
-import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "./libraries/AnypayLiFiInterpreter.sol";
-import {AnypayIntentParams} from "./libraries/AnypayIntentParams.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
-import {AnypayDecodingStrategy} from "./interfaces/AnypayLiFi.sol";
+import {AnypayLiFiFlagDecoder} from "@/libraries/AnypayLiFiFlagDecoder.sol";
+import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayIntentParams} from "@/libraries/AnypayIntentParams.sol";
+import {AnypayDecodingStrategy} from "@/interfaces/AnypayLiFi.sol";
 
 /**
  * @title AnypayLiFiSapientSigner
@@ -26,6 +26,7 @@ contract AnypayLiFiSapientSigner is ISapient {
     // Libraries
     // -------------------------------------------------------------------------
 
+    using ECDSA for bytes32;
     using Payload for Payload.Decoded;
     using AnypayLiFiFlagDecoder for bytes;
     using AnypayLiFiInterpreter for AnypayLiFiInfo[];
@@ -70,6 +71,21 @@ contract AnypayLiFiSapientSigner is ISapient {
         view
         returns (bytes32)
     {
+        return _recoverSapientSignature(msg.sender, payload, encodedSignature);
+    }
+
+    /**
+     * @notice Recovers the root hash of a given signature with wallet context.
+     * @param _wallet The address of the wallet.
+     * @param payload The decoded payload.
+     * @param encodedSignature The encoded signature.
+     * @return The hash of the LiFi intent parameters.
+     */
+    function _recoverSapientSignature(
+        address _wallet,
+        Payload.Decoded calldata payload,
+        bytes calldata encodedSignature
+    ) internal view returns (bytes32) {
         // 1. Validate outer Payload
         if (payload.kind != Payload.KIND_TRANSACTIONS) {
             revert InvalidPayloadKind();
@@ -97,8 +113,7 @@ contract AnypayLiFiSapientSigner is ISapient {
         ) = decodeSignature(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
-        address recoveredAttestationSigner =
-            ECDSA.recover(keccak256(abi.encode(payload.hashFor(address(0)))), attestationSignature);
+        address recoveredAttestationSigner = payload.hashFor(_wallet).recover(attestationSignature);
 
         // 6. Validate the attestation signer
         if (recoveredAttestationSigner != attestationSigner) {

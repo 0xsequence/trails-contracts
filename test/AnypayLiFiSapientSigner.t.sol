@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Test, console} from "forge-std/Test.sol";
-import {AnypayLiFiSapientSigner} from "src/AnypayLiFiSapientSigner.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "src/libraries/AnypayLiFiInterpreter.sol";
-import {AnypayIntentParams} from "src/libraries/AnypayIntentParams.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {AnypayDecodingStrategy} from "src/interfaces/AnypayLiFi.sol";
+import {AnypayLiFiSapientSigner} from "@/AnypayLiFiSapientSigner.sol";
+import {AnypayIntentParams} from "@/libraries/AnypayIntentParams.sol";
+import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayDecodingStrategy} from "@/interfaces/AnypayLiFi.sol";
 
 // Mock LiFi Diamond contract to receive calls
 contract MockLiFiDiamond {
@@ -109,7 +109,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         });
 
         // 4. Generate the EIP-712 digest.
-        bytes32 digestToSign = keccak256(abi.encode(payload.hashFor(address(0))));
+        bytes32 digestToSign = payload.hashFor(userWalletAddress);
 
         AnypayLiFiInfo[] memory expectedLifiInfos = new AnypayLiFiInfo[](1);
         expectedLifiInfos[0] = AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapData);
@@ -127,6 +127,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 9. Call recoverSapientSignature
+        vm.prank(userWalletAddress);
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
 
         // 10. Assert equality
@@ -180,7 +181,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         });
 
         // 5. Generate the EIP-712 digest.
-        bytes32 digestToSign = keccak256(abi.encode(payload.hashFor(address(0))));
+        bytes32 digestToSign = payload.hashFor(userWalletAddress);
 
         // 6. Prepare LifiInfos for encoding
         AnypayLiFiInfo[] memory expectedLifiInfos = new AnypayLiFiInfo[](1);
@@ -198,6 +199,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         bytes32 expectedLifiIntentHash = AnypayIntentParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 10. Call recoverSapientSignature
+        vm.prank(userWalletAddress);
         bytes32 actualLifiIntentHash = signerContract.recoverSapientSignature(payload, combinedSignature);
 
         // 11. Assert equality
