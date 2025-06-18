@@ -45,7 +45,7 @@ library AnypayRelayValidator {
         AnypayRelayInfo memory attestedInfo,
         AnypayRelayDecoder.DecodedRelayData memory inferredInfo,
         address relaySolver
-    ) public view {
+    ) internal view {
         // a. Validate relay parameters
         if (
             inferredInfo.requestId != attestedInfo.requestId || inferredInfo.token != attestedInfo.sendingAssetId
