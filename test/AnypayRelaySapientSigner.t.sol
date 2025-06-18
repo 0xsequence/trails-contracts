@@ -8,6 +8,7 @@ import {AnypayRelaySapientSigner} from "@/AnypayRelaySapientSigner.sol";
 import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
 import {AnypayRelayValidator} from "@/libraries/AnypayRelayValidator.sol";
+import {AnypayRelayParams} from "@/libraries/AnypayRelayParams.sol";
 
 contract AnypayRelaySapientSignerTest is Test {
     using ECDSA for bytes32;
@@ -104,7 +105,7 @@ contract AnypayRelaySapientSignerTest is Test {
         vm.prank(userWalletAddress);
         bytes32 result = anypayRelaySapientSigner.recoverSapientSignature(payload, encodedSignature);
 
-        bytes32 expectedHash = keccak256(abi.encode(attestedRelayInfos, signer));
+        bytes32 expectedHash = AnypayRelayParams.getAnypayRelayInfoHash(attestedRelayInfos, signer);
         assertEq(result, expectedHash);
         console.log("AnypayRelaySapientSigner.recoverSapientSignature an successfully recovered sapient signature");
     }

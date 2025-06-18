@@ -6,6 +6,7 @@ import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
+import {AnypayRelayParams} from "@/libraries/AnypayRelayParams.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
 import {AnypayRelayValidator} from "@/libraries/AnypayRelayValidator.sol";
 
@@ -116,7 +117,7 @@ contract AnypayRelaySapientSigner is ISapient {
         }
 
         // 7. Hash the relay intent params
-        bytes32 relayIntentHash = keccak256(abi.encode(attestedRelayInfos, attestationSigner));
+        bytes32 relayIntentHash = AnypayRelayParams.getAnypayRelayInfoHash(attestedRelayInfos, attestationSigner);
 
         return relayIntentHash;
     }
