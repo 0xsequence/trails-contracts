@@ -33,7 +33,7 @@ contract AnypayRelaySapientSigner is ISapient {
     // Immutables
     // -------------------------------------------------------------------------
 
-    address public immutable RELAY_SOLVER = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
+    address public immutable RELAY_SOLVER;
 
     // -------------------------------------------------------------------------
     // Errors
@@ -50,6 +50,13 @@ contract AnypayRelaySapientSigner is ISapient {
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
+
+    constructor(address _relaySolver) {
+        if (_relaySolver == address(0)) {
+            revert InvalidRelaySolverAddress();
+        }
+        RELAY_SOLVER = _relaySolver;
+    }
 
     // -------------------------------------------------------------------------
     // Functions

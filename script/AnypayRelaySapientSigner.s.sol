@@ -6,8 +6,8 @@ import {SingletonDeployer, console} from "erc2470-libs/script/SingletonDeployer.
 import {AnypayRelaySapientSigner} from "../src/AnypayRelaySapientSigner.sol";
 
 contract Deploy is SingletonDeployer {
-    // Hardcoded LiFiDiamond address
-    address constant RELAY_SOLVER = 0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE;
+    // Hardcoded relay solver address
+    address constant RELAY_SOLVER = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
 
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
@@ -16,7 +16,7 @@ contract Deploy is SingletonDeployer {
 
         bytes32 salt = bytes32(0);
 
-        // Deploy AnypayRelaySapientSigner with hardcoded LiFiDiamond address
+        // Deploy AnypayRelaySapientSigner with hardcoded relay solver address
         bytes memory initCode = abi.encodePacked(type(AnypayRelaySapientSigner).creationCode, abi.encode(RELAY_SOLVER));
         address wrapper = _deployIfNotAlready("AnypayRelaySapientSigner", initCode, salt, pk);
 
