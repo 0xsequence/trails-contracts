@@ -33,7 +33,7 @@ contract AnypayRelaySapientSigner is ISapient {
     // Immutables
     // -------------------------------------------------------------------------
 
-    address public immutable RELAY_SOLVER;
+    address public immutable RELAY_SOLVER = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
 
     // -------------------------------------------------------------------------
     // Errors
@@ -43,7 +43,6 @@ contract AnypayRelaySapientSigner is ISapient {
     error InvalidAttestation();
     error InvalidCallsLength();
     error InvalidPayloadKind();
-    error InvalidRelaySolverAddress();
     error InvalidRelayRecipient();
     error InvalidAttestationSigner(address expectedSigner, address actualSigner);
     error MismatchedRelayInfoLengths();
@@ -51,13 +50,6 @@ contract AnypayRelaySapientSigner is ISapient {
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
-
-    constructor(address _relaySolver) {
-        if (_relaySolver == address(0)) {
-            revert InvalidRelaySolverAddress();
-        }
-        RELAY_SOLVER = _relaySolver;
-    }
 
     // -------------------------------------------------------------------------
     // Functions
