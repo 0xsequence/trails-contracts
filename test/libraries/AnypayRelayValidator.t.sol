@@ -17,7 +17,7 @@ contract AnypayRelayValidatorTest is Test {
     uint256 internal constant OTHER_USER_PK = 0x5678;
     address internal OTHER_USER;
 
-    address constant NON_EVM_RECEIVER = 0x0000000000000000000000000000000000000000;
+    address constant NON_EVM_ADDRESS = 0x1111111111111111111111111111111111111111;
 
     bytes32 constant MOCK_REQUEST_ID = keccak256("request_id");
     address constant MOCK_TOKEN = address(0x1);
@@ -59,7 +59,7 @@ contract AnypayRelayValidatorTest is Test {
                 bytes32(uint256(uint160(info.target))),
                 bytes32(uint256(uint160(info.sendingAssetId))),
                 info.destinationChainId,
-                info.receiver == NON_EVM_RECEIVER ? info.nonEVMReceiver : bytes32(uint256(uint160(info.receiver))),
+                info.receiver == NON_EVM_ADDRESS ? info.nonEVMReceiver : bytes32(uint256(uint160(info.receiver))),
                 info.receivingAssetId,
                 info.minAmount
             )
