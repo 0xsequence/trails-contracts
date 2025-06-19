@@ -18,7 +18,6 @@ library AnypayLiFiInterpreter {
 
     /// @notice Thrown when the LibSwap data is empty.
     error EmptyLibSwapData();
-    
 
     // -------------------------------------------------------------------------
     // Functions

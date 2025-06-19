@@ -88,7 +88,9 @@ contract AnypayLiFiValidatorTest is Test {
         LibSwap.SwapData[] memory swapDataArray = new LibSwap.SwapData[](2);
         swapDataArray[0] = baseSwapData;
         swapDataArray[1] = baseSwapData;
-        assertFalse(AnypayLiFiValidator.isSwapDataArrayValid(swapDataArray), "should be invalid with only invalid swaps");
+        assertFalse(
+            AnypayLiFiValidator.isSwapDataArrayValid(swapDataArray), "should be invalid with only invalid swaps"
+        );
     }
 
     // --- Tests for isBridgeDataValid ---
@@ -194,4 +196,4 @@ contract AnypayLiFiValidatorTest is Test {
             "should be invalid with noSourceSwaps and valid swap array"
         );
     }
-} 
+}

@@ -125,7 +125,8 @@ contract AnypayLiFiSapientSignerTest is Test {
         );
 
         // 8. Manually derive the expected lifiIntentHash
-        bytes32 expectedLifiIntentHash = AnypayExecutionInfoParams.getAnypayExecutionInfoHash(expectedLifiInfos, userSignerAddress);
+        bytes32 expectedLifiIntentHash =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 9. Call recoverSapientSignature
         vm.prank(userWalletAddress);
@@ -197,7 +198,8 @@ contract AnypayLiFiSapientSignerTest is Test {
             abi.encode(expectedLifiInfos, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA, ecdsaSignature, userSignerAddress);
 
         // 9. Manually derive the expected lifiIntentHash
-        bytes32 expectedLifiIntentHash = AnypayExecutionInfoParams.getAnypayExecutionInfoHash(expectedLifiInfos, userSignerAddress);
+        bytes32 expectedLifiIntentHash =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 10. Call recoverSapientSignature
         vm.prank(userWalletAddress);

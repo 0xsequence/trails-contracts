@@ -40,7 +40,7 @@ contract AnypayRelaySapientSigner is ISapient {
     // -------------------------------------------------------------------------
 
     error InvalidTargetAddress(address expectedTarget, address actualTarget);
-    error InvalidAttestation(); 
+    error InvalidAttestation();
     error InvalidCallsLength();
     error InvalidPayloadKind();
     error InvalidRelaySolverAddress();
@@ -94,8 +94,11 @@ contract AnypayRelaySapientSigner is ISapient {
         }
 
         // 3. Decode the signature
-        (AnypayExecutionInfo[] memory attestedExecutionInfos, bytes memory attestationSignature, address attestationSigner) =
-            decodeSignature(encodedSignature);
+        (
+            AnypayExecutionInfo[] memory attestedExecutionInfos,
+            bytes memory attestationSignature,
+            address attestationSigner
+        ) = decodeSignature(encodedSignature);
 
         // 4. Check that calls and relay infos have the same length
         if (payload.calls.length != attestedExecutionInfos.length) {

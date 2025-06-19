@@ -184,7 +184,10 @@ contract AnypayExecutionInfoInterpreterTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                AnypayExecutionInfoInterpreter.NoMatchingInferredInfoFound.selector, CURRENT_CHAIN_ID, OTHER_CHAIN_ID, TOKEN_B
+                AnypayExecutionInfoInterpreter.NoMatchingInferredInfoFound.selector,
+                CURRENT_CHAIN_ID,
+                OTHER_CHAIN_ID,
+                TOKEN_B
             )
         );
         validateLifiInfosWrapper(_inferredInfos, _attestedInfos);

@@ -145,9 +145,7 @@ contract AnypayRelaySapientSignerTest is Test {
 
         // 10. Assert equality
         assertEq(
-            actualExecutionInfoHash,
-            expectedExecutionInfoHash,
-            "Recovered execution info hash mismatch for native call"
+            actualExecutionInfoHash, expectedExecutionInfoHash, "Recovered execution info hash mismatch for native call"
         );
     }
 
@@ -169,4 +167,4 @@ contract AnypayRelaySapientSignerTest is Test {
             parentWallets: new address[](0)
         });
     }
-} 
+}
