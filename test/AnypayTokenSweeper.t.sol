@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
-import {AnypayTokenSweeper} from "../../src/AnypayTokenSweeper.sol";
+import {AnypayTokenSweeper} from "@/AnypayTokenSweeper.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 
 contract AnypayTokenSweeperTest is Test {

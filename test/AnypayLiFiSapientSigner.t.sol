@@ -7,16 +7,17 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {AnypayLiFiSapientSigner} from "@/AnypayLiFiSapientSigner.sol";
-import {AnypayLifiParams} from "@/libraries/AnypayLifiParams.sol";
-import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayExecutionInfoParams} from "@/libraries/AnypayExecutionInfoParams.sol";
+import {AnypayExecutionInfoInterpreter, AnypayExecutionInfo} from "@/libraries/AnypayExecutionInfoInterpreter.sol";
 import {AnypayDecodingStrategy} from "@/interfaces/AnypayLiFi.sol";
+import {AnypayLiFiInterpreter} from "@/libraries/AnypayLiFiInterpreter.sol";
 
 // Mock LiFi Diamond contract to receive calls
 contract MockLiFiDiamond {
     event MockBridgeOnlyCalled(ILiFi.BridgeData bridgeData);
     event MockSwapAndBridgeCalled(ILiFi.BridgeData bridgeData, LibSwap.SwapData[] swapData);
 
-    function mockLifiBridgeOnly(ILiFi.BridgeData calldata _bridgeData, bytes calldata _mockData) external {
+    function mockLifiBridgeOnly(ILiFi.BridgeData calldata _bridgeData, bytes calldata /*_mockData*/ ) external {
         emit MockBridgeOnlyCalled(_bridgeData);
     }
 
@@ -96,22 +97,12 @@ contract AnypayLiFiSapientSignerTest is Test {
         });
 
         // 3. Construct the Payload.Decoded
-        Payload.Decoded memory payload = Payload.Decoded({
-            kind: Payload.KIND_TRANSACTIONS,
-            noChainId: false,
-            calls: calls,
-            space: 0,
-            nonce: 1,
-            message: "",
-            imageHash: bytes32(0),
-            digest: bytes32(0),
-            parentWallets: new address[](0)
-        });
+        Payload.Decoded memory payload = _createPayload(calls, 1, false);
 
         // 4. Generate the EIP-712 digest.
         bytes32 digestToSign = payload.hashFor(userWalletAddress);
 
-        AnypayLiFiInfo[] memory expectedLifiInfos = new AnypayLiFiInfo[](1);
+        AnypayExecutionInfo[] memory expectedLifiInfos = new AnypayExecutionInfo[](1);
         expectedLifiInfos[0] = AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapData);
 
         // 6. Sign the digest
@@ -124,7 +115,8 @@ contract AnypayLiFiSapientSignerTest is Test {
         );
 
         // 8. Manually derive the expected lifiIntentHash
-        bytes32 expectedLifiIntentHash = AnypayLifiParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
+        bytes32 expectedLifiIntentHash =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 9. Call recoverSapientSignature
         vm.prank(userWalletAddress);
@@ -168,23 +160,13 @@ contract AnypayLiFiSapientSignerTest is Test {
         });
 
         // 4. Construct the Payload.Decoded
-        Payload.Decoded memory payload = Payload.Decoded({
-            kind: Payload.KIND_TRANSACTIONS,
-            noChainId: false,
-            calls: calls,
-            space: 0,
-            nonce: 2,
-            message: "",
-            imageHash: bytes32(0),
-            digest: bytes32(0),
-            parentWallets: new address[](0)
-        });
+        Payload.Decoded memory payload = _createPayload(calls, 2, false);
 
         // 5. Generate the EIP-712 digest.
         bytes32 digestToSign = payload.hashFor(userWalletAddress);
 
         // 6. Prepare LifiInfos for encoding
-        AnypayLiFiInfo[] memory expectedLifiInfos = new AnypayLiFiInfo[](1);
+        AnypayExecutionInfo[] memory expectedLifiInfos = new AnypayExecutionInfo[](1);
         expectedLifiInfos[0] = AnypayLiFiInterpreter.getOriginSwapInfo(bridgeOnlyData, emptySwapData);
 
         // 7. Sign the digest
@@ -196,7 +178,8 @@ contract AnypayLiFiSapientSignerTest is Test {
             abi.encode(expectedLifiInfos, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA, ecdsaSignature, userSignerAddress);
 
         // 9. Manually derive the expected lifiIntentHash
-        bytes32 expectedLifiIntentHash = AnypayLifiParams.getAnypayLiFiInfoHash(expectedLifiInfos, userSignerAddress);
+        bytes32 expectedLifiIntentHash =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(expectedLifiInfos, userSignerAddress);
 
         // 10. Call recoverSapientSignature
         vm.prank(userWalletAddress);
@@ -211,7 +194,7 @@ contract AnypayLiFiSapientSignerTest is Test {
     // Helper to construct Payload.Decoded more easily if needed later
     function _createPayload(Payload.Call[] memory _calls, uint256 _nonce, bool _noChainId)
         internal
-        view
+        pure
         returns (Payload.Decoded memory)
     {
         return Payload.Decoded({
@@ -254,7 +237,7 @@ contract AnypayLiFiSapientSignerTest is Test {
     //     bytes memory arbitraryBytes =
     //         hex"000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000028a93877b0d458000000000000000000000000000000000000000000000000000000000000a4b1000000000000000000000000000000000000000000000000000000000000210500000000000000000000000000000000000000000000000000000000000000413534d25dc48a1b07cc11930f74d8070044c1dbedb0486be75007608393c11ae53ac288d1de18a25190aa048537f9050d1b46e0d8b64b5b36ce370f1a0c7fda853700000000000000000000000000000000000000000000000000000000000000";
 
-    //     (AnypayLiFiInfo[] memory lifiInfos, bytes memory actualAttestationSignature) =
+    //     (AnypayExecutionInfo[] memory lifiInfos, bytes memory actualAttestationSignature) =
     //         signerContract.decodeSignature(arbitraryBytes);
 
     //     assertEq(lifiInfos.length, 1, "Decoded LiFi Infos length mismatch");

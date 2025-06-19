@@ -133,7 +133,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         });
     }
 
-    function test_BridgeDataAndSwapDataTuple_Success_WithSwaps() public {
+    function test_BridgeDataAndSwapDataTuple_Success_WithSwaps() public view {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
         localBridgeData.transactionId = bytes32(uint256(0x7001));
         localBridgeData.hasSourceSwaps = true;
@@ -150,7 +150,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         assertEq(decodedSwapData[0].callTo, singleSwapData[0].callTo, "SwapData[0].callTo mismatch");
     }
 
-    function test_BridgeDataAndSwapDataTuple_Success_WithEmptySwaps() public {
+    function test_BridgeDataAndSwapDataTuple_Success_WithEmptySwaps() public view {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
         localBridgeData.transactionId = bytes32(uint256(0x7002));
         localBridgeData.hasSourceSwaps = false;
@@ -194,7 +194,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
     // Tests for SINGLE_BRIDGE_DATA Strategy
     // -------------------------------------------------------------------------
 
-    function test_SingleBridgeData_Success() public {
+    function test_SingleBridgeData_Success() public view {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
         localBridgeData.transactionId = bytes32(uint256(0x8001));
 
@@ -221,9 +221,6 @@ contract AnypayLiFiFlagDecoderTest is Test {
 
     function test_SingleBridgeData_Reverts_WrongCalldata() public {
         // Try to decode bridge+swap calldata as single bridge data
-        bytes memory wrongEncodedCall =
-            abi.encodeCall(helper.mockSwapAndStartBridge, (baseBridgeData, singleSwapData, baseAcrossData));
-
         bytes memory invalidCalldata = hex"deadbeef11111111";
 
         vm.expectRevert();
@@ -234,7 +231,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
     // Tests for SWAP_DATA_ARRAY Strategy
     // -------------------------------------------------------------------------
 
-    function test_SwapDataArray_Success_SingleSwap() public {
+    function test_SwapDataArray_Success_SingleSwap() public view {
         bytes memory encodedCall = abi.encodeCall(
             helper.mockSwapTokensMultiple,
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, singleSwapData)
@@ -248,7 +245,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         assertEq(decodedSwapData[0].callTo, singleSwapData[0].callTo, "SwapData[0].callTo mismatch");
     }
 
-    function test_SwapDataArray_Success_MultipleSwaps() public {
+    function test_SwapDataArray_Success_MultipleSwaps() public view {
         bytes memory encodedCall = abi.encodeCall(
             helper.mockSwapTokensMultiple,
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, multipleSwapData)
@@ -306,7 +303,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
     // Tests for SINGLE_SWAP_DATA Strategy
     // -------------------------------------------------------------------------
 
-    function test_SingleSwapData_Success() public {
+    function test_SingleSwapData_Success() public view {
         LibSwap.SwapData memory singleSwap = singleSwapData[0];
         bytes memory encodedCall = abi.encodeCall(
             helper.mockSwapTokensSingle,
@@ -426,7 +423,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         helper.decodeLiFiDataOrRevert(malformedCalldata, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA);
     }
 
-    function test_GasUsage_BridgeDataAndSwapDataTuple() public {
+    function test_GasUsage_BridgeDataAndSwapDataTuple() public view {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
         localBridgeData.hasSourceSwaps = true;
         bytes memory encodedCall =
@@ -440,7 +437,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         assertLt(gasUsed, 50000, "Gas usage should be reasonable");
     }
 
-    function test_GasUsage_SwapDataArray() public {
+    function test_GasUsage_SwapDataArray() public view {
         bytes memory encodedCall = abi.encodeCall(
             helper.mockSwapTokensMultiple,
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, multipleSwapData)
@@ -454,7 +451,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         assertLt(gasUsed, 50000, "Gas usage should be reasonable");
     }
 
-    function testFuzz_BridgeDataTransactionId(bytes32 txId) public {
+    function testFuzz_BridgeDataTransactionId(bytes32 txId) public view {
         vm.assume(txId != bytes32(0)); // Must be non-zero for valid bridge data
 
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
@@ -468,7 +465,7 @@ contract AnypayLiFiFlagDecoderTest is Test {
         assertEq(decodedBridgeData.transactionId, txId, "Transaction ID should match");
     }
 
-    function testFuzz_SwapDataAmount(uint256 amount) public {
+    function testFuzz_SwapDataAmount(uint256 amount) public view {
         vm.assume(amount > 0); // Must be non-zero for valid swap data
 
         LibSwap.SwapData memory swapData = singleSwapData[0];

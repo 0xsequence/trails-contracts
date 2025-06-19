@@ -46,7 +46,7 @@ contract MockStargateFacetV2 {
     event StartBridgeCalled(bytes32 indexed transactionId, address receiver);
     event SwapAndStartBridgeCalled(bytes32 indexed transactionId, address receiver);
 
-    function mockStartBridge(ILiFi.BridgeData calldata _bridgeData, StargateData calldata _stargateData)
+    function mockStartBridge(ILiFi.BridgeData calldata _bridgeData, StargateData calldata /*_stargateData*/ )
         external
         payable
     {
@@ -56,8 +56,8 @@ contract MockStargateFacetV2 {
 
     function mockSwapAndStartBridge(
         ILiFi.BridgeData memory _bridgeData,
-        LibSwap.SwapData[] calldata _swapData,
-        StargateData calldata _stargateData
+        LibSwap.SwapData[] calldata, /*_swapData*/
+        StargateData calldata /*_stargateData*/
     ) external payable {
         console.log("MockStargateFacetV2::mockSwapAndStartBridge received receiver:", _bridgeData.receiver);
         emit SwapAndStartBridgeCalled(_bridgeData.transactionId, _bridgeData.receiver);
@@ -105,7 +105,7 @@ contract MockStargateFacetV2Test is Test {
         deal(user, 10 ether);
     }
 
-    function test_AnypayDecoder_TryDecode_MockStargate_StartBridge() public {
+    function test_AnypayDecoder_TryDecode_MockStargate_StartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         StargateData memory stargateDataInput = baseStargateData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE51)); // Unique ID for this test
@@ -154,7 +154,7 @@ contract MockStargateFacetV2Test is Test {
         );
     }
 
-    function test_AnypayDecoder_TryDecode_MockStargate_SwapAndStartBridge() public {
+    function test_AnypayDecoder_TryDecode_MockStargate_SwapAndStartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         StargateData memory stargateDataInput = baseStargateData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE52)); // Unique ID
@@ -225,7 +225,7 @@ contract MockStargateFacetV2Test is Test {
         }
     }
 
-    function test_AnypayDecoder_DecodeOrRevert_MockStargate_SwapAndStartBridge() public {
+    function test_AnypayDecoder_DecodeOrRevert_MockStargate_SwapAndStartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         StargateData memory stargateDataInput = baseStargateData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE53)); // Unique ID

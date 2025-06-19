@@ -59,12 +59,12 @@ function recoverSapientSignature(
     3.  **Attestation Signer Recovery:**
         *   Recovers the signer's address from `encodedSignature` and `payload.hashFor(address(0))` using `ECDSA.recover`. This recovered address is the `attestationSigner`.
     4.  **LiFi Data Decoding & Interpretation:**
-        *   Initializes an array `lifiInfos` to store `AnypayLiFiInfo` structs, one for each call in `payload.calls`.
+        *   Initializes an array `lifiInfos` to store `AnypayExecutionInfo` structs, one for each call in `payload.calls`.
         *   For each `call` in `payload.calls`:
             *   It attempts to decode `ILiFi.BridgeData` and `LibSwap.SwapData[]` from `call.data` using the `AnypayLiFiFlagDecoder.decodeLiFiDataOrRevert` library function (utilizing a decoding strategy provided in the `encodedSignature`).
-            *   It then uses `AnypayLiFiInterpreter.getOriginSwapInfo` to process the decoded `bridgeData` and `swapData` to extract a standardized `AnypayLiFiInfo` struct. This struct contains key details of the LiFi operation, such as sending and receiving chain IDs, tokens, amounts, and the receiver address.
+            *   It then uses `AnypayLiFiInterpreter.getOriginSwapInfo` to process the decoded `bridgeData` and `swapData` to extract a standardized `AnypayExecutionInfo` struct. This struct contains key details of the LiFi operation, such as sending and receiving chain IDs, tokens, amounts, and the receiver address.
     5.  **LiFi Intent Hashing:**
-        *   After processing all calls and gathering their respective `AnypayLiFiInfo`, it computes a single `lifiIntentHash`. This is done by calling `AnypayLiFiInterpreter.getAnypayLiFiInfoHash` with the array of `lifiInfos` and the recovered `attestationSigner`. This hash uniquely represents the complete set of LiFi operations being authorized by this specific user attestation.
+        *   After processing all calls and gathering their respective `AnypayExecutionInfo`, it computes a single `lifiIntentHash`. This is done by calling `AnypayLiFiInterpreter.getAnypayExecutionInfoHash` with the array of `lifiInfos` and the recovered `attestationSigner`. This hash uniquely represents the complete set of LiFi operations being authorized by this specific user attestation.
 
 *   **Purpose of the Returned Hash:** The `lifiIntentHash` returned by this function is the crucial piece of data that the Sequence wallet compares against the `imageHash` configured in the Sapient Signer Leaf. A match signifies valid authorization.
 
@@ -75,7 +75,7 @@ function recoverSapientSignature(
 *   `ILiFi` (from `lifi-contracts/Interfaces/ILiFi.sol`): Interface for LiFi bridge data.
 *   `LibSwap` (from `lifi-contracts/Libraries/LibSwap.sol`): Library for LiFi swap data.
 *   `AnypayLiFiFlagDecoder` (from `./libraries/AnypayLiFiFlagDecoder.sol`): Custom library to decode LiFi call data using a flag-based strategy.
-*   `AnypayLiFiInterpreter`, `AnypayLiFiInfo` (from `./libraries/AnypayLiFiInterpreter.sol`): Custom library and struct to interpret and standardize LiFi operation details.
+*   `AnypayLiFiInterpreter`, `AnypayExecutionInfo` (from `./libraries/AnypayLiFiInterpreter.sol`): Custom library and struct to interpret and standardize LiFi operation details.
 
 ### 3.4. Errors
 

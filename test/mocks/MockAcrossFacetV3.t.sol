@@ -39,7 +39,10 @@ contract MockAcrossFacetV3 {
     event CallReverted(bytes4 selector, bytes reason);
 
     // Mocks `startBridgeTokensViaAcrossV3`
-    function mockStartBridge(ILiFi.BridgeData memory _bridgeData, AcrossV3Data calldata _acrossData) external payable {
+    function mockStartBridge(ILiFi.BridgeData memory _bridgeData, AcrossV3Data calldata /*_acrossData*/ )
+        external
+        payable
+    {
         console.log("MockAcrossFacetV3::mockStartBridge received receiver:", _bridgeData.receiver);
         emit StartBridgeCalled(_bridgeData.transactionId, _bridgeData.receiver);
     }
@@ -47,8 +50,8 @@ contract MockAcrossFacetV3 {
     // Mocks `swapAndStartBridgeTokensViaAcrossV3`
     function mockSwapAndStartBridge(
         ILiFi.BridgeData memory _bridgeData,
-        LibSwap.SwapData[] calldata _swapData,
-        AcrossV3Data calldata _acrossData
+        LibSwap.SwapData[] calldata, /*_swapData*/
+        AcrossV3Data calldata /*_acrossData*/
     ) external payable {
         console.log("MockAcrossFacetV3::mockSwapAndStartBridge received receiver:", _bridgeData.receiver);
         emit SwapAndStartBridgeCalled(_bridgeData.transactionId, _bridgeData.receiver);
@@ -96,7 +99,7 @@ contract MockAcrossFacetV3Test is Test {
         deal(user, 10 ether);
     }
 
-    function test_AnypayDecoder_TryDecode_MockAcross_StartBridge() public {
+    function test_AnypayDecoder_TryDecode_MockAcross_StartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         AcrossV3Data memory acrossDataInput = baseAcrossData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE01));
@@ -143,7 +146,7 @@ contract MockAcrossFacetV3Test is Test {
         assertEq(decodedSwapData.length, 0, "AD_ACROSS_01: Decoded SwapData array should be empty for mockStartBridge");
     }
 
-    function test_AnypayDecoder_TryDecode_MockAcross_SwapAndStartBridge() public {
+    function test_AnypayDecoder_TryDecode_MockAcross_SwapAndStartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         AcrossV3Data memory acrossDataInput = baseAcrossData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE02));
@@ -212,7 +215,7 @@ contract MockAcrossFacetV3Test is Test {
         }
     }
 
-    function test_AnypayDecoder_DecodeOrRevert_MockAcross_SwapAndStartBridge() public {
+    function test_AnypayDecoder_DecodeOrRevert_MockAcross_SwapAndStartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         AcrossV3Data memory acrossDataInput = baseAcrossData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE03));

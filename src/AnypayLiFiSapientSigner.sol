@@ -8,8 +8,9 @@ import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {AnypayLiFiFlagDecoder} from "@/libraries/AnypayLiFiFlagDecoder.sol";
-import {AnypayLiFiInterpreter, AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
-import {AnypayLifiParams} from "@/libraries/AnypayLifiParams.sol";
+import {AnypayLiFiInterpreter} from "@/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayExecutionInfoInterpreter, AnypayExecutionInfo} from "@/libraries/AnypayExecutionInfoInterpreter.sol";
+import {AnypayExecutionInfoParams} from "@/libraries/AnypayExecutionInfoParams.sol";
 import {AnypayDecodingStrategy} from "@/interfaces/AnypayLiFi.sol";
 
 /**
@@ -20,7 +21,6 @@ import {AnypayDecodingStrategy} from "@/interfaces/AnypayLiFi.sol";
  *         operations on a specific LiFi Diamond contract. This enables relayers to execute LiFi
  *         swaps/bridges as per user-attested parameters, without direct wallet pre-approval for each transaction.
  */
-// contract AnypayLiFiSapientSigner is ISapient {
 contract AnypayLiFiSapientSigner is ISapient {
     // -------------------------------------------------------------------------
     // Libraries
@@ -29,8 +29,8 @@ contract AnypayLiFiSapientSigner is ISapient {
     using ECDSA for bytes32;
     using Payload for Payload.Decoded;
     using AnypayLiFiFlagDecoder for bytes;
-    using AnypayLiFiInterpreter for AnypayLiFiInfo[];
-    using AnypayLiFiInterpreter for ILiFi.BridgeData;
+    using AnypayExecutionInfoInterpreter for AnypayExecutionInfo[];
+    using AnypayExecutionInfoParams for AnypayExecutionInfo[];
 
     // -------------------------------------------------------------------------
     // Immutables
@@ -105,7 +105,7 @@ contract AnypayLiFiSapientSigner is ISapient {
 
         // 4. Decode the signature
         (
-            AnypayLiFiInfo[] memory attestationLifiInfos,
+            AnypayExecutionInfo[] memory attestationExecutionInfos,
             AnypayDecodingStrategy decodingStrategy,
             bytes memory attestationSignature,
             address attestationSigner
@@ -120,23 +120,24 @@ contract AnypayLiFiSapientSigner is ISapient {
         }
 
         // 7. Initialize structs to store decoded data
-        AnypayLiFiInfo[] memory inferredLifiInfos = new AnypayLiFiInfo[](payload.calls.length);
+        AnypayExecutionInfo[] memory inferredExecutionInfos = new AnypayExecutionInfo[](payload.calls.length);
 
         // 8. Decode BridgeData and SwapData from calldata using the library
         for (uint256 i = 0; i < payload.calls.length; i++) {
             (ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData) =
                 payload.calls[i].data.decodeLiFiDataOrRevert(decodingStrategy);
 
-            inferredLifiInfos[i] = bridgeData.getOriginSwapInfo(swapData);
+            inferredExecutionInfos[i] = AnypayLiFiInterpreter.getOriginSwapInfo(bridgeData, swapData);
         }
 
         // 9. Validate the attestations
-        if (!inferredLifiInfos.validateLifiInfos(attestationLifiInfos)) {
+        if (!inferredExecutionInfos.validateExecutionInfos(attestationExecutionInfos)) {
             revert InvalidAttestation();
         }
 
         // 10. Hash the lifi intent params
-        bytes32 lifiIntentHash = AnypayLifiParams.getAnypayLiFiInfoHash(attestationLifiInfos, attestationSigner);
+        bytes32 lifiIntentHash =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestationExecutionInfos, attestationSigner);
 
         return lifiIntentHash;
     }
@@ -147,9 +148,9 @@ contract AnypayLiFiSapientSigner is ISapient {
 
     /**
      * @notice Decodes a combined signature into LiFi information and the attestation signature.
-     * @dev Assumes _signature is abi.encode(AnypayLiFiInfo[] memory, bytes memory).
+     * @dev Assumes _signature is abi.encode(AnypayExecutionInfo[] memory, bytes memory).
      * @param _signature The combined signature bytes.
-     * @return _lifiInfos Array of AnypayLiFiInfo structs.
+     * @return _executionInfos Array of AnypayExecutionInfo structs.
      * @return _decodingStrategy The decoding strategy used.
      * @return _attestationSignature The ECDSA signature for attestation.
      */
@@ -157,13 +158,13 @@ contract AnypayLiFiSapientSigner is ISapient {
         public
         pure
         returns (
-            AnypayLiFiInfo[] memory _lifiInfos,
+            AnypayExecutionInfo[] memory _executionInfos,
             AnypayDecodingStrategy _decodingStrategy,
             bytes memory _attestationSignature,
             address _attestationSigner
         )
     {
-        (_lifiInfos, _decodingStrategy, _attestationSignature, _attestationSigner) =
-            abi.decode(_signature, (AnypayLiFiInfo[], AnypayDecodingStrategy, bytes, address));
+        (_executionInfos, _decodingStrategy, _attestationSignature, _attestationSigner) =
+            abi.decode(_signature, (AnypayExecutionInfo[], AnypayDecodingStrategy, bytes, address));
     }
 }

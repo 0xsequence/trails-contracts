@@ -3,16 +3,16 @@
 pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
-import {AnypayLifiParams} from "@/libraries/AnypayLifiParams.sol";
-import {AnypayLiFiInfo} from "@/libraries/AnypayLiFiInterpreter.sol";
+import {AnypayExecutionInfoParams} from "@/libraries/AnypayExecutionInfoParams.sol";
+import {AnypayExecutionInfo} from "@/interfaces/AnypayExecutionInfo.sol";
 
-contract AnypayLifiParamsTest is Test {
-    AnypayLiFiInfo[] internal lifiInfos;
+contract AnypayExecutionInfoParamsTest is Test {
+    AnypayExecutionInfo[] internal lifiInfos;
     address internal attestationAddress;
 
     function setUp() public {
-        lifiInfos = new AnypayLiFiInfo[](1);
-        lifiInfos[0] = AnypayLiFiInfo({
+        lifiInfos = new AnypayExecutionInfo[](1);
+        lifiInfos[0] = AnypayExecutionInfo({
             originToken: 0x1111111111111111111111111111111111111111,
             amount: 100,
             originChainId: 1,
@@ -22,9 +22,9 @@ contract AnypayLifiParamsTest is Test {
         attestationAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
     }
 
-    function testGetAnypayLiFiInfoHash_HappyPath() public {
+    function testGetAnypayExecutionInfoHash_HappyPath() public {
         vm.chainId(1);
-        bytes32 hash = AnypayLifiParams.getAnypayLiFiInfoHash(lifiInfos, attestationAddress);
+        bytes32 hash = AnypayExecutionInfoParams.getAnypayExecutionInfoHash(lifiInfos, attestationAddress);
         // This is a snapshot of the expected hash. If the hashing logic changes, this value needs to be updated.
         bytes32 expectedHash = 0x21872bd6b64711c4a5aecba95829c612f0b50c63f1a26991c2f76cf4a754aede;
         assertEq(hash, expectedHash, "LiFi info hash mismatch");
@@ -32,15 +32,15 @@ contract AnypayLifiParamsTest is Test {
 
     /// forge-config: default.allow_internal_expect_revert = true
     function testRevertIfLifiInfosIsEmpty() public {
-        lifiInfos = new AnypayLiFiInfo[](0);
-        vm.expectRevert(AnypayLifiParams.LifiInfosIsEmpty.selector);
-        AnypayLifiParams.getAnypayLiFiInfoHash(lifiInfos, attestationAddress);
+        lifiInfos = new AnypayExecutionInfo[](0);
+        vm.expectRevert(AnypayExecutionInfoParams.ExecutionInfosIsEmpty.selector);
+        AnypayExecutionInfoParams.getAnypayExecutionInfoHash(lifiInfos, attestationAddress);
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
     function testRevertIfAttestationAddressIsZero() public {
         attestationAddress = address(0);
-        vm.expectRevert(AnypayLifiParams.AttestationAddressIsZero.selector);
-        AnypayLifiParams.getAnypayLiFiInfoHash(lifiInfos, attestationAddress);
+        vm.expectRevert(AnypayExecutionInfoParams.AttestationAddressIsZero.selector);
+        AnypayExecutionInfoParams.getAnypayExecutionInfoHash(lifiInfos, attestationAddress);
     }
 }
