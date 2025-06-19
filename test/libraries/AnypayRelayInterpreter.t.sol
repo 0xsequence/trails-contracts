@@ -49,7 +49,7 @@ contract AnypayRelayInterpreterTest is Test {
         });
     }
 
-    function test_GetOriginInfo() public {
+    function test_GetOriginInfo() public view {
         AnypayRelayInfo memory result = AnypayRelayInterpreter.getOriginInfo(mockBridgeData, mockRelayData);
 
         assertEq(result.requestId, MOCK_REQUEST_ID, "Test Case 1 Failed: requestId mismatch");

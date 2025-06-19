@@ -17,7 +17,7 @@ contract MockLiFiDiamond {
     event MockBridgeOnlyCalled(ILiFi.BridgeData bridgeData);
     event MockSwapAndBridgeCalled(ILiFi.BridgeData bridgeData, LibSwap.SwapData[] swapData);
 
-    function mockLifiBridgeOnly(ILiFi.BridgeData calldata _bridgeData, bytes calldata _mockData) external {
+    function mockLifiBridgeOnly(ILiFi.BridgeData calldata _bridgeData, bytes calldata /*_mockData*/) external {
         emit MockBridgeOnlyCalled(_bridgeData);
     }
 
@@ -97,17 +97,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         });
 
         // 3. Construct the Payload.Decoded
-        Payload.Decoded memory payload = Payload.Decoded({
-            kind: Payload.KIND_TRANSACTIONS,
-            noChainId: false,
-            calls: calls,
-            space: 0,
-            nonce: 1,
-            message: "",
-            imageHash: bytes32(0),
-            digest: bytes32(0),
-            parentWallets: new address[](0)
-        });
+        Payload.Decoded memory payload = _createPayload(calls, 1, false);
 
         // 4. Generate the EIP-712 digest.
         bytes32 digestToSign = payload.hashFor(userWalletAddress);
@@ -170,17 +160,7 @@ contract AnypayLiFiSapientSignerTest is Test {
         });
 
         // 4. Construct the Payload.Decoded
-        Payload.Decoded memory payload = Payload.Decoded({
-            kind: Payload.KIND_TRANSACTIONS,
-            noChainId: false,
-            calls: calls,
-            space: 0,
-            nonce: 2,
-            message: "",
-            imageHash: bytes32(0),
-            digest: bytes32(0),
-            parentWallets: new address[](0)
-        });
+        Payload.Decoded memory payload = _createPayload(calls, 2, false);
 
         // 5. Generate the EIP-712 digest.
         bytes32 digestToSign = payload.hashFor(userWalletAddress);
@@ -214,7 +194,7 @@ contract AnypayLiFiSapientSignerTest is Test {
     // Helper to construct Payload.Decoded more easily if needed later
     function _createPayload(Payload.Call[] memory _calls, uint256 _nonce, bool _noChainId)
         internal
-        view
+        pure
         returns (Payload.Decoded memory)
     {
         return Payload.Decoded({

@@ -69,7 +69,7 @@ contract AnypayRelayValidatorTest is Test {
         return abi.encodePacked(r, s, v);
     }
 
-    function test_ValidateRelayInfo_HappyPath() public {
+    function test_ValidateRelayInfo_HappyPath() public view {
         AnypayRelayInfo memory attestedInfo = baseAttestedInfo;
         attestedInfo.signature = _signRelayInfo(attestedInfo, RELAY_SOLVER_PK);
         AnypayRelayValidator.validateRelayInfo(attestedInfo, baseInferredInfo, RELAY_SOLVER);

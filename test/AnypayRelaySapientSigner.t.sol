@@ -9,7 +9,7 @@ import {AnypayExecutionInfoParams} from "@/libraries/AnypayExecutionInfoParams.s
 
 // Mock ERC20 contract for testing transfers
 contract MockERC20 is Test {
-    function transfer(address to, uint256 amount) external returns (bool) {
+    function transfer(address /*to*/, uint256 /*amount*/) external pure returns (bool) {
         return true;
     }
 }
@@ -152,7 +152,7 @@ contract AnypayRelaySapientSignerTest is Test {
     // Helper to construct Payload.Decoded more easily if needed later
     function _createPayload(Payload.Call[] memory _calls, uint256 _nonce, bool _noChainId)
         internal
-        view
+        pure
         returns (Payload.Decoded memory)
     {
         return Payload.Decoded({
