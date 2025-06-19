@@ -59,9 +59,7 @@ contract AnypayRelayValidatorTest is Test {
                 bytes32(uint256(uint160(info.target))),
                 bytes32(uint256(uint160(info.sendingAssetId))),
                 info.destinationChainId,
-                info.receiver == NON_EVM_RECEIVER
-                    ? info.nonEVMReceiver
-                    : bytes32(uint256(uint160(info.receiver))),
+                info.receiver == NON_EVM_RECEIVER ? info.nonEVMReceiver : bytes32(uint256(uint160(info.receiver))),
                 info.receivingAssetId,
                 info.minAmount
             )
