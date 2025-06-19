@@ -17,7 +17,7 @@ contract MockLiFiDiamond {
     event MockBridgeOnlyCalled(ILiFi.BridgeData bridgeData);
     event MockSwapAndBridgeCalled(ILiFi.BridgeData bridgeData, LibSwap.SwapData[] swapData);
 
-    function mockLifiBridgeOnly(ILiFi.BridgeData calldata _bridgeData, bytes calldata /*_mockData*/) external {
+    function mockLifiBridgeOnly(ILiFi.BridgeData calldata _bridgeData, bytes calldata /*_mockData*/ ) external {
         emit MockBridgeOnlyCalled(_bridgeData);
     }
 

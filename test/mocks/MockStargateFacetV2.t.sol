@@ -46,7 +46,7 @@ contract MockStargateFacetV2 {
     event StartBridgeCalled(bytes32 indexed transactionId, address receiver);
     event SwapAndStartBridgeCalled(bytes32 indexed transactionId, address receiver);
 
-    function mockStartBridge(ILiFi.BridgeData calldata _bridgeData, StargateData calldata /*_stargateData*/)
+    function mockStartBridge(ILiFi.BridgeData calldata _bridgeData, StargateData calldata /*_stargateData*/ )
         external
         payable
     {
@@ -56,7 +56,7 @@ contract MockStargateFacetV2 {
 
     function mockSwapAndStartBridge(
         ILiFi.BridgeData memory _bridgeData,
-        LibSwap.SwapData[] calldata /*_swapData*/,
+        LibSwap.SwapData[] calldata, /*_swapData*/
         StargateData calldata /*_stargateData*/
     ) external payable {
         console.log("MockStargateFacetV2::mockSwapAndStartBridge received receiver:", _bridgeData.receiver);

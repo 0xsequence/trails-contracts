@@ -39,7 +39,10 @@ contract MockAcrossFacetV3 {
     event CallReverted(bytes4 selector, bytes reason);
 
     // Mocks `startBridgeTokensViaAcrossV3`
-    function mockStartBridge(ILiFi.BridgeData memory _bridgeData, AcrossV3Data calldata /*_acrossData*/) external payable {
+    function mockStartBridge(ILiFi.BridgeData memory _bridgeData, AcrossV3Data calldata /*_acrossData*/ )
+        external
+        payable
+    {
         console.log("MockAcrossFacetV3::mockStartBridge received receiver:", _bridgeData.receiver);
         emit StartBridgeCalled(_bridgeData.transactionId, _bridgeData.receiver);
     }
@@ -47,7 +50,7 @@ contract MockAcrossFacetV3 {
     // Mocks `swapAndStartBridgeTokensViaAcrossV3`
     function mockSwapAndStartBridge(
         ILiFi.BridgeData memory _bridgeData,
-        LibSwap.SwapData[] calldata /*_swapData*/,
+        LibSwap.SwapData[] calldata, /*_swapData*/
         AcrossV3Data calldata /*_acrossData*/
     ) external payable {
         console.log("MockAcrossFacetV3::mockSwapAndStartBridge received receiver:", _bridgeData.receiver);

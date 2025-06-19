@@ -9,7 +9,7 @@ import {AnypayExecutionInfoParams} from "@/libraries/AnypayExecutionInfoParams.s
 
 // Mock ERC20 contract for testing transfers
 contract MockERC20 is Test {
-    function transfer(address /*to*/, uint256 /*amount*/) external pure returns (bool) {
+    function transfer(address, /*to*/ uint256 /*amount*/ ) external pure returns (bool) {
         return true;
     }
 }
