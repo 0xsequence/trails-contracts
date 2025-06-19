@@ -139,9 +139,7 @@ contract AnypayRelaySapientSignerTest is Test {
         bytes32 actualExecutionInfoHash = signerContract.recoverSapientSignature(payload, combinedSignature);
 
         // 9. Assert equality
-        assertEq(
-            actualExecutionInfoHash, digestToSign, "Recovered execution info hash mismatch for native call"
-        );
+        assertEq(actualExecutionInfoHash, digestToSign, "Recovered execution info hash mismatch for native call");
     }
 
     // Helper to construct Payload.Decoded more easily if needed later
