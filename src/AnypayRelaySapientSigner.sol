@@ -67,7 +67,7 @@ contract AnypayRelaySapientSigner is ISapient {
     function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata encodedSignature)
         external
         view
-        returns (bytes32 imageHash)
+        returns (bytes32)
     {
         // 1. Validate outer Payload
         if (payload.kind != Payload.KIND_TRANSACTIONS) {
@@ -113,7 +113,7 @@ contract AnypayRelaySapientSigner is ISapient {
             }
         }
 
-        imageHash = digest;
+        return digest;
     }
 
     // -------------------------------------------------------------------------
