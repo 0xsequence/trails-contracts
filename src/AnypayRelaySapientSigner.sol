@@ -41,6 +41,7 @@ contract AnypayRelaySapientSigner is ISapient {
 
     error InvalidTargetAddress(address expectedTarget, address actualTarget);
     error InvalidAttestation();
+    error InvalidRelaySolverAddress();
     error InvalidCallsLength();
     error InvalidPayloadKind();
     error InvalidRelayRecipient();
