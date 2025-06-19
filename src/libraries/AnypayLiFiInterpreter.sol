@@ -18,19 +18,7 @@ library AnypayLiFiInterpreter {
 
     /// @notice Thrown when the LibSwap data is empty.
     error EmptyLibSwapData();
-    /// @notice Thrown when the lengths of attested and inferred LiFi info arrays do not match.
-    error MismatchedLifiInfoLengths();
-    /// @notice Thrown when an inferred LiFi info has a zero minimum amount.
-    error InvalidInferredMinAmount();
-    /// @notice Thrown when an attested LiFi info cannot find a unique, matching inferred LiFi info.
-    /// @param originChainId The origin chain ID of the attested info that failed to find a match.
-    /// @param destinationChainId The destination chain ID of the attested info.
-    /// @param originToken The origin token of the attested info.
-    error NoMatchingInferredInfoFound(uint256 originChainId, uint256 destinationChainId, address originToken);
-    /// @notice Thrown when an inferred LiFi info's inferred amount is larger than its matched attested one.
-    /// @param inferredAmount The amount from the inferred LiFi info.
-    /// @param attestedAmount The amount from the attested LiFi info.
-    error InferredAmountTooHigh(uint256 inferredAmount, uint256 attestedAmount);
+    
 
     // -------------------------------------------------------------------------
     // Functions
