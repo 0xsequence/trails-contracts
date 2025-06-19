@@ -5,6 +5,7 @@ pragma solidity ^0.8.30;
 import {ECDSA} from "solady/utils/ECDSA.sol";
 import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
+import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
 /**
  * @title AnypayRelayValidator
@@ -19,6 +20,10 @@ library AnypayRelayValidator {
     using ECDSA for bytes32;
 
     // -------------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------------
+
+    // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
 
@@ -26,55 +31,40 @@ library AnypayRelayValidator {
     error InvalidRelayQuote();
 
     // -------------------------------------------------------------------------
-    // Constants
-    // -------------------------------------------------------------------------
-
-    address public constant NON_EVM_ADDRESS = 0x1111111111111111111111111111111111111111;
-
-    // -------------------------------------------------------------------------
     // Functions
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Validates the relay parameters and checks the relay solver's signature.
-     * @param attestedInfo The attested relay information from the signature.
-     * @param inferredInfo The inferred relay information from the transaction calldata.
-     * @param relaySolver The address of the relay solver.
+     * @notice Validates if the recipient of a relay call is the designated relay solver.
+     * @dev This function decodes the relay calldata from a `Payload.Call` struct to determine
+     *      the ultimate receiver of the assets (either native or ERC20) and checks if it
+     *      matches the provided `relaySolver` address.
+     * @param call The `Payload.Call` struct representing a single transaction in the payload.
+     * @param relaySolver The address of the authorized relay solver.
+     * @return True if the recipient is the `relaySolver`, false otherwise.
      */
-    function validateRelayInfo(
-        AnypayRelayInfo memory attestedInfo,
-        AnypayRelayDecoder.DecodedRelayData memory inferredInfo,
-        address relaySolver
-    ) internal view {
-        // a. Validate relay parameters
-        if (
-            inferredInfo.requestId != attestedInfo.requestId || inferredInfo.token != attestedInfo.sendingAssetId
-                || inferredInfo.receiver != attestedInfo.receiver || inferredInfo.amount < attestedInfo.minAmount
-        ) {
-            revert InvalidAttestation();
+    function isValidRelayRecipient(Payload.Call memory call, address relaySolver) internal pure returns (bool) {
+        AnypayRelayDecoder.DecodedRelayData memory decodedData = AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
+        return decodedData.receiver == relaySolver;
+    }
+
+    /**
+     * @notice Validates an array of relay calls to ensure all are sent to the relay solver.
+     * @dev Iterates through an array of `Payload.Call` structs and uses `isValidRelayRecipient`
+     *      to verify each one. The function returns false if the array is empty.
+     * @param calls The array of `Payload.Call` structs to validate.
+     * @param relaySolver The address of the authorized relay solver.
+     * @return True if all calls are to the `relaySolver`, false otherwise.
+     */
+    function areValidRelayRecipients(Payload.Call[] memory calls, address relaySolver) internal pure returns (bool) {
+        if (calls.length == 0) {
+            return false;
         }
-
-        // b. Check relay solver signature
-        bytes32 message = keccak256(
-            abi.encodePacked(
-                attestedInfo.requestId,
-                block.chainid,
-                bytes32(uint256(uint160(attestedInfo.target))),
-                bytes32(uint256(uint160(attestedInfo.sendingAssetId))),
-                attestedInfo.destinationChainId,
-                attestedInfo.receiver == NON_EVM_ADDRESS
-                    ? attestedInfo.nonEVMReceiver
-                    : bytes32(uint256(uint160(attestedInfo.receiver))),
-                attestedInfo.receivingAssetId,
-                attestedInfo.minAmount
-            )
-        );
-
-        bytes32 digest = ECDSA.toEthSignedMessageHash(message);
-        address signer = ECDSA.recover(digest, attestedInfo.signature);
-
-        if (signer != relaySolver) {
-            revert InvalidRelayQuote();
+        for (uint256 i = 0; i < calls.length; i++) {
+            if (!isValidRelayRecipient(calls[i], relaySolver)) {
+                return false;
+            }
         }
+        return true;
     }
 }

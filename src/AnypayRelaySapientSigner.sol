@@ -44,6 +44,7 @@ contract AnypayRelaySapientSigner is ISapient {
     error InvalidCallsLength();
     error InvalidPayloadKind();
     error InvalidRelaySolverAddress();
+    error InvalidRelayRecipient();
     error InvalidAttestationSigner(address expectedSigner, address actualSigner);
     error MismatchedRelayInfoLengths();
 
@@ -93,34 +94,15 @@ contract AnypayRelaySapientSigner is ISapient {
             revert InvalidCallsLength();
         }
 
-        // 3. Decode the signature
-        (
-            AnypayExecutionInfo[] memory attestedExecutionInfos,
-            bytes memory attestationSignature,
-            address attestationSigner
-        ) = decodeSignature(encodedSignature);
-
-        // 4. Check that calls and relay infos have the same length
-        if (payload.calls.length != attestedExecutionInfos.length) {
-            revert MismatchedRelayInfoLengths();
+        // 3. Validate relay recipients
+        if (!AnypayRelayValidator.areValidRelayRecipients(payload.calls, RELAY_SOLVER)) {
+            revert InvalidRelayRecipient();
         }
 
-        // 5. Recover the signer from the attestation signature
-        address recoveredAttestationSigner = payload.hashFor(_wallet).recover(attestationSignature);
-        if (recoveredAttestationSigner != attestationSigner) {
-            revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
-        }
+        // 4. Get the requestId
+        bytes32 requestId = AnypayRelayDecoder.getRequestIds(payload.calls)[0];
 
-        // 6. Validate the attestations
-        if (!attestedExecutionInfos.validateExecutionInfos(attestedExecutionInfos)) {
-            revert InvalidAttestation();
-        }
-
-        // 7. Hash the relay intent params
-        bytes32 executionInfoHash =
-            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestedExecutionInfos, attestationSigner);
-
-        return executionInfoHash;
+        return requestId;
     }
 
     // -------------------------------------------------------------------------
