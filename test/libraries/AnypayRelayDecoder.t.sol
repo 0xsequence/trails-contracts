@@ -8,10 +8,6 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
 // Helper contract to test the AnypayRelayDecoder library
 contract RelayDecoderTestHelper {
-    function decode(bytes calldata data) public payable returns (AnypayRelayDecoder.DecodedRelayData memory) {
-        return AnypayRelayDecoder.decodeRelayCalldata(data);
-    }
-
     function decodeForSapient_native(bytes calldata data, uint256 value, address to)
         public
         pure
@@ -60,12 +56,13 @@ contract AnypayRelayDecoderTest is Test {
     // Native Asset Transfer Tests
     // -------------------------------------------------------------------------
 
-    function test_decode_nativeAssetTransfer_success() public {
+    function test_decodeForSapient_native_success_as_receiver() public {
         uint256 sentValue = 1 ether;
         bytes memory calldataToDecode = abi.encode(TEST_REQUEST_ID);
 
         // The test contract is the msg.sender to the helper
-        AnypayRelayDecoder.DecodedRelayData memory decodedData = helper.decode{value: sentValue}(calldataToDecode);
+        AnypayRelayDecoder.DecodedRelayData memory decodedData =
+            helper.decodeForSapient_native(calldataToDecode, sentValue, address(this));
 
         assertEq(decodedData.requestId, TEST_REQUEST_ID, "requestId mismatch");
         assertEq(decodedData.token, address(0), "token should be address(0)");
@@ -77,17 +74,18 @@ contract AnypayRelayDecoderTest is Test {
     // ERC20 Transfer Tests
     // -------------------------------------------------------------------------
 
-    function test_decode_erc20Transfer_success() public {
+    function test_decodeForSapient_erc20_success_to_token() public {
         address receiver = makeAddr("receiver");
         uint256 amount = 100 ether;
 
         bytes memory calldataToDecode =
             abi.encodePacked(bytes4(0xa9059cbb), abi.encode(receiver, amount, TEST_REQUEST_ID));
 
-        AnypayRelayDecoder.DecodedRelayData memory decodedData = helper.decode(calldataToDecode);
+        AnypayRelayDecoder.DecodedRelayData memory decodedData =
+            helper.decodeForSapient_erc20(calldataToDecode, address(this));
 
         assertEq(decodedData.requestId, TEST_REQUEST_ID, "requestId mismatch");
-        assertEq(decodedData.token, address(helper), "token should be address(this)");
+        assertEq(decodedData.token, address(this), "token should be address(this)");
         assertEq(decodedData.amount, amount, "amount mismatch");
         assertEq(decodedData.receiver, receiver, "receiver mismatch");
     }
@@ -103,10 +101,10 @@ contract AnypayRelayDecoderTest is Test {
         bytes memory expectedError = abi.encodeWithSelector(AnypayRelayDecoder.InvalidCalldataLength.selector);
 
         vm.expectRevert(expectedError);
-        helper.decode(shortCalldata);
+        helper.decodeForSapient_native(shortCalldata, 0, address(this));
 
         vm.expectRevert(expectedError);
-        helper.decode(longCalldata);
+        helper.decodeForSapient_native(longCalldata, 0, address(this));
     }
 
     function test_revert_invalidSelector_erc20Transfer() public {
@@ -118,7 +116,7 @@ contract AnypayRelayDecoderTest is Test {
 
         bytes memory expectedError = abi.encodeWithSelector(AnypayRelayDecoder.InvalidCalldataLength.selector);
         vm.expectRevert(expectedError);
-        helper.decode(calldataToDecode);
+        helper.decodeForSapient_erc20(calldataToDecode, address(this));
     }
 
     function testFuzz_nativeAssetTransfer(uint128 amount, bytes32 requestId) public {
@@ -130,7 +128,8 @@ contract AnypayRelayDecoderTest is Test {
         bytes memory calldataToDecode = abi.encode(requestId);
 
         // The test contract is the msg.sender to the helper
-        AnypayRelayDecoder.DecodedRelayData memory decodedData = helper.decode{value: sentValue}(calldataToDecode);
+        AnypayRelayDecoder.DecodedRelayData memory decodedData =
+            helper.decodeForSapient_native(calldataToDecode, sentValue, address(this));
 
         assertEq(decodedData.requestId, requestId, "requestId mismatch");
         assertEq(decodedData.token, address(0), "token should be address(0)");
@@ -148,10 +147,11 @@ contract AnypayRelayDecoderTest is Test {
         bytes memory calldataToDecode =
             abi.encodePacked(bytes4(0xa9059cbb), abi.encode(receiver, transferAmount, requestId));
 
-        AnypayRelayDecoder.DecodedRelayData memory decodedData = helper.decode(calldataToDecode);
+        AnypayRelayDecoder.DecodedRelayData memory decodedData =
+            helper.decodeForSapient_erc20(calldataToDecode, address(this));
 
         assertEq(decodedData.requestId, requestId, "requestId mismatch");
-        assertEq(decodedData.token, address(helper), "token should be address(this)");
+        assertEq(decodedData.token, address(this), "token should be address(this)");
         assertEq(decodedData.amount, transferAmount, "amount mismatch");
         assertEq(decodedData.receiver, receiver, "receiver mismatch");
     }
@@ -160,7 +160,7 @@ contract AnypayRelayDecoderTest is Test {
     // Sapient Decoder Tests
     // -------------------------------------------------------------------------
 
-    function test_decodeForSapient_native_success() public {
+    function test_decodeForSapient_native_success_to_eoa() public {
         uint256 sentValue = 1 ether;
         bytes memory calldataToDecode = abi.encode(TEST_REQUEST_ID);
         address to = makeAddr("to");
@@ -174,7 +174,7 @@ contract AnypayRelayDecoderTest is Test {
         assertEq(decodedData.receiver, to, "receiver should be to");
     }
 
-    function test_decodeForSapient_erc20_success() public {
+    function test_decodeForSapient_erc20_success_to_eoa() public {
         address receiver = makeAddr("receiver");
         uint256 amount = 100 ether;
         address to = makeAddr("to");

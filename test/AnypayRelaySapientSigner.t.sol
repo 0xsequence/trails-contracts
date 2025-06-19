@@ -39,11 +39,13 @@ contract AnypayRelaySapientSignerTest is Test {
 
     function test_RecoverSingleRelayCall_ERC20_ValidSignature() public {
         // 1. Prepare the call data for the relay
-        address receiver = makeAddr("receiver");
+        address receiver = relaySolverAddress;
         uint256 amount = 1 ether;
+        bytes32 requestId = keccak256("erc20_test_request");
 
         // This would be the data for an ERC20 transfer call in a real scenario
         bytes memory callDataToToken = abi.encodeWithSelector(MockERC20.transfer.selector, receiver, amount);
+        callDataToToken = abi.encodePacked(callDataToToken, requestId);
 
         // 2. Construct the Payload.Call
         Payload.Call[] memory calls = new Payload.Call[](1);
@@ -60,10 +62,7 @@ contract AnypayRelaySapientSignerTest is Test {
         // 3. Construct the Payload.Decoded
         Payload.Decoded memory payload = _createPayload(calls, 1, false);
 
-        // 4. Generate the EIP-712 digest.
-        bytes32 digestToSign = payload.hashFor(userWalletAddress);
-
-        // 5. Prepare attested execution infos
+        // 4. Prepare attested execution infos
         AnypayExecutionInfo[] memory attestedExecutionInfos = new AnypayExecutionInfo[](1);
         attestedExecutionInfos[0] = AnypayExecutionInfo({
             originToken: address(mockToken),
@@ -72,6 +71,10 @@ contract AnypayRelaySapientSignerTest is Test {
             destinationChainId: block.chainid // Assuming same chain for now
         });
 
+        // 5. Generate the digest to sign. This is the hash of the execution info.
+        bytes32 digestToSign =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestedExecutionInfos, userSignerAddress);
+
         // 6. Sign the digest
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
@@ -79,21 +82,16 @@ contract AnypayRelaySapientSignerTest is Test {
         // 7. Encode ExecutionInfos, ECDSA signature, and signer address together
         bytes memory combinedSignature = abi.encode(attestedExecutionInfos, ecdsaSignature, userSignerAddress);
 
-        // 8. Manually derive the expected executionInfoHash
-        bytes32 expectedExecutionInfoHash =
-            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestedExecutionInfos, userSignerAddress);
-
-        // 9. Call recoverSapientSignature
+        // 8. Call recoverSapientSignature
         vm.prank(userWalletAddress);
         bytes32 actualExecutionInfoHash = signerContract.recoverSapientSignature(payload, combinedSignature);
 
-        // 10. Assert equality
-        assertEq(actualExecutionInfoHash, expectedExecutionInfoHash, "Recovered execution info hash mismatch");
+        // 9. Assert equality
+        assertEq(actualExecutionInfoHash, digestToSign, "Recovered execution info hash mismatch");
     }
 
     function test_RecoverSingleRelayCall_Native_ValidSignature() public {
         // 1. Prepare the call data for the relay
-        address receiver = makeAddr("receiver");
         uint256 amount = 2 ether;
         bytes32 requestId = keccak256("native_test_request");
 
@@ -104,7 +102,7 @@ contract AnypayRelaySapientSignerTest is Test {
         // 2. Construct the Payload.Call
         Payload.Call[] memory calls = new Payload.Call[](1);
         calls[0] = Payload.Call({
-            to: receiver,
+            to: relaySolverAddress,
             value: amount,
             data: callDataForRelay,
             gasLimit: 0,
@@ -116,10 +114,7 @@ contract AnypayRelaySapientSignerTest is Test {
         // 3. Construct the Payload.Decoded
         Payload.Decoded memory payload = _createPayload(calls, 2, false);
 
-        // 4. Generate the EIP-712 digest.
-        bytes32 digestToSign = payload.hashFor(userWalletAddress);
-
-        // 5. Prepare attested execution infos
+        // 4. Prepare attested execution infos
         AnypayExecutionInfo[] memory attestedExecutionInfos = new AnypayExecutionInfo[](1);
         attestedExecutionInfos[0] = AnypayExecutionInfo({
             originToken: address(0), // address(0) for native token
@@ -128,6 +123,10 @@ contract AnypayRelaySapientSignerTest is Test {
             destinationChainId: block.chainid // Assuming same chain for now
         });
 
+        // 5. Generate the digest to sign. This is the hash of the execution info.
+        bytes32 digestToSign =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestedExecutionInfos, userSignerAddress);
+
         // 6. Sign the digest
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
@@ -135,18 +134,12 @@ contract AnypayRelaySapientSignerTest is Test {
         // 7. Encode ExecutionInfos, ECDSA signature, and signer address together
         bytes memory combinedSignature = abi.encode(attestedExecutionInfos, ecdsaSignature, userSignerAddress);
 
-        // 8. Manually derive the expected executionInfoHash
-        bytes32 expectedExecutionInfoHash =
-            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestedExecutionInfos, userSignerAddress);
-
-        // 9. Call recoverSapientSignature
+        // 8. Call recoverSapientSignature
         vm.prank(userWalletAddress);
         bytes32 actualExecutionInfoHash = signerContract.recoverSapientSignature(payload, combinedSignature);
 
-        // 10. Assert equality
-        assertEq(
-            actualExecutionInfoHash, expectedExecutionInfoHash, "Recovered execution info hash mismatch for native call"
-        );
+        // 9. Assert equality
+        assertEq(actualExecutionInfoHash, digestToSign, "Recovered execution info hash mismatch for native call");
     }
 
     // Helper to construct Payload.Decoded more easily if needed later
