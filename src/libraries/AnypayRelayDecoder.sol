@@ -11,6 +11,12 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
  */
 library AnypayRelayDecoder {
     // -------------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------------
+
+    address private constant RELAY_RECEIVER = 0xa5F565650890fBA1824Ee0F21EbBbF660a179934;
+
+    // -------------------------------------------------------------------------
     // Structs
     // -------------------------------------------------------------------------
 
@@ -43,7 +49,26 @@ library AnypayRelayDecoder {
         pure
         returns (DecodedRelayData memory decodedData)
     {
-        if (call.data.length == 32) {
+        if (call.to == RELAY_RECEIVER) {
+            if (call.data.length != 64) {
+                revert InvalidCalldataLength();
+            }
+
+            bytes memory data = call.data;
+            bytes32 requestId;
+            uint256 receiverWord;
+
+            assembly {
+                let d := add(data, 0x20)
+                requestId := mload(d)
+                receiverWord := mload(add(d, 32))
+            }
+
+            decodedData.requestId = requestId;
+            decodedData.token = address(0);
+            decodedData.amount = call.value;
+            decodedData.receiver = address(uint160(receiverWord));
+        } else if (call.data.length == 32) {
             // Native asset transfer
             decodedData.requestId = abi.decode(call.data, (bytes32));
             decodedData.token = address(0); // Native asset
