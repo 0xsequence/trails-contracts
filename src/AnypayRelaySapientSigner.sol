@@ -100,9 +100,9 @@ contract AnypayRelaySapientSigner is ISapient {
         address recoveredAttestationSigner = digest.recover(attestationSignature);
 
         // 8. Validate the recovered signer.
-        // if (recoveredAttestationSigner != attestationSigner) {
-        //     revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
-        // }
+        if (recoveredAttestationSigner != attestationSigner) {
+            // revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
+        }
 
         // 9. Validate all relay information provided.
         for (uint256 i = 0; i < payload.calls.length; i++) {
