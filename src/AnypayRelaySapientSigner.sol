@@ -97,11 +97,11 @@ contract AnypayRelaySapientSigner is ISapient {
         bytes32 digest = AnypayExecutionInfoParams.getAnypayExecutionInfoHash(executionInfos, attestationSigner);
 
         // 7. Recover the signer from the attestation.
-        address recoveredSigner = digest.recover(attestationSignature);
+        address recoveredAttestationSigner = digest.recover(attestationSignature);
 
         // 8. Validate the recovered signer.
-        if (recoveredSigner != attestationSigner) {
-            revert InvalidAttestation();
+        if (recoveredAttestationSigner != attestationSigner) {
+            revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
         }
 
         // 9. Validate all relay information provided.
