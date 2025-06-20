@@ -29,7 +29,7 @@ library AnypayExecutionInfoParams {
      * @return The keccak256 hash of the ExecutionInfo information.
      */
     function getAnypayExecutionInfoHash(AnypayExecutionInfo[] memory executionInfos, address attestationAddress)
-        public
+        internal
         pure
         returns (bytes32)
     {

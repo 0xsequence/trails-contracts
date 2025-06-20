@@ -26,6 +26,7 @@ contract AnypayRelaySapientSigner is ISapient {
 
     using Payload for Payload.Decoded;
     using ECDSA for bytes32;
+    using AnypayExecutionInfoParams for AnypayExecutionInfo[];
     using AnypayRelayValidator for AnypayExecutionInfo;
     using AnypayExecutionInfoInterpreter for AnypayExecutionInfo[];
 
@@ -94,7 +95,7 @@ contract AnypayRelaySapientSigner is ISapient {
         }
 
         // 6. Construct the digest for attestation.
-        bytes32 digest = AnypayExecutionInfoParams.getAnypayExecutionInfoHash(executionInfos, attestationSigner);
+        bytes32 digest = executionInfos.getAnypayExecutionInfoHash(attestationSigner);
 
         // 7. Recover the signer from the attestation.
         address recoveredAttestationSigner = digest.recover(attestationSignature);
