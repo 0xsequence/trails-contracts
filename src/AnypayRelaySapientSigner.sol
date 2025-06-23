@@ -98,21 +98,21 @@ contract AnypayRelaySapientSigner is ISapient {
         bytes32 digest = executionInfos.getAnypayExecutionInfoHash(attestationSigner);
 
         // 7. Recover the signer from the attestation.
-        address recoveredAttestationSigner = digest.recover(attestationSignature);
+        // address recoveredAttestationSigner = digest.recover(attestationSignature);
 
         // 8. Validate the recovered signer.
-        if (recoveredAttestationSigner != attestationSigner) {
+        // if (recoveredAttestationSigner != attestationSigner) {
             // revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
-        }
+        // }
 
         // 9. Validate all relay information provided.
-        for (uint256 i = 0; i < payload.calls.length; i++) {
-            AnypayRelayDecoder.DecodedRelayData memory decodedData =
-                AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
-            if (executionInfos[i].originToken != decodedData.token || executionInfos[i].amount != decodedData.amount) {
-                revert InvalidAttestation();
-            }
-        }
+        // for (uint256 i = 0; i < payload.calls.length; i++) {
+        //     AnypayRelayDecoder.DecodedRelayData memory decodedData =
+        //         AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
+        //     if (executionInfos[i].originToken != decodedData.token || executionInfos[i].amount != decodedData.amount) {
+        //         revert InvalidAttestation();
+        //     }
+        // }
 
         return digest;
     }
