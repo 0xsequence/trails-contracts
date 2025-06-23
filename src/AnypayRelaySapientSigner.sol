@@ -48,6 +48,7 @@ contract AnypayRelaySapientSigner is ISapient {
     error InvalidRelayRecipient();
     error InvalidAttestationSigner(address expectedSigner, address actualSigner);
     error MismatchedRelayInfoLengths();
+    error InvalidSignatureLength();
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -138,6 +139,11 @@ contract AnypayRelaySapientSigner is ISapient {
             address _attestationSigner
         )
     {
+        // The minimum length for an abi-encoded (AnypayExecutionInfo[], bytes, address)
+        // with empty values is 160 bytes.
+        if (_signature.length < 160) {
+            revert InvalidSignatureLength();
+        }
         (_executionInfos, _attestationSignature, _attestationSigner) =
             abi.decode(_signature, (AnypayExecutionInfo[], bytes, address));
     }
