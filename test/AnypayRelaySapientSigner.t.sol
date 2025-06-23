@@ -142,6 +142,123 @@ contract AnypayRelaySapientSignerTest is Test {
         assertEq(actualExecutionInfoHash, digestToSign, "Recovered execution info hash mismatch for native call");
     }
 
+    function test_RecoverWithApproveAndRelayCall() public {
+        // 1. Prepare call data
+        address spender = relaySolverAddress;
+        uint256 approvalAmount = 100 ether;
+        uint256 transferAmount = 50 ether;
+        bytes32 requestId = keccak256("approve_and_transfer_request");
+
+        // Call 1: Approve
+        bytes memory approveCallData = abi.encodeWithSelector(bytes4(0x095ea7b3), spender, approvalAmount);
+
+        // Call 2: Transfer to relay solver
+        bytes memory transferCallData =
+            abi.encodeWithSelector(MockERC20.transfer.selector, relaySolverAddress, transferAmount);
+        transferCallData = abi.encodePacked(transferCallData, requestId);
+
+        // 2. Construct Payload.Call array
+        Payload.Call[] memory calls = new Payload.Call[](2);
+        calls[0] = Payload.Call({
+            to: address(mockToken),
+            value: 0,
+            data: approveCallData,
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
+        });
+        calls[1] = Payload.Call({
+            to: address(mockToken),
+            value: 0,
+            data: transferCallData,
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
+        });
+
+        // 3. Construct Payload.Decoded
+        Payload.Decoded memory payload = _createPayload(calls, 3, false);
+
+        // 4. Prepare attested execution infos for both calls
+        AnypayExecutionInfo[] memory attestedExecutionInfos = new AnypayExecutionInfo[](2);
+        attestedExecutionInfos[0] = AnypayExecutionInfo({
+            originToken: address(mockToken),
+            amount: approvalAmount,
+            originChainId: block.chainid,
+            destinationChainId: block.chainid
+        });
+        attestedExecutionInfos[1] = AnypayExecutionInfo({
+            originToken: address(mockToken),
+            amount: transferAmount,
+            originChainId: block.chainid,
+            destinationChainId: block.chainid
+        });
+
+        // 5. Generate digest
+        bytes32 digestToSign =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestedExecutionInfos, userSignerAddress);
+
+        // 6. Sign digest
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
+        bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
+
+        // 7. Encode signature
+        bytes memory combinedSignature = abi.encode(attestedExecutionInfos, ecdsaSignature, userSignerAddress);
+
+        // 8. Call recoverSapientSignature
+        vm.prank(userWalletAddress);
+        bytes32 actualExecutionInfoHash = signerContract.recoverSapientSignature(payload, combinedSignature);
+
+        // 9. Assert equality
+        assertEq(actualExecutionInfoHash, digestToSign, "Recovered hash mismatch for approve/relay");
+    }
+
+    function test_Revert_ApproveToInvalidSpender() public {
+        // 1. Prepare call data with an invalid spender
+        address invalidSpender = makeAddr("invalidSpender");
+        uint256 approvalAmount = 100 ether;
+
+        bytes memory approveCallData = abi.encodeWithSelector(bytes4(0x095ea7b3), invalidSpender, approvalAmount);
+
+        // 2. Construct Payload.Call array
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(mockToken),
+            value: 0,
+            data: approveCallData,
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
+        });
+
+        // 3. Construct Payload.Decoded
+        Payload.Decoded memory payload = _createPayload(calls, 4, false);
+
+        // 4. Prepare a valid signature for the dummy execution info
+        AnypayExecutionInfo[] memory dummyInfos = new AnypayExecutionInfo[](1);
+        dummyInfos[0] = AnypayExecutionInfo({
+            originToken: address(mockToken),
+            amount: approvalAmount,
+            originChainId: block.chainid,
+            destinationChainId: block.chainid
+        });
+
+        bytes32 digestToSign =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(dummyInfos, userSignerAddress);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
+        bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
+
+        bytes memory combinedSignature = abi.encode(dummyInfos, ecdsaSignature, userSignerAddress);
+
+        // 5. Expect revert
+        vm.expectRevert(AnypayRelaySapientSigner.InvalidRelayRecipient.selector);
+        signerContract.recoverSapientSignature(payload, combinedSignature);
+    }
+
     // Helper to construct Payload.Decoded more easily if needed later
     function _createPayload(Payload.Call[] memory _calls, uint256 _nonce, bool _noChainId)
         internal
