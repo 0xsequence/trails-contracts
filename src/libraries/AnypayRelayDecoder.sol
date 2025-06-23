@@ -74,6 +74,27 @@ library AnypayRelayDecoder {
             decodedData.token = address(0); // Native asset
             decodedData.amount = call.value;
             decodedData.receiver = call.to; // The receiver of the native asset is the target of the call
+        } else if (call.data.length == 68) {
+            bytes4 selector;
+            bytes32 spender;
+            uint256 amount;
+            bytes memory data = call.data;
+            assembly {
+                let d := add(data, 0x20)
+                selector := mload(d)
+                spender := mload(add(d, 4))
+                amount := mload(add(d, 36))
+            }
+
+            // function selector for `approve(address,uint256)`
+            if (bytes4(selector) == 0x095ea7b3) {
+                decodedData.requestId = bytes32(0);
+                decodedData.token = call.to;
+                decodedData.amount = amount;
+                decodedData.receiver = address(uint160(uint256(spender)));
+            } else {
+                revert InvalidCalldataLength();
+            }
         } else if (call.data.length == 100) {
             bytes memory data = call.data;
             bytes32 selector;
@@ -89,6 +110,7 @@ library AnypayRelayDecoder {
                 requestId := mload(add(d, 68))
             }
 
+            // function selector for `transfer(address,uint256)`
             if (bytes4(selector) == 0xa9059cbb) {
                 decodedData.requestId = requestId;
                 decodedData.token = call.to;

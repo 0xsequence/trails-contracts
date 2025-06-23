@@ -189,4 +189,19 @@ contract AnypayRelayDecoderTest is Test {
         assertEq(decodedData.amount, amount, "amount mismatch");
         assertEq(decodedData.receiver, receiver, "receiver mismatch");
     }
+
+    function test_decodeForSapient_erc20_approve() public {
+        address tokenAddress = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+        address spender = 0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE;
+        uint256 amount = 0x7fffffffffffffff;
+        bytes memory calldataToDecode = abi.encodeWithSelector(bytes4(0x095ea7b3), spender, amount);
+
+        AnypayRelayDecoder.DecodedRelayData memory decodedData =
+            helper.decodeForSapient_erc20(calldataToDecode, tokenAddress);
+
+        assertEq(decodedData.requestId, bytes32(0), "requestId should be zero for approve");
+        assertEq(decodedData.token, tokenAddress, "token should be the token address");
+        assertEq(decodedData.amount, amount, "amount should be the approval amount");
+        assertEq(decodedData.receiver, spender, "receiver should be the spender");
+    }
 }
