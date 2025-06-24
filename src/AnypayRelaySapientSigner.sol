@@ -102,7 +102,7 @@ contract AnypayRelaySapientSigner is ISapient {
 
         // 8. Validate the recovered signer.
         // if (recoveredAttestationSigner != attestationSigner) {
-            // revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
+        // revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
         // }
 
         // 9. Validate all relay information provided.

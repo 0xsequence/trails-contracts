@@ -246,8 +246,7 @@ contract AnypayRelaySapientSignerTest is Test {
             destinationChainId: block.chainid
         });
 
-        bytes32 digestToSign =
-            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(dummyInfos, userSignerAddress);
+        bytes32 digestToSign = AnypayExecutionInfoParams.getAnypayExecutionInfoHash(dummyInfos, userSignerAddress);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
@@ -257,6 +256,25 @@ contract AnypayRelaySapientSignerTest is Test {
         // 5. Expect revert
         vm.expectRevert(AnypayRelaySapientSigner.InvalidRelayRecipient.selector);
         signerContract.recoverSapientSignature(payload, combinedSignature);
+    }
+
+    function test_HardcodedSignature() public view {
+        bytes memory hardcodedSignature =
+            hex"00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000100000000000000000000000000e7dfe7c72b4b58ac6b64614f7417ac296134a9740000000000000000000000000000000000000000000000000000000000000001000000000000000000000000fde4c96c8593536e31f229ea8f37b2ada2699bb200000000000000000000000000000000000000000000000000000000000918d40000000000000000000000000000000000000000000000000000000000002105000000000000000000000000000000000000000000000000000000000000a4b1000000000000000000000000000000000000000000000000000000000000004140bb829e761ff58b55d09c406e7ab968e526db3790dda8c53818f9340006118506061a7cd65d5ea4404172c82ffe5eb23d05b01656a26e22635e74b572dc07b30000000000000000000000000000000000000000000000000000000000000000";
+        (AnypayExecutionInfo[] memory executionInfos, bytes memory attestationSignature, address attestationSigner) =
+            signerContract.decodeSignature(hardcodedSignature);
+
+        // Log execution infos
+        for (uint256 i = 0; i < executionInfos.length; i++) {
+            console.log("Execution info", i);
+            console.log("Origin token", executionInfos[i].originToken);
+            console.log("Amount", executionInfos[i].amount);
+            console.log("Origin chain id", executionInfos[i].originChainId);
+        }
+
+        assertEq(executionInfos.length, 1, "Execution info count mismatch");
+        assertEq(attestationSignature.length, 65, "Attestation signature length mismatch");
+        assertEq(attestationSigner, 0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2, "Attestation signer mismatch");
     }
 
     // Helper to construct Payload.Decoded more easily if needed later
