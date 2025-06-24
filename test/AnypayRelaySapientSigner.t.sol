@@ -278,6 +278,50 @@ contract AnypayRelaySapientSignerTest is Test {
         // assertEq(attestationSigner, 0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2, "Attestation signer mismatch");
     }
 
+    function test_recoverSapientSignature_failing_from_user() public {
+        // This test case is based on a failing transaction reported by a user.
+        // It's designed to replicate the exact conditions of that failure for debugging.
+
+        // The user's payload has this as the recipient. For this test, we need to set the
+        // signer contract's relay solver to this address.
+        address relaySolverForThisTest = 0xa5F565650890fBA1824Ee0F21EbBbF660a179934;
+        AnypayRelaySapientSigner signerContractForThisTest = new AnypayRelaySapientSigner(relaySolverForThisTest);
+
+        // Recreate the payload from the user's report.
+        // `_payload = {"kind":0,"noChainId":false,"calls":[{"to":"0xa5f565650890fba1824ee0f21ebbbf660a179934","value":"13835264386605673","data":"0x77245ba68c303ba96be68543927984459fc317401ddbb7277257ba12a31a8205","gasLimit":"0","delegateCall":false,"onlyFallback":false,"behaviorOnError":"0"}],"space":"0","nonce":"0","message":"0x","imageHash":"0x0000000000000000000000000000000000000000000000000000000000000000","digest":"0x0000000000000000000000000000000000000000000000000000000000000000","parentWallets":[]}`
+        Payload.Decoded memory payload;
+        payload.kind = Payload.KIND_TRANSACTIONS;
+
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: 0xa5F565650890fBA1824Ee0F21EbBbF660a179934,
+            value: 13835264386605673,
+            data: hex"77245ba68c303ba96be68543927984459fc317401ddbb7277257ba12a31a8205",
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
+        });
+        payload.calls = calls;
+
+        // The signature provided by the user.
+        bytes memory signature =
+            hex"000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005a5f48f2ce4f60000000000000000000000000000000000000000000000000000000000002105000000000000000000000000000000000000000000000000000000000000a4b1000000000000000000000000000000000000000000000000000000000000004163a63ea74e87618e93ae6d9a633fe006248d5e4608d9b9ea73a27f46771ff03a3de7b677a69b6e3632818474b1e86e2f97e9f9d6446c495d2ea27f9800902bef0000000000000000000000000000000000000000000000000000000000000000";
+
+        (
+            AnypayExecutionInfo[] memory attestedExecutionInfos,
+            , // ecdsaSignature not needed
+            address expectedSigner
+        ) = signerContractForThisTest.decodeSignature(signature);
+
+        bytes32 digestToSign =
+            AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestedExecutionInfos, expectedSigner);
+
+        bytes32 actualExecutionInfoHash = signerContractForThisTest.recoverSapientSignature(payload, signature);
+
+        assertEq(actualExecutionInfoHash, digestToSign);
+    }
+
     // Helper to construct Payload.Decoded more easily if needed later
     function _createPayload(Payload.Call[] memory _calls, uint256 _nonce, bool _noChainId)
         internal

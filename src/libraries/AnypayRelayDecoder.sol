@@ -49,7 +49,13 @@ library AnypayRelayDecoder {
         pure
         returns (DecodedRelayData memory decodedData)
     {
-        if (call.to == RELAY_RECEIVER) {
+        if (call.data.length == 32) {
+            // Native asset transfer
+            decodedData.requestId = abi.decode(call.data, (bytes32));
+            decodedData.token = address(0);
+            decodedData.amount = call.value;
+            decodedData.receiver = call.to; 
+        } else if (call.to == RELAY_RECEIVER) {
             if (call.data.length != 64) {
                 revert InvalidCalldataLength();
             }
@@ -68,12 +74,6 @@ library AnypayRelayDecoder {
             decodedData.token = address(0);
             decodedData.amount = call.value;
             decodedData.receiver = address(uint160(receiverWord));
-        } else if (call.data.length == 32) {
-            // Native asset transfer
-            decodedData.requestId = abi.decode(call.data, (bytes32));
-            decodedData.token = address(0); // Native asset
-            decodedData.amount = call.value;
-            decodedData.receiver = call.to; // The receiver of the native asset is the target of the call
         } else if (call.data.length == 68) {
             bytes4 selector;
             bytes32 spender;
