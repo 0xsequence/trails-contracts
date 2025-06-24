@@ -15,6 +15,7 @@ library AnypayRelayDecoder {
     // -------------------------------------------------------------------------
 
     address private constant RELAY_RECEIVER = 0xa5F565650890fBA1824Ee0F21EbBbF660a179934;
+    address private constant RELAY_SOLVER = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
 
     // -------------------------------------------------------------------------
     // Structs
@@ -50,11 +51,18 @@ library AnypayRelayDecoder {
         returns (DecodedRelayData memory decodedData)
     {
         if (call.data.length == 32) {
-            // Native asset transfer
+            // Native asset transfer. This could be to the RelayReceiver contract, which then forwards
+            // to the RELAY_SOLVER, or it could be a direct transfer to another address (which should be the solver).
             decodedData.requestId = abi.decode(call.data, (bytes32));
             decodedData.token = address(0);
             decodedData.amount = call.value;
-            decodedData.receiver = call.to;
+            if (call.to == RELAY_RECEIVER) {
+                // If the transfer is to the RelayReceiver contract, the ultimate recipient is the RELAY_SOLVER.
+                decodedData.receiver = RELAY_SOLVER;
+            } else {
+                // Otherwise, the recipient is the direct target of the call.
+                decodedData.receiver = call.to;
+            }
         } else if (call.to == RELAY_RECEIVER) {
             if (call.data.length != 64) {
                 revert InvalidCalldataLength();

@@ -282,12 +282,12 @@ contract AnypayRelaySapientSignerTest is Test {
         // This test case is based on a failing transaction reported by a user.
         // It's designed to replicate the exact conditions of that failure for debugging.
 
-        // The user's payload has this as the recipient. For this test, we need to set the
-        // signer contract's relay solver to this address.
-        address relaySolverForThisTest = 0xa5F565650890fBA1824Ee0F21EbBbF660a179934;
-        AnypayRelaySapientSigner signerContractForThisTest = new AnypayRelaySapientSigner(relaySolverForThisTest);
+        // In the real scenario, the AnypayRelaySapientSigner is configured with the true
+        // RELAY_SOLVER address, not the intermediate RelayReceiver contract address.
+        address hardcodedRelaySolver = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
+        AnypayRelaySapientSigner signerContractForThisTest = new AnypayRelaySapientSigner(hardcodedRelaySolver);
 
-        // Recreate the payload from the user's report.
+        // Recreate the payload from the user's report. The `to` address is the RelayReceiver contract.
         // `_payload = {"kind":0,"noChainId":false,"calls":[{"to":"0xa5f565650890fba1824ee0f21ebbbf660a179934","value":"13835264386605673","data":"0x77245ba68c303ba96be68543927984459fc317401ddbb7277257ba12a31a8205","gasLimit":"0","delegateCall":false,"onlyFallback":false,"behaviorOnError":"0"}],"space":"0","nonce":"0","message":"0x","imageHash":"0x0000000000000000000000000000000000000000000000000000000000000000","digest":"0x0000000000000000000000000000000000000000000000000000000000000000","parentWallets":[]}`
         Payload.Decoded memory payload;
         payload.kind = Payload.KIND_TRANSACTIONS;
