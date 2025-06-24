@@ -54,7 +54,7 @@ library AnypayRelayDecoder {
             decodedData.requestId = abi.decode(call.data, (bytes32));
             decodedData.token = address(0);
             decodedData.amount = call.value;
-            decodedData.receiver = call.to; 
+            decodedData.receiver = call.to;
         } else if (call.to == RELAY_RECEIVER) {
             if (call.data.length != 64) {
                 revert InvalidCalldataLength();
