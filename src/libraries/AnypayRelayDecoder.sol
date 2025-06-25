@@ -64,6 +64,31 @@ library AnypayRelayDecoder {
                 decodedData.receiver = call.to;
             }
         } else if (call.to == RELAY_RECEIVER) {
+            if (call.data.length >= 4) {
+                bytes4 selector;
+                bytes memory data = call.data;
+
+                assembly {
+                    selector := mload(add(data, 0x20))
+                }
+
+                if (selector == 0xd948d468) { // forward(bytes)
+                    // Skip selector
+                    bytes memory dataToDecode = new bytes(call.data.length - 4);
+                    for (uint i = 0; i < dataToDecode.length; i++) {
+                        dataToDecode[i] = call.data[i + 4];
+                    }
+                    (bytes memory _data) = abi.decode(dataToDecode, (bytes));
+                    if (_data.length == 32) {
+                        decodedData.requestId = bytes32(_data);
+                        decodedData.token = address(0);
+                        decodedData.amount = call.value;
+                        decodedData.receiver = RELAY_SOLVER;
+                        return decodedData;
+                    }
+                }
+            }
+
             if (call.data.length != 64) {
                 revert InvalidCalldataLength();
             }

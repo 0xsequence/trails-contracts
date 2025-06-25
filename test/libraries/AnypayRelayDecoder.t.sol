@@ -47,6 +47,8 @@ contract AnypayRelayDecoderTest is Test {
     RelayDecoderTestHelper public helper;
     address public user = makeAddr("user");
     bytes32 public constant TEST_REQUEST_ID = keccak256("test_request_id");
+    address private constant RELAY_RECEIVER = 0xa5F565650890fBA1824Ee0F21EbBbF660a179934;
+    address private constant RELAY_SOLVER = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
 
     function setUp() public {
         helper = new RelayDecoderTestHelper();
@@ -203,5 +205,22 @@ contract AnypayRelayDecoderTest is Test {
         assertEq(decodedData.token, tokenAddress, "token should be the token address");
         assertEq(decodedData.amount, amount, "amount should be the approval amount");
         assertEq(decodedData.receiver, spender, "receiver should be the spender");
+    }
+
+    function testDecodeRelayCalldataForSapient_forward() public {
+        bytes32 requestId = keccak256("test_request_id");
+        uint256 value = 1 ether;
+
+        Payload.Call memory call;
+        call.to = RELAY_RECEIVER;
+        call.value = value;
+        call.data = abi.encodeWithSelector(0xd948d468, abi.encode(requestId));
+
+        AnypayRelayDecoder.DecodedRelayData memory decodedData = AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
+
+        assertEq(decodedData.requestId, requestId);
+        assertEq(decodedData.token, address(0));
+        assertEq(decodedData.amount, value);
+        assertEq(decodedData.receiver, RELAY_SOLVER);
     }
 }
