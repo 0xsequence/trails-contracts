@@ -72,10 +72,11 @@ library AnypayRelayDecoder {
                     selector := mload(add(data, 0x20))
                 }
 
-                if (selector == 0xd948d468) { // forward(bytes)
+                if (selector == 0xd948d468) {
+                    // forward(bytes)
                     // Skip selector
                     bytes memory dataToDecode = new bytes(call.data.length - 4);
-                    for (uint i = 0; i < dataToDecode.length; i++) {
+                    for (uint256 i = 0; i < dataToDecode.length; i++) {
                         dataToDecode[i] = call.data[i + 4];
                     }
                     (bytes memory _data) = abi.decode(dataToDecode, (bytes));
