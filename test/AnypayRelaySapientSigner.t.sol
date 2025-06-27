@@ -85,7 +85,7 @@ contract AnypayRelaySapientSignerTest is Test {
         // 8. Call recoverSapientSignature
         vm.prank(userWalletAddress);
         bytes32 actualExecutionInfoHash = signerContract.recoverSapientSignature(payload, combinedSignature);
-        
+
         // 9. Assert equality against the manually calculated hash
         bytes32 expectedExecutionInfoHash =
             AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestedExecutionInfos, userSignerAddress);
@@ -310,8 +310,12 @@ contract AnypayRelaySapientSignerTest is Test {
 
         // 4. Prepare attested execution info
         AnypayExecutionInfo[] memory attestedExecutionInfos = new AnypayExecutionInfo[](1);
-        attestedExecutionInfos[0] =
-            AnypayExecutionInfo({originToken: address(mockToken), amount: amount, originChainId: 1, destinationChainId: 1});
+        attestedExecutionInfos[0] = AnypayExecutionInfo({
+            originToken: address(mockToken),
+            amount: amount,
+            originChainId: 1,
+            destinationChainId: 1
+        });
 
         // 5. Sign the payload digest
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
