@@ -79,9 +79,9 @@ library AnypayRelayDecoder {
                     for (uint256 i = 0; i < dataToDecode.length; i++) {
                         dataToDecode[i] = call.data[i + 4];
                     }
-                    (bytes memory _data) = abi.decode(dataToDecode, (bytes));
-                    if (_data.length == 32) {
-                        decodedData.requestId = bytes32(_data);
+                    (bytes memory innerData) = abi.decode(dataToDecode, (bytes));
+                    if (innerData.length == 32) {
+                        decodedData.requestId = bytes32(innerData);
                         decodedData.token = address(0);
                         decodedData.amount = call.value;
                         decodedData.receiver = RELAY_SOLVER;
