@@ -322,6 +322,31 @@ contract AnypayRelaySapientSignerTest is Test {
         assertEq(actualExecutionInfoHash, digestToSign);
     }
 
+    function test_recoverSapientSignature_revert_from_trace() public {
+        address relaySolver = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
+        AnypayRelaySapientSigner signer = new AnypayRelaySapientSigner(relaySolver);
+
+        Payload.Decoded memory payload;
+        payload.kind = Payload.KIND_TRANSACTIONS;
+
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: 0x0D8775F648430679A709E98d2b0Cb6250d2887EF,
+            value: 0,
+            data: hex"095ea7b3000000000000000000000000aaaaaaae92cc1ceef79a038017889fdd26d23d4d0000000000000000000000000000000000000000000000000717fd85436c896b",
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_IGNORE_ERROR
+        });
+        payload.calls = calls;
+
+        bytes memory encodedSignature =
+            hex"00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000d8775f648430679a709e98d2b0cb6250d2887ef00000000000000000000000000000000000000000000000053444835ec5800000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000a4b100000000000000000000000000000000000000000000000000000000000000414f3f5fe2c5f92714a03af63036d46c05aba9fd888be3083ac541cf79c440b4d053b0dec5dcb50cdc0252915da40304f4f527fc636297afc4aa8fa83463fdfe080100000000000000000000000000000000000000000000000000000000000000";
+
+        signer.recoverSapientSignature(payload, encodedSignature);
+    }
+
     // Helper to construct Payload.Decoded more easily if needed later
     function _createPayload(Payload.Call[] memory _calls, uint256 _nonce, bool _noChainId)
         internal
