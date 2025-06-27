@@ -70,6 +70,22 @@ contract AnypayRelaySapientSigner is ISapient {
         view
         returns (bytes32)
     {
+        return _recoverSapientSignature(msg.sender, payload, encodedSignature);
+    }
+
+    /**
+     * @notice Recovers the signer of a sapient signature, intended for internal use.
+     * @dev This function is the internal implementation that backs the public-facing recoverSapientSignature.
+     * @param _wallet The address of the wallet.
+     * @param payload The decoded payload of the transaction.
+     * @param encodedSignature The signature to be verified.
+     * @return The digest of the sapient signature.
+     */
+    function _recoverSapientSignature(
+        address _wallet,
+        Payload.Decoded calldata payload,
+        bytes calldata encodedSignature
+    ) internal view returns (bytes32) {
         // 1. Validate outer Payload
         if (payload.kind != Payload.KIND_TRANSACTIONS) {
             revert InvalidPayloadKind();
@@ -89,30 +105,30 @@ contract AnypayRelaySapientSigner is ISapient {
         (AnypayExecutionInfo[] memory executionInfos, bytes memory attestationSignature, address attestationSigner) =
             decodeSignature(encodedSignature);
 
-        // 5. Ensure the number of execution infos matches the number of calls.
+        // 5. Recover the signer from the attestation signature
+        address recoveredAttestationSigner = payload.hashFor(_wallet).recover(attestationSignature);
+
+        // 6. Validate the attestation signer
+        if (recoveredAttestationSigner != attestationSigner) {
+            revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
+        }
+
+        // 7. Ensure the number of execution infos matches the number of calls.
         if (executionInfos.length != payload.calls.length) {
             revert MismatchedRelayInfoLengths();
         }
 
-        // 6. Construct the digest for attestation.
+        // 8. Construct the digest for attestation.
         bytes32 digest = executionInfos.getAnypayExecutionInfoHash(attestationSigner);
 
-        // 7. Recover the signer from the attestation.
-        // address recoveredAttestationSigner = digest.recover(attestationSignature);
-
-        // 8. Validate the recovered signer.
-        // if (recoveredAttestationSigner != attestationSigner) {
-        // revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
-        // }
-
         // 9. Validate all relay information provided.
-        // for (uint256 i = 0; i < payload.calls.length; i++) {
-        //     AnypayRelayDecoder.DecodedRelayData memory decodedData =
-        //         AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
-        //     if (executionInfos[i].originToken != decodedData.token || executionInfos[i].amount != decodedData.amount) {
-        //         revert InvalidAttestation();
-        //     }
-        // }
+        for (uint256 i = 0; i < payload.calls.length; i++) {
+            AnypayRelayDecoder.DecodedRelayData memory decodedData =
+                AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
+            if (executionInfos[i].originToken != decodedData.token || executionInfos[i].amount != decodedData.amount) {
+                revert InvalidAttestation();
+            }
+        }
 
         return digest;
     }
