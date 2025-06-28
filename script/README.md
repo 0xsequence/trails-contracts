@@ -111,21 +111,13 @@ Ensure the following environment variables are set, or provide them as command-l
 **Verification Command:**
 
 ```bash
-forge verify-contract 0xcaabd9c48b0c7651cbc9f201beb7b70c59662501 src/AnypayLiFiSapientSigner.sol:AnypayLiFiSapientSigner \
-    --chain 42161 \
+forge verify-contract 0x79c576E320170667d894FCB90C35eFa79515E814 src/AnypayRelaySapientSigner.sol:AnypayRelaySapientSigner \
+    --chain $CHAIN_ID \
+    --constructor-args $(cast abi-encode "constructor(address)" "0xf70da97812CB96acDF810712Aa562db8dfA3dbEF") \
     --etherscan-api-key $ETHERSCAN_API_KEY \
-    --verifier-url "https://api.arbiscan.io/api" \
-    --constructor-args $(cast abi-encode "constructor(address)" "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE") \
-    --compiler-version 0.8.17 \
-    --num-of-optimizations 200 \
+    --verifier-url $VERIFIER_URL \
+    --compiler-version 0.8.30 \
     --watch
-    # Add --via-ir if you compiled with it during deployment (foundry.toml has viaIR = true)
-    # --via-ir 
-```
-
-```fish
-forge verify-contract 0xcaabd9c48b0c7651cbc9f201beb7b70c59662501 AnypayLiFiSapientSigner --verifier-url https://api.arbiscan.io/api
- --etherscan-api-key HESC9U9BCB7PIEJVSNDEAF8NPHWJR9Y7K1 --watch --chain-id 42161 --constructor-args 0000000000000000000000001231deb6f5749ef6ce6943a275a1d3e7486f4eae
 ```
 
 **Explanation of flags:**

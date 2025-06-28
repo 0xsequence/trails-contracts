@@ -6,6 +6,7 @@ import {ECDSA} from "solady/utils/ECDSA.sol";
 import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title AnypayRelayValidator
@@ -22,6 +23,8 @@ library AnypayRelayValidator {
     // -------------------------------------------------------------------------
     // Constants
     // -------------------------------------------------------------------------
+
+    address public constant RELAY_APPROVAL_PROXY = 0xaaaaaaae92Cc1cEeF79a038017889fDd26D23D4d;
 
     // -------------------------------------------------------------------------
     // Errors
@@ -45,7 +48,7 @@ library AnypayRelayValidator {
      */
     function isValidRelayRecipient(Payload.Call memory call, address relaySolver) internal pure returns (bool) {
         AnypayRelayDecoder.DecodedRelayData memory decodedData = AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
-        return decodedData.receiver == relaySolver;
+        return decodedData.receiver == relaySolver || decodedData.receiver == RELAY_APPROVAL_PROXY;
     }
 
     /**
