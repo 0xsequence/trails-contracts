@@ -4,7 +4,8 @@ pragma solidity ^0.8.18;
 
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-import {ECDSA} from "solady/utils/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
 import {AnypayExecutionInfo} from "@/interfaces/AnypayExecutionInfo.sol";
 import {AnypayRelayValidator} from "@/libraries/AnypayRelayValidator.sol";
@@ -25,6 +26,7 @@ contract AnypayRelaySapientSigner is ISapient {
     // -------------------------------------------------------------------------
 
     using Payload for Payload.Decoded;
+    using MessageHashUtils for bytes32;
     using ECDSA for bytes32;
     using AnypayExecutionInfoParams for AnypayExecutionInfo[];
     using AnypayRelayValidator for AnypayExecutionInfo;
@@ -90,7 +92,7 @@ contract AnypayRelaySapientSigner is ISapient {
             decodeSignature(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
-        address recoveredAttestationSigner = payload.hashFor(address(0)).recover(attestationSignature);
+        address recoveredAttestationSigner = payload.hashFor(address(0)).toEthSignedMessageHash().recover(attestationSignature);
 
         // 6. Validate the attestation signer
         if (recoveredAttestationSigner != attestationSigner) {
