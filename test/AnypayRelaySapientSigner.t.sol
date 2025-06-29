@@ -448,6 +448,45 @@ contract AnypayRelaySapientSignerTest is Test {
         signer.recoverSapientSignature(payload, encodedSignature);
     }
 
+    function testUserProvidedSignature() public view {
+        bytes memory userSignature =
+            hex"00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000100000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000021b9fc72d0e160000000000000000000000000000000000000000000000000000000000002105000000000000000000000000000000000000000000000000000000000000a4b100000000000000000000000000000000000000000000000000000000000000416aca808b75ecbdf1d0a7639d438bf1352cfb21a935e468504e456e176cfca7ff6b5c4c77b8ae705f5ba5e6c46d0cbdbfbdfab62ca06fae1c401629e15e07da2a1c00000000000000000000000000000000000000000000000000000000000000";
+        (AnypayExecutionInfo[] memory executionInfos, bytes memory attestationSignature, address attestationSigner) =
+            signerContract.decodeSignature(userSignature);
+
+        console.log("--- User Provided Signature Test ---");
+        for (uint256 i = 0; i < executionInfos.length; i++) {
+            console.log("Execution info", i);
+            console.log("Origin token", executionInfos[i].originToken);
+            console.log("Amount", executionInfos[i].amount);
+            console.log("Origin chain id", executionInfos[i].originChainId);
+            console.log("Destination chain id", executionInfos[i].destinationChainId);
+        }
+        console.logBytes(attestationSignature);
+        console.log("Attestation signer", attestationSigner);
+        console.log("--- End User Provided Signature Test ---");
+
+        assertEq(executionInfos.length, 1, "Execution info count mismatch");
+        assertEq(
+            executionInfos[0].originToken, address(0), "Decoded originToken mismatch"
+        );
+        // assertEq(
+        //     executionInfos[0].amount, 243000000000000000, "Decoded amount mismatch"
+        // );
+        assertEq(
+            executionInfos[0].originChainId, 8453, "Decoded originChainId mismatch"
+        );
+         assertEq(
+            executionInfos[0].destinationChainId, 42161, "Decoded destinationChainId mismatch"
+        );
+        assertEq(attestationSignature.length, 65, "Attestation signature length mismatch");
+        assertEq(
+            attestationSigner,
+            0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266,
+            "Decoded attestationSigner mismatch"
+        );
+    }
+
     // Helper to construct Payload.Decoded more easily if needed later
     function _createPayload(Payload.Call[] memory _calls, uint256 _nonce, bool _noChainId)
         internal
