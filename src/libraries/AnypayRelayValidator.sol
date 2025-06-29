@@ -25,6 +25,7 @@ library AnypayRelayValidator {
     // -------------------------------------------------------------------------
 
     address public constant RELAY_APPROVAL_PROXY = 0xaaaaaaae92Cc1cEeF79a038017889fDd26D23D4d;
+    address public constant RELAY_RECEIVER = 0xa5F565650890fBA1824Ee0F21EbBbF660a179934;
 
     // -------------------------------------------------------------------------
     // Errors
@@ -48,7 +49,9 @@ library AnypayRelayValidator {
      */
     function isValidRelayRecipient(Payload.Call memory call, address relaySolver) internal pure returns (bool) {
         AnypayRelayDecoder.DecodedRelayData memory decodedData = AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
-        return decodedData.receiver == relaySolver || decodedData.receiver == RELAY_APPROVAL_PROXY;
+        console.log("decodedData.receiver", decodedData.receiver);
+        return decodedData.receiver == relaySolver || decodedData.receiver == RELAY_APPROVAL_PROXY
+            || decodedData.receiver == RELAY_RECEIVER;
     }
 
     /**
