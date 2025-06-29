@@ -64,9 +64,9 @@ library AnypayRelayDecoder {
                 decodedData.receiver = call.to;
             }
         } else if (call.to == RELAY_RECEIVER) {
+            bytes memory data = call.data;
             if (call.data.length >= 4) {
                 bytes4 selector;
-                bytes memory data = call.data;
 
                 assembly {
                     selector := mload(add(data, 0x20))
@@ -94,7 +94,6 @@ library AnypayRelayDecoder {
                 revert InvalidCalldataLength();
             }
 
-            bytes memory data = call.data;
             bytes32 requestId;
             uint256 receiverWord;
 
@@ -113,6 +112,7 @@ library AnypayRelayDecoder {
             bytes32 spender;
             uint256 amount;
             bytes memory data = call.data;
+
             assembly {
                 let d := add(data, 0x20)
                 selector := mload(d)

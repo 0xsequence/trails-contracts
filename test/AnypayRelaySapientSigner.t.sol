@@ -416,6 +416,7 @@ contract AnypayRelaySapientSignerTest is Test {
 
         bytes32 digestToSign =
             AnypayExecutionInfoParams.getAnypayExecutionInfoHash(attestedExecutionInfos, expectedSigner);
+        console.logBytes32(digestToSign);
 
         // TODO: Fix this test
         // bytes32 actualExecutionInfoHash = signerContractForThisTest.recoverSapientSignature(payload, signature);
