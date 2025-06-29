@@ -49,7 +49,6 @@ library AnypayRelayValidator {
      */
     function isValidRelayRecipient(Payload.Call memory call, address relaySolver) internal pure returns (bool) {
         AnypayRelayDecoder.DecodedRelayData memory decodedData = AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
-        console.log("decodedData.receiver", decodedData.receiver);
         return decodedData.receiver == relaySolver || decodedData.receiver == RELAY_APPROVAL_PROXY
             || decodedData.receiver == RELAY_RECEIVER;
     }
