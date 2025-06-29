@@ -467,24 +467,14 @@ contract AnypayRelaySapientSignerTest is Test {
         console.log("--- End User Provided Signature Test ---");
 
         assertEq(executionInfos.length, 1, "Execution info count mismatch");
-        assertEq(
-            executionInfos[0].originToken, address(0), "Decoded originToken mismatch"
-        );
+        assertEq(executionInfos[0].originToken, address(0), "Decoded originToken mismatch");
         // assertEq(
         //     executionInfos[0].amount, 243000000000000000, "Decoded amount mismatch"
         // );
-        assertEq(
-            executionInfos[0].originChainId, 8453, "Decoded originChainId mismatch"
-        );
-         assertEq(
-            executionInfos[0].destinationChainId, 42161, "Decoded destinationChainId mismatch"
-        );
+        assertEq(executionInfos[0].originChainId, 8453, "Decoded originChainId mismatch");
+        assertEq(executionInfos[0].destinationChainId, 42161, "Decoded destinationChainId mismatch");
         assertEq(attestationSignature.length, 65, "Attestation signature length mismatch");
-        assertEq(
-            attestationSigner,
-            0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266,
-            "Decoded attestationSigner mismatch"
-        );
+        assertEq(attestationSigner, 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, "Decoded attestationSigner mismatch");
     }
 
     // Helper to construct Payload.Decoded more easily if needed later

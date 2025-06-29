@@ -70,22 +70,6 @@ contract AnypayRelaySapientSigner is ISapient {
         view
         returns (bytes32)
     {
-        return _recoverSapientSignature(msg.sender, payload, encodedSignature);
-    }
-
-    /**
-     * @notice Recovers the signer of a sapient signature, intended for internal use.
-     * @dev This function is the internal implementation that backs the public-facing recoverSapientSignature.
-     * @param _wallet The address of the wallet.
-     * @param payload The decoded payload of the transaction.
-     * @param encodedSignature The signature to be verified.
-     * @return The digest of the sapient signature.
-     */
-    function _recoverSapientSignature(
-        address _wallet,
-        Payload.Decoded calldata payload,
-        bytes calldata encodedSignature
-    ) internal view returns (bytes32) {
         // 1. Validate outer Payload
         if (payload.kind != Payload.KIND_TRANSACTIONS) {
             revert InvalidPayloadKind();
@@ -106,7 +90,7 @@ contract AnypayRelaySapientSigner is ISapient {
             decodeSignature(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
-        address recoveredAttestationSigner = payload.hashFor(_wallet).recover(attestationSignature);
+        address recoveredAttestationSigner = payload.hashFor(address(0)).recover(attestationSignature);
 
         // 6. Validate the attestation signer
         if (recoveredAttestationSigner != attestationSigner) {
