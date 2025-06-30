@@ -74,7 +74,8 @@ contract AnypayRelaySapientSigner is ISapient {
             decodeSignature(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
-        address recoveredAttestationSigner = payload.hashFor(address(0)).toEthSignedMessageHash().recover(attestationSignature);
+        address recoveredAttestationSigner =
+            payload.hashFor(address(0)).toEthSignedMessageHash().recover(attestationSignature);
 
         // 6. Validate the attestation signer
         if (recoveredAttestationSigner != attestationSigner) {
