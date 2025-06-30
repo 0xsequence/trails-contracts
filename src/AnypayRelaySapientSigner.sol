@@ -94,7 +94,7 @@ contract AnypayRelaySapientSigner is ISapient {
         for (uint256 i = 0; i < payload.calls.length; i++) {
             AnypayRelayDecoder.DecodedRelayData memory decodedData =
                 AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
-            if (executionInfos[i].originToken != decodedData.token || executionInfos[i].amount != decodedData.amount) {
+            if (executionInfos[i].originToken != decodedData.token || executionInfos[i].amount < decodedData.amount) {
                 revert InvalidAttestation();
             }
         }
