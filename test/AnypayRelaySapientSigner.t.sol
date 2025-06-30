@@ -268,13 +268,13 @@ contract AnypayRelaySapientSignerTest is Test {
         AnypayExecutionInfo[] memory attestedExecutionInfos = new AnypayExecutionInfo[](2);
         attestedExecutionInfos[0] = AnypayExecutionInfo({
             originToken: address(mockToken),
-            amount: amount2,
+            amount: amount1,
             originChainId: block.chainid,
             destinationChainId: block.chainid
         });
         attestedExecutionInfos[1] = AnypayExecutionInfo({
             originToken: address(mockToken),
-            amount: amount1,
+            amount: amount2,
             originChainId: block.chainid,
             destinationChainId: block.chainid
         });
