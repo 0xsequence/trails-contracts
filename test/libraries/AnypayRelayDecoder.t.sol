@@ -58,7 +58,7 @@ contract AnypayRelayDecoderTest is Test {
     // Native Asset Transfer Tests
     // -------------------------------------------------------------------------
 
-    function test_decodeForSapient_native_success_as_receiver() public {
+    function test_decodeForSapient_native_success_as_receiver() public view {
         uint256 sentValue = 1 ether;
         bytes memory calldataToDecode = abi.encode(TEST_REQUEST_ID);
 
@@ -139,7 +139,7 @@ contract AnypayRelayDecoderTest is Test {
         assertEq(decodedData.receiver, address(this), "receiver should be msg.sender");
     }
 
-    function testFuzz_erc20Transfer(address receiver, uint128 amount, bytes32 requestId) public {
+    function testFuzz_erc20Transfer(address receiver, uint128 amount, bytes32 requestId) public view {
         vm.assume(receiver != address(0));
         vm.assume(amount > 0);
         vm.assume(requestId != bytes32(0));
@@ -192,7 +192,7 @@ contract AnypayRelayDecoderTest is Test {
         assertEq(decodedData.receiver, receiver, "receiver mismatch");
     }
 
-    function test_decodeForSapient_erc20_approve() public {
+    function test_decodeForSapient_erc20_approve() public view {
         address tokenAddress = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
         address spender = 0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE;
         uint256 amount = 0x7fffffffffffffff;
@@ -207,7 +207,7 @@ contract AnypayRelayDecoderTest is Test {
         assertEq(decodedData.receiver, spender, "receiver should be the spender");
     }
 
-    function testDecodeRelayCalldataForSapient_forward() public {
+    function testDecodeRelayCalldataForSapient_forward() public pure {
         bytes32 requestId = keccak256("test_request_id");
         uint256 value = 1 ether;
 

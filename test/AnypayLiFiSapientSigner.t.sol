@@ -99,14 +99,16 @@ contract AnypayLiFiSapientSignerTest is Test {
         // 3. Construct the Payload.Decoded
         Payload.Decoded memory payload = _createPayload(calls, 1, false);
 
-        // 4. Generate the EIP-712 digest.
-        bytes32 digestToSign = payload.hashFor(userWalletAddress);
-
+        // 4. Prepare LifiInfos for encoding
         AnypayExecutionInfo[] memory expectedLifiInfos = new AnypayExecutionInfo[](1);
         expectedLifiInfos[0] = AnypayLiFiInterpreter.getOriginSwapInfo(mockBridgeData, mockSwapData);
 
+        // 5. Generate the EIP-712 digest.
+        bytes32 digestToSign = payload.hashFor(address(0));
+        bytes32 digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digestToSign));
+
         // 6. Sign the digest
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digest);
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
 
         // 7. Encode LifiInfos, ECDSA signature, and strategy together
@@ -163,14 +165,15 @@ contract AnypayLiFiSapientSignerTest is Test {
         Payload.Decoded memory payload = _createPayload(calls, 2, false);
 
         // 5. Generate the EIP-712 digest.
-        bytes32 digestToSign = payload.hashFor(userWalletAddress);
+        bytes32 digestToSign = payload.hashFor(address(0));
 
         // 6. Prepare LifiInfos for encoding
         AnypayExecutionInfo[] memory expectedLifiInfos = new AnypayExecutionInfo[](1);
         expectedLifiInfos[0] = AnypayLiFiInterpreter.getOriginSwapInfo(bridgeOnlyData, emptySwapData);
 
         // 7. Sign the digest
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digestToSign);
+        bytes32 digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digestToSign));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userSignerPrivateKey, digest);
         bytes memory ecdsaSignature = abi.encodePacked(r, s, v);
 
         // 8. Encode LifiInfos, ECDSA signature, and strategy together
