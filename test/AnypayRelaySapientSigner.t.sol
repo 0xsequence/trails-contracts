@@ -29,7 +29,7 @@ contract AnypayRelaySapientSignerTest is Test {
     function setUp() public {
         relaySolverAddress = makeAddr("relaySolver");
         // The AnypayRelaySapientSigner is configured with the address of the relay solver.
-        signerContract = new AnypayRelaySapientSigner(relaySolverAddress);
+        signerContract = new AnypayRelaySapientSigner();
 
         userSignerPrivateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
         userSignerAddress = vm.addr(userSignerPrivateKey);
@@ -384,8 +384,7 @@ contract AnypayRelaySapientSignerTest is Test {
 
         // In the real scenario, the AnypayRelaySapientSigner is configured with the true
         // RELAY_SOLVER address, not the intermediate RelayReceiver contract address.
-        address hardcodedRelaySolver = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
-        AnypayRelaySapientSigner signerContractForThisTest = new AnypayRelaySapientSigner(hardcodedRelaySolver);
+        AnypayRelaySapientSigner signerContractForThisTest = new AnypayRelaySapientSigner();
 
         // Recreate the payload from the user's report. The `to` address is the RelayReceiver contract.
         // `_payload = {"kind":0,"noChainId":false,"calls":[{"to":"0xa5f565650890fba1824ee0f21ebbbf660a179934","value":"13835264386605673","data":"0x77245ba68c303ba96be68543927984459fc317401ddbb7277257ba12a31a8205","gasLimit":"0","delegateCall":false,"onlyFallback":false,"behaviorOnError":"0"}],"space":"0","nonce":"0","message":"0x","imageHash":"0x0000000000000000000000000000000000000000000000000000000000000000","digest":"0x0000000000000000000000000000000000000000000000000000000000000000","parentWallets":[]}`
@@ -424,8 +423,7 @@ contract AnypayRelaySapientSignerTest is Test {
     }
 
     function test_recoverSapientSignature_revert_from_trace() public {
-        address relaySolver = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
-        AnypayRelaySapientSigner signer = new AnypayRelaySapientSigner(relaySolver);
+        AnypayRelaySapientSigner signer = new AnypayRelaySapientSigner();
 
         Payload.Decoded memory payload;
         payload.kind = Payload.KIND_TRANSACTIONS;

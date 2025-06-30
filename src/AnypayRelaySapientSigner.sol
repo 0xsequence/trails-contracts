@@ -33,34 +33,16 @@ contract AnypayRelaySapientSigner is ISapient {
     using AnypayExecutionInfoInterpreter for AnypayExecutionInfo[];
 
     // -------------------------------------------------------------------------
-    // Immutables
-    // -------------------------------------------------------------------------
-
-    address public immutable RELAY_SOLVER;
-
-    // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
 
     error InvalidTargetAddress(address expectedTarget, address actualTarget);
     error InvalidAttestation();
-    error InvalidRelaySolverAddress();
     error InvalidCallsLength();
     error InvalidPayloadKind();
     error InvalidRelayRecipient();
     error InvalidAttestationSigner(address expectedSigner, address actualSigner);
     error MismatchedRelayInfoLengths();
-
-    // -------------------------------------------------------------------------
-    // Constructor
-    // -------------------------------------------------------------------------
-
-    constructor(address _relaySolver) {
-        if (_relaySolver == address(0)) {
-            revert InvalidRelaySolverAddress();
-        }
-        RELAY_SOLVER = _relaySolver;
-    }
 
     // -------------------------------------------------------------------------
     // Functions
@@ -83,7 +65,7 @@ contract AnypayRelaySapientSigner is ISapient {
         }
 
         // 3. Validate relay recipients
-        if (!AnypayRelayValidator.areValidRelayRecipients(payload.calls, RELAY_SOLVER)) {
+        if (!AnypayRelayValidator.areValidRelayRecipients(payload.calls)) {
             revert InvalidRelayRecipient();
         }
 

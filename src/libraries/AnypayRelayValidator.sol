@@ -24,6 +24,7 @@ library AnypayRelayValidator {
     // Constants
     // -------------------------------------------------------------------------
 
+    address public constant RELAY_SOLVER = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
     address public constant RELAY_APPROVAL_PROXY = 0xaaaaaaae92Cc1cEeF79a038017889fDd26D23D4d;
     address public constant RELAY_RECEIVER = 0xa5F565650890fBA1824Ee0F21EbBbF660a179934;
 
@@ -44,12 +45,11 @@ library AnypayRelayValidator {
      *      the ultimate receiver of the assets (either native or ERC20) and checks if it
      *      matches the provided `relaySolver` address.
      * @param call The `Payload.Call` struct representing a single transaction in the payload.
-     * @param relaySolver The address of the authorized relay solver.
      * @return True if the recipient is the `relaySolver`, false otherwise.
      */
-    function isValidRelayRecipient(Payload.Call memory call, address relaySolver) internal pure returns (bool) {
+    function isValidRelayRecipient(Payload.Call memory call) internal pure returns (bool) {
         AnypayRelayDecoder.DecodedRelayData memory decodedData = AnypayRelayDecoder.decodeRelayCalldataForSapient(call);
-        return decodedData.receiver == relaySolver || decodedData.receiver == RELAY_APPROVAL_PROXY
+        return decodedData.receiver == RELAY_SOLVER || decodedData.receiver == RELAY_APPROVAL_PROXY
             || decodedData.receiver == RELAY_RECEIVER;
     }
 
@@ -58,15 +58,14 @@ library AnypayRelayValidator {
      * @dev Iterates through an array of `Payload.Call` structs and uses `isValidRelayRecipient`
      *      to verify each one. The function returns false if the array is empty.
      * @param calls The array of `Payload.Call` structs to validate.
-     * @param relaySolver The address of the authorized relay solver.
      * @return True if all calls are to the `relaySolver`, false otherwise.
      */
-    function areValidRelayRecipients(Payload.Call[] memory calls, address relaySolver) internal pure returns (bool) {
+    function areValidRelayRecipients(Payload.Call[] memory calls) internal pure returns (bool) {
         if (calls.length == 0) {
             return false;
         }
         for (uint256 i = 0; i < calls.length; i++) {
-            if (!isValidRelayRecipient(calls[i], relaySolver)) {
+            if (!isValidRelayRecipient(calls[i])) {
                 return false;
             }
         }
