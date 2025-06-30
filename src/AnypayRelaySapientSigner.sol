@@ -8,8 +8,9 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
 import {AnypayExecutionInfo} from "@/interfaces/AnypayExecutionInfo.sol";
+import {AnypayRelayInfo} from "@/interfaces/AnypayRelay.sol";
 import {AnypayRelayValidator} from "@/libraries/AnypayRelayValidator.sol";
-import {AnypayExecutionInfoInterpreter} from "@/libraries/AnypayExecutionInfoInterpreter.sol";
+import {AnypayRelayInterpreter} from "@/libraries/AnypayRelayInterpreter.sol";
 import {AnypayExecutionInfoParams} from "@/libraries/AnypayExecutionInfoParams.sol";
 
 /**
@@ -30,7 +31,6 @@ contract AnypayRelaySapientSigner is ISapient {
     using ECDSA for bytes32;
     using AnypayExecutionInfoParams for AnypayExecutionInfo[];
     using AnypayRelayValidator for AnypayExecutionInfo;
-    using AnypayExecutionInfoInterpreter for AnypayExecutionInfo[];
 
     // -------------------------------------------------------------------------
     // Errors
@@ -90,13 +90,16 @@ contract AnypayRelaySapientSigner is ISapient {
         // 8. Construct the digest for attestation.
         bytes32 digest = executionInfos.getAnypayExecutionInfoHash(attestationSigner);
 
-        // 9. Validate all relay information provided.
+        // 9. Decode all relay calls to get inferred relay information
+        AnypayRelayDecoder.DecodedRelayData[] memory inferredRelayData =
+            new AnypayRelayDecoder.DecodedRelayData[](payload.calls.length);
         for (uint256 i = 0; i < payload.calls.length; i++) {
-            AnypayRelayDecoder.DecodedRelayData memory decodedData =
-                AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
-            if (executionInfos[i].originToken != decodedData.token || executionInfos[i].amount < decodedData.amount) {
-                revert InvalidAttestation();
-            }
+            inferredRelayData[i] = AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
+        }
+
+        // 10. Validate the attestations against the inferred relay information
+        if (!AnypayRelayInterpreter.validateRelayInfos(inferredRelayData, executionInfos)) {
+            revert InvalidAttestation();
         }
 
         return digest;
