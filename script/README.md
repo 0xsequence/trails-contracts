@@ -111,9 +111,8 @@ Ensure the following environment variables are set, or provide them as command-l
 **Verification Command:**
 
 ```bash
-forge verify-contract 0x0856B1D6F1BaCE082df55FFe2A616E7106e29A7C src/AnypayRelaySapientSigner.sol:AnypayRelaySapientSigner \
+forge verify-contract 0x7B136DCF6345dFE473ceC99e4Da862a82a5C38f5 src/AnypayRelaySapientSigner.sol:AnypayRelaySapientSigner \
     --chain $CHAIN_ID \
-    --constructor-args $(cast abi-encode "constructor(address)" "0xf70da97812CB96acDF810712Aa562db8dfA3dbEF") \
     --etherscan-api-key $ETHERSCAN_API_KEY \
     --verifier-url $VERIFIER_URL \
     --compiler-version 0.8.30 \
