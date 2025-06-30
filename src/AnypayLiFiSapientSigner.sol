@@ -3,7 +3,8 @@
 pragma solidity ^0.8.18;
 
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-import {ECDSA} from "solady/utils/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
@@ -27,6 +28,7 @@ contract AnypayLiFiSapientSigner is ISapient {
     // -------------------------------------------------------------------------
 
     using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
     using Payload for Payload.Decoded;
     using AnypayLiFiFlagDecoder for bytes;
     using AnypayExecutionInfoInterpreter for AnypayExecutionInfo[];
@@ -97,7 +99,8 @@ contract AnypayLiFiSapientSigner is ISapient {
         ) = decodeSignature(encodedSignature);
 
         // 5. Recover the signer from the attestation signature
-        address recoveredAttestationSigner = payload.hashFor(address(0)).recover(attestationSignature);
+        address recoveredAttestationSigner =
+            payload.hashFor(address(0)).toEthSignedMessageHash().recover(attestationSignature);
 
         // 6. Validate the attestation signer
         if (recoveredAttestationSigner != attestationSigner) {
