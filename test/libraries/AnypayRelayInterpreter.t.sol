@@ -43,8 +43,12 @@ contract AnypayRelayInterpreterTest is Test {
     /// forge-config: default.allow_internal_expect_revert = true
     function test_ValidateRelayInfos_MismatchedLengths_Reverts() public {
         _inferredInfos = new AnypayRelayDecoder.DecodedRelayData[](1);
-        _inferredInfos[0] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 100, receiver: MOCK_TARGET});
+        _inferredInfos[0] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 100,
+            receiver: MOCK_TARGET
+        });
         _attestedInfos = new AnypayExecutionInfo[](0);
 
         vm.expectRevert(AnypayRelayInterpreter.MismatchedRelayInfoLengths.selector);
@@ -54,8 +58,12 @@ contract AnypayRelayInterpreterTest is Test {
     /// forge-config: default.allow_internal_expect_revert = true
     function test_ValidateRelayInfos_InferredZeroMinAmount_Reverts() public {
         _inferredInfos = new AnypayRelayDecoder.DecodedRelayData[](1);
-        _inferredInfos[0] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 0, receiver: MOCK_TARGET});
+        _inferredInfos[0] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 0,
+            receiver: MOCK_TARGET
+        });
         _attestedInfos = new AnypayExecutionInfo[](1);
         _attestedInfos[0] = AnypayExecutionInfo({
             originToken: TOKEN_A,
@@ -70,8 +78,12 @@ contract AnypayRelayInterpreterTest is Test {
 
     function test_ValidateRelayInfos_Valid_SingleMatch() public {
         _inferredInfos = new AnypayRelayDecoder.DecodedRelayData[](1);
-        _inferredInfos[0] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 100, receiver: MOCK_TARGET});
+        _inferredInfos[0] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 100,
+            receiver: MOCK_TARGET
+        });
         _attestedInfos = new AnypayExecutionInfo[](1);
         _attestedInfos[0] = AnypayExecutionInfo({
             originToken: TOKEN_A,
@@ -85,8 +97,12 @@ contract AnypayRelayInterpreterTest is Test {
 
     function test_ValidateRelayInfos_Valid_SingleMatch_InferredAmountHigher() public {
         _inferredInfos = new AnypayRelayDecoder.DecodedRelayData[](1);
-        _inferredInfos[0] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 200, receiver: MOCK_TARGET});
+        _inferredInfos[0] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 200,
+            receiver: MOCK_TARGET
+        });
         _attestedInfos = new AnypayExecutionInfo[](1);
         _attestedInfos[0] = AnypayExecutionInfo({
             originToken: TOKEN_A,
@@ -101,8 +117,12 @@ contract AnypayRelayInterpreterTest is Test {
     /// forge-config: default.allow_internal_expect_revert = true
     function test_ValidateRelayInfos_NoMatchingInferred_Reverts() public {
         _inferredInfos = new AnypayRelayDecoder.DecodedRelayData[](1);
-        _inferredInfos[0] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 100, receiver: MOCK_TARGET});
+        _inferredInfos[0] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 100,
+            receiver: MOCK_TARGET
+        });
         _attestedInfos = new AnypayExecutionInfo[](1);
         _attestedInfos[0] = AnypayExecutionInfo({
             originToken: TOKEN_B,
@@ -122,12 +142,19 @@ contract AnypayRelayInterpreterTest is Test {
     /// forge-config: default.allow_internal_expect_revert = true
     function test_ValidateRelayInfos_InferredAmountTooHigh_Reverts() public {
         _inferredInfos = new AnypayRelayDecoder.DecodedRelayData[](1);
-        _inferredInfos[0] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 100, receiver: MOCK_TARGET});
+        _inferredInfos[0] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 100,
+            receiver: MOCK_TARGET
+        });
         _attestedInfos = new AnypayExecutionInfo[](1);
-        _attestedInfos[0] = AnypayExecutionInfo(
-            {originToken: TOKEN_A, amount: 50, originChainId: block.chainid, destinationChainId: MOCK_DEST_CHAIN_ID}
-        );
+        _attestedInfos[0] = AnypayExecutionInfo({
+            originToken: TOKEN_A,
+            amount: 50,
+            originChainId: block.chainid,
+            destinationChainId: MOCK_DEST_CHAIN_ID
+        });
 
         vm.expectRevert(abi.encodeWithSelector(AnypayRelayInterpreter.InferredAmountTooHigh.selector, 100, 50));
         validateRelayInfosWrapper(_inferredInfos, _attestedInfos);
@@ -135,10 +162,18 @@ contract AnypayRelayInterpreterTest is Test {
 
     function test_ValidateRelayInfos_MultipleEntries_AllMatch() public {
         _inferredInfos = new AnypayRelayDecoder.DecodedRelayData[](2);
-        _inferredInfos[0] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 200, receiver: MOCK_TARGET});
-        _inferredInfos[1] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_B, amount: 100, receiver: MOCK_TARGET});
+        _inferredInfos[0] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 200,
+            receiver: MOCK_TARGET
+        });
+        _inferredInfos[1] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_B,
+            amount: 100,
+            receiver: MOCK_TARGET
+        });
 
         _attestedInfos = new AnypayExecutionInfo[](2);
         _attestedInfos[0] = AnypayExecutionInfo({
@@ -147,8 +182,12 @@ contract AnypayRelayInterpreterTest is Test {
             originChainId: block.chainid,
             destinationChainId: MOCK_DEST_CHAIN_ID
         });
-        _attestedInfos[1] =
-            AnypayExecutionInfo({originToken: TOKEN_B, amount: 100, originChainId: block.chainid, destinationChainId: OTHER_CHAIN_ID});
+        _attestedInfos[1] = AnypayExecutionInfo({
+            originToken: TOKEN_B,
+            amount: 100,
+            originChainId: block.chainid,
+            destinationChainId: OTHER_CHAIN_ID
+        });
 
         validateRelayInfosWrapper(_inferredInfos, _attestedInfos);
     }
@@ -156,10 +195,18 @@ contract AnypayRelayInterpreterTest is Test {
     /// forge-config: default.allow_internal_expect_revert = true
     function test_ValidateRelayInfos_MultipleEntries_NoMatchForOne_Reverts() public {
         _inferredInfos = new AnypayRelayDecoder.DecodedRelayData[](2);
-        _inferredInfos[0] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 100, receiver: MOCK_TARGET});
-        _inferredInfos[1] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 100, receiver: MOCK_TARGET});
+        _inferredInfos[0] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 100,
+            receiver: MOCK_TARGET
+        });
+        _inferredInfos[1] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 100,
+            receiver: MOCK_TARGET
+        });
 
         _attestedInfos = new AnypayExecutionInfo[](2);
         _attestedInfos[0] = AnypayExecutionInfo({
@@ -168,9 +215,12 @@ contract AnypayRelayInterpreterTest is Test {
             originChainId: block.chainid,
             destinationChainId: MOCK_DEST_CHAIN_ID
         });
-        _attestedInfos[1] = AnypayExecutionInfo(
-            {originToken: TOKEN_B, amount: 150, originChainId: block.chainid, destinationChainId: OTHER_CHAIN_ID}
-        );
+        _attestedInfos[1] = AnypayExecutionInfo({
+            originToken: TOKEN_B,
+            amount: 150,
+            originChainId: block.chainid,
+            destinationChainId: OTHER_CHAIN_ID
+        });
 
         vm.expectRevert(
             abi.encodeWithSelector(AnypayRelayInterpreter.NoMatchingInferredInfoFound.selector, OTHER_CHAIN_ID, TOKEN_B)
@@ -181,10 +231,18 @@ contract AnypayRelayInterpreterTest is Test {
     /// forge-config: default.allow_internal_expect_revert = true
     function test_ValidateRelayInfos_MultipleEntries_Uniqueness_RevertsIfInferredUsedTwice() public {
         _inferredInfos = new AnypayRelayDecoder.DecodedRelayData[](2);
-        _inferredInfos[0] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_A, amount: 300, receiver: MOCK_TARGET});
-        _inferredInfos[1] =
-            AnypayRelayDecoder.DecodedRelayData({requestId: bytes32(0), token: TOKEN_B, amount: 300, receiver: MOCK_TARGET});
+        _inferredInfos[0] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 300,
+            receiver: MOCK_TARGET
+        });
+        _inferredInfos[1] = AnypayRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_B,
+            amount: 300,
+            receiver: MOCK_TARGET
+        });
 
         _attestedInfos = new AnypayExecutionInfo[](2);
         _attestedInfos[0] = AnypayExecutionInfo({
