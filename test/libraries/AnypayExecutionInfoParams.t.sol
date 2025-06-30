@@ -30,6 +30,20 @@ contract AnypayExecutionInfoParamsTest is Test {
         assertEq(hash, expectedHash, "LiFi info hash mismatch");
     }
 
+    function testGetAnypayExecutionInfoHash_WithUserParams() public pure {
+        AnypayExecutionInfo[] memory executionInfos = new AnypayExecutionInfo[](1);
+        executionInfos[0] = AnypayExecutionInfo({
+            originToken: 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9,
+            amount: 1052844,
+            originChainId: 42161,
+            destinationChainId: 8453
+        });
+        address attestationSigner = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+        bytes32 hash = AnypayExecutionInfoParams.getAnypayExecutionInfoHash(executionInfos, attestationSigner);
+        bytes32 expectedHash = 0x98f9389e78aafff240a62ffbfdd16c3beee1932f5b90e0cfaa90c74c004f4645;
+        assertEq(hash, expectedHash, "AnypayExecutionInfo hash mismatch with user params");
+    }
+
     /// forge-config: default.allow_internal_expect_revert = true
     function testRevertIfLifiInfosIsEmpty() public {
         lifiInfos = new AnypayExecutionInfo[](0);
