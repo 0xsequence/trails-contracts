@@ -1,4 +1,4 @@
-.PHONY: all install submodules update-submodules reset-submodules
+.PHONY: all install submodules update-submodules reset-submodules verify-deployment
 
 all: install
 
@@ -24,3 +24,22 @@ reset-submodules:
 	git clean -dfx
 	git submodule update --init --recursive
 	@echo "Git submodules reset."
+
+# Verify deployed contracts across chains
+verify-deployment:
+	@echo "Verifying contract deployments..."
+	@if [ -z "$(CONTRACT)" ]; then \
+		echo "Usage: make verify-deployment CONTRACT=<contract_name> [SOURCE_CHAIN=<chain_id>] [TARGET_CHAIN=<chain_id>]"; \
+		echo "Examples:"; \
+		echo "  make verify-deployment CONTRACT=AnypayRelaySapientSigner SOURCE_CHAIN=42161 TARGET_CHAIN=1"; \
+		echo "  make verify-deployment CONTRACT=AnypayRelaySapientSigner SOURCE_CHAIN=42161"; \
+		exit 1; \
+	fi
+	@if [ -n "$(TARGET_CHAIN)" ]; then \
+		./scripts/verify-deployment.sh $(CONTRACT) $(SOURCE_CHAIN) $(TARGET_CHAIN); \
+	elif [ -n "$(SOURCE_CHAIN)" ]; then \
+		./scripts/verify-deployment.sh $(CONTRACT) $(SOURCE_CHAIN); \
+	else \
+		echo "SOURCE_CHAIN parameter is required"; \
+		exit 1; \
+	fi
