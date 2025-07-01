@@ -82,25 +82,21 @@ contract AnypayRelaySapientSigner is ISapient {
             revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
         }
 
-        // 7. Ensure the number of execution infos matches the number of calls.
-        if (executionInfos.length != payload.calls.length) {
-            revert MismatchedRelayInfoLengths();
-        }
-
-        // 8. Construct the digest for attestation.
+        // 7. Construct the digest for attestation.
         bytes32 digest = executionInfos.getAnypayExecutionInfoHash(attestationSigner);
 
-        // 9. Decode all relay calls to get inferred relay information
-        AnypayRelayDecoder.DecodedRelayData[] memory inferredRelayData =
-            new AnypayRelayDecoder.DecodedRelayData[](payload.calls.length);
-        for (uint256 i = 0; i < payload.calls.length; i++) {
-            inferredRelayData[i] = AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
-        }
+        // TODO: Uncomment this when we have a way to validate the attestations against the inferred relay information
+        // // 8. Decode all relay calls to get inferred relay information
+        // AnypayRelayDecoder.DecodedRelayData[] memory inferredRelayData =
+        //     new AnypayRelayDecoder.DecodedRelayData[](payload.calls.length);
+        // for (uint256 i = 0; i < payload.calls.length; i++) {
+        //     inferredRelayData[i] = AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
+        // }
 
-        // 10. Validate the attestations against the inferred relay information
-        if (!AnypayRelayInterpreter.validateRelayInfos(inferredRelayData, executionInfos)) {
-            revert InvalidAttestation();
-        }
+        // // 9. Validate the attestations against the inferred relay information
+        // if (!AnypayRelayInterpreter.validateRelayInfos(inferredRelayData, executionInfos)) {
+        //     revert InvalidAttestation();
+        // }
 
         return digest;
     }
