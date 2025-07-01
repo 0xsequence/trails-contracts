@@ -7,6 +7,7 @@ import {AnypayRelaySapientSigner} from "@/AnypayRelaySapientSigner.sol";
 import {AnypayExecutionInfo} from "@/interfaces/AnypayExecutionInfo.sol";
 import {AnypayExecutionInfoParams} from "@/libraries/AnypayExecutionInfoParams.sol";
 import {AnypayRelayValidator} from "@/libraries/AnypayRelayValidator.sol";
+import {AnypayRelayConstants} from "@/libraries/AnypayRelayConstants.sol";
 import {AnypayRelayInterpreter} from "@/libraries/AnypayRelayInterpreter.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 
@@ -29,7 +30,7 @@ contract AnypayRelaySapientSignerTest is Test {
     MockERC20 public mockToken;
 
     function setUp() public {
-        relaySolverAddress = AnypayRelayValidator.RELAY_SOLVER;
+        relaySolverAddress = AnypayRelayConstants.RELAY_SOLVER;
         // The AnypayRelaySapientSigner is configured with the address of the relay solver.
         signerContract = new AnypayRelaySapientSigner();
 

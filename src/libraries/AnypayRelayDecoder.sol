@@ -3,6 +3,7 @@
 pragma solidity ^0.8.30;
 
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
+import {AnypayRelayConstants} from "@/libraries/AnypayRelayConstants.sol";
 
 /**
  * @title AnypayRelayDecoder
@@ -10,13 +11,6 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
  * @notice Library to decode calldata for Anypay Relay operations.
  */
 library AnypayRelayDecoder {
-    // -------------------------------------------------------------------------
-    // Constants
-    // -------------------------------------------------------------------------
-
-    address private constant RELAY_RECEIVER = 0xa5F565650890fBA1824Ee0F21EbBbF660a179934;
-    address private constant RELAY_SOLVER = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
-
     // -------------------------------------------------------------------------
     // Structs
     // -------------------------------------------------------------------------
@@ -56,14 +50,14 @@ library AnypayRelayDecoder {
             decodedData.requestId = abi.decode(call.data, (bytes32));
             decodedData.token = address(0);
             decodedData.amount = call.value;
-            if (call.to == RELAY_RECEIVER) {
+            if (call.to == AnypayRelayConstants.RELAY_RECEIVER) {
                 // If the transfer is to the RelayReceiver contract, the ultimate recipient is the RELAY_SOLVER.
-                decodedData.receiver = RELAY_SOLVER;
+                decodedData.receiver = AnypayRelayConstants.RELAY_SOLVER;
             } else {
                 // Otherwise, the recipient is the direct target of the call.
                 decodedData.receiver = call.to;
             }
-        } else if (call.to == RELAY_RECEIVER) {
+        } else if (call.to == AnypayRelayConstants.RELAY_RECEIVER) {
             bytes memory data = call.data;
             if (call.data.length >= 4) {
                 bytes4 selector;
@@ -84,7 +78,7 @@ library AnypayRelayDecoder {
                         decodedData.requestId = bytes32(innerData);
                         decodedData.token = address(0);
                         decodedData.amount = call.value;
-                        decodedData.receiver = RELAY_SOLVER;
+                        decodedData.receiver = AnypayRelayConstants.RELAY_SOLVER;
                         return decodedData;
                     }
                 }
@@ -153,6 +147,11 @@ library AnypayRelayDecoder {
             } else {
                 revert InvalidCalldataLength();
             }
+        } else if (call.to == AnypayRelayConstants.RELAY_APPROVAL_PROXY_V2) {
+            decodedData.requestId = bytes32(0);
+            decodedData.token = call.to;
+            decodedData.amount = call.value;
+            decodedData.receiver = AnypayRelayConstants.RELAY_SOLVER;
         } else {
             revert InvalidCalldataLength();
         }
