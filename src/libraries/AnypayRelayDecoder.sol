@@ -15,6 +15,7 @@ library AnypayRelayDecoder {
     // -------------------------------------------------------------------------
 
     address private constant RELAY_RECEIVER = 0xa5F565650890fBA1824Ee0F21EbBbF660a179934;
+    address private constant RELAY_APPROVAL_PROXY = 0xBBbfD134E9b44BfB5123898BA36b01dE7ab93d98;
     address private constant RELAY_SOLVER = 0xf70da97812CB96acDF810712Aa562db8dfA3dbEF;
 
     // -------------------------------------------------------------------------
@@ -153,6 +154,11 @@ library AnypayRelayDecoder {
             } else {
                 revert InvalidCalldataLength();
             }
+        } else if (call.to == RELAY_APPROVAL_PROXY) {
+            decodedData.requestId = bytes32(0);
+            decodedData.token = call.to;
+            decodedData.amount = call.value;
+            decodedData.receiver = RELAY_SOLVER;
         } else {
             revert InvalidCalldataLength();
         }
