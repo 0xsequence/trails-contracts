@@ -27,10 +27,11 @@ contract AnypayRelaySapientSigner is ISapient {
     // -------------------------------------------------------------------------
 
     using Payload for Payload.Decoded;
+    using AnypayRelayInterpreter for Payload.Call[];
+    using AnypayRelayValidator for AnypayRelayDecoder.DecodedRelayData[];
+    using AnypayExecutionInfoParams for AnypayExecutionInfo[];
     using MessageHashUtils for bytes32;
     using ECDSA for bytes32;
-    using AnypayExecutionInfoParams for AnypayExecutionInfo[];
-    using AnypayRelayValidator for AnypayExecutionInfo;
 
     // -------------------------------------------------------------------------
     // Errors
@@ -42,7 +43,6 @@ contract AnypayRelaySapientSigner is ISapient {
     error InvalidPayloadKind();
     error InvalidRelayRecipient();
     error InvalidAttestationSigner(address expectedSigner, address actualSigner);
-    error MismatchedRelayInfoLengths();
 
     // -------------------------------------------------------------------------
     // Functions
@@ -85,18 +85,14 @@ contract AnypayRelaySapientSigner is ISapient {
         // 7. Construct the digest for attestation.
         bytes32 digest = executionInfos.getAnypayExecutionInfoHash(attestationSigner);
 
-        // TODO: Uncomment this when we have a way to validate the attestations against the inferred relay information
-        // // 8. Decode all relay calls to get inferred relay information
-        // AnypayRelayDecoder.DecodedRelayData[] memory inferredRelayData =
-        //     new AnypayRelayDecoder.DecodedRelayData[](payload.calls.length);
-        // for (uint256 i = 0; i < payload.calls.length; i++) {
-        //     inferredRelayData[i] = AnypayRelayDecoder.decodeRelayCalldataForSapient(payload.calls[i]);
-        // }
+        // 8. Get inferred relay data from relay calls (filtering out approvals)
+        AnypayRelayDecoder.DecodedRelayData[] memory inferredRelayData =
+            payload.calls.getInferredRelayDatafromRelayCalls();
 
-        // // 9. Validate the attestations against the inferred relay information
-        // if (!AnypayRelayInterpreter.validateRelayInfos(inferredRelayData, executionInfos)) {
-        //     revert InvalidAttestation();
-        // }
+        // 9. Validate the attestations against the inferred relay information
+        if (!inferredRelayData.validateRelayInfos(executionInfos)) {
+            revert InvalidAttestation();
+        }
 
         return digest;
     }

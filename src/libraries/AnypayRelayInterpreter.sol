@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.30;
 
+import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {AnypayExecutionInfo} from "@/interfaces/AnypayExecutionInfo.sol";
 import {AnypayRelayDecoder} from "@/libraries/AnypayRelayDecoder.sol";
 
@@ -33,71 +34,44 @@ library AnypayRelayInterpreter {
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Validates that each attested AnypayExecutionInfo struct matches a unique, valid DecodedRelayData struct.
-     * @dev This function ensures:
-     *      1. Array Lengths: `inferredRelayData` and `attestedExecutionInfos` must have the same length.
-     *      2. Inferred Info Validity: All `inferredRelayData` must have a non-zero amount.
-     *      3. Unique Match: Each `attestedExecutionInfos[i]` must find a unique `inferredRelayData[j]` matching on `originToken`.
-     *      4. Amount Check: For matched pairs, `inferred.amount` must not be greater than `attested.amount`.
-     *      Reverts with specific errors upon validation failure.
-     * @param inferredRelayData Array of DecodedRelayData structs inferred from current transaction data.
-     * @param attestedExecutionInfos Array of AnypayExecutionInfo structs derived from attestations (these are the reference).
+     * @notice Extracts relay data from relay calls, filtering out approval calls.
+     * @dev Decodes all calls, filters out approval calls (requestId == bytes32(0)),
+     *      and returns relay data for actual relay calls only.
+     * @param calls The array of `Payload.Call` structs to decode.
+     * @return inferredRelayData Array of decoded relay data from actual relay calls.
      */
-    function validateRelayInfos(
-        AnypayRelayDecoder.DecodedRelayData[] memory inferredRelayData,
-        AnypayExecutionInfo[] memory attestedExecutionInfos
-    ) internal view returns (bool) {
-        if (inferredRelayData.length != attestedExecutionInfos.length) {
-            revert MismatchedRelayInfoLengths();
+    function getInferredRelayDatafromRelayCalls(Payload.Call[] memory calls)
+        internal
+        pure
+        returns (AnypayRelayDecoder.DecodedRelayData[] memory inferredRelayData)
+    {
+        if (calls.length == 0) {
+            return new AnypayRelayDecoder.DecodedRelayData[](0);
         }
 
-        uint256 numInfos = attestedExecutionInfos.length;
-        if (numInfos == 0) {
-            return false;
+        // Decode all relay calls
+        AnypayRelayDecoder.DecodedRelayData[] memory allInferredRelayData =
+            new AnypayRelayDecoder.DecodedRelayData[](calls.length);
+        for (uint256 i = 0; i < calls.length; i++) {
+            allInferredRelayData[i] = AnypayRelayDecoder.decodeRelayCalldataForSapient(calls[i]);
         }
 
-        // Validate all inferredRelayData upfront
-        for (uint256 i = 0; i < numInfos; i++) {
-            if (inferredRelayData[i].amount == 0) {
-                revert InvalidInferredMinAmount();
+        // Filter out approval calls (requestId == bytes32(0))
+        uint256 actualRelayCallCount = 0;
+        for (uint256 i = 0; i < allInferredRelayData.length; i++) {
+            if (allInferredRelayData[i].requestId != bytes32(0)) {
+                actualRelayCallCount++;
             }
         }
 
-        bool[] memory inferredInfoUsed = new bool[](numInfos);
-
-        // For each attestedExecutionInfo, find a unique, matching, and valid inferredRelayData
-        for (uint256 i = 0; i < numInfos; i++) {
-            AnypayExecutionInfo memory currentAttestedInfo = attestedExecutionInfos[i];
-
-            if (currentAttestedInfo.originChainId != block.chainid) {
-                continue;
-            }
-
-            bool foundMatch = false;
-            for (uint256 j = 0; j < numInfos; j++) {
-                if (inferredInfoUsed[j]) {
-                    continue;
-                }
-
-                AnypayRelayDecoder.DecodedRelayData memory currentInferredInfo = inferredRelayData[j];
-
-                if (currentAttestedInfo.originToken == currentInferredInfo.token) {
-                    if (currentInferredInfo.amount > currentAttestedInfo.amount) {
-                        revert InferredAmountTooHigh(currentInferredInfo.amount, currentAttestedInfo.amount);
-                    }
-                    inferredInfoUsed[j] = true;
-                    foundMatch = true;
-                    break;
-                }
-            }
-
-            if (!foundMatch) {
-                revert NoMatchingInferredInfoFound(
-                    currentAttestedInfo.destinationChainId, currentAttestedInfo.originToken
-                );
+        // Create array containing only actual relay calls
+        inferredRelayData = new AnypayRelayDecoder.DecodedRelayData[](actualRelayCallCount);
+        uint256 actualIndex = 0;
+        for (uint256 i = 0; i < allInferredRelayData.length; i++) {
+            if (allInferredRelayData[i].requestId != bytes32(0)) {
+                inferredRelayData[actualIndex] = allInferredRelayData[i];
+                actualIndex++;
             }
         }
-
-        return true;
     }
 }
