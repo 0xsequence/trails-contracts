@@ -7,7 +7,4 @@ import {TrailsRelayInterpreter} from "@/libraries/TrailsRelayInterpreter.sol";
 import {TrailsRelayDecoder} from "@/libraries/TrailsRelayDecoder.sol";
 import {TrailsExecutionInfo} from "@/interfaces/TrailsExecutionInfo.sol";
 
-
-contract TrailsRelayInterpreterTest is Test {
-    
-}
+contract TrailsRelayInterpreterTest is Test {}
