@@ -5,7 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 contract BytecodeDeployer is Script {
     // Predefined salt for deterministic deployment
-    bytes32 public constant DEPLOY_SALT = bytes32(uint256(uint160(0x4e59b44847b379578588920cA78FbF26c0B4956C)));
+    bytes32 public constant DEPLOY_SALT = keccak256(abi.encodePacked(bytes1(0x0), "trails-contracts"));
     
     // Expected deployment address (update with actual computed address)
     address public constant TARGET_ADDRESS = address(0);
@@ -52,9 +52,15 @@ contract BytecodeDeployer is Script {
         require(deployedAddress != address(0), "Deployment failed");
         console.log("Contract deployed at:", deployedAddress);
         
+        address expectedAddress = _computeCreate2Address(DEPLOY_SALT, bytecodeHash);
+        console.log("Expected address:", expectedAddress);
+        
         // Verify deterministic address if configured
         if (TARGET_ADDRESS != address(0)) {
             require(deployedAddress == TARGET_ADDRESS, "Address mismatch");
+            console.log("Address verification: PASSED");
+        } else {
+            require(deployedAddress == expectedAddress, "Address mismatch");
             console.log("Address verification: PASSED");
         }
         
@@ -75,7 +81,7 @@ contract BytecodeDeployer is Script {
     
     function isLocalChain() internal view returns (bool) {
         // Foundry's anvil default chain ID
-        return block.chainid == 0x7a69;
+        return block.chainid == 31337;
     }
     
     function deployDirectly(bytes memory bytecode) internal returns (address) {
@@ -96,16 +102,7 @@ contract BytecodeDeployer is Script {
         return deployed;
     }
     
-    function computeCreate2Address(bytes memory bytecode, bytes32 salt) 
-        public 
-        view 
-        returns (address) 
-    {
-        return address(uint160(uint256(keccak256(abi.encodePacked(
-            bytes1(0xff),
-            address(this),
-            salt,
-            keccak256(bytecode)
-        )))));
+    function _computeCreate2Address(bytes32 salt, bytes32 initcodeHash) internal view returns (address) {
+        return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, initcodeHash)))));
     }
 }
