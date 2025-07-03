@@ -92,18 +92,15 @@ library TrailsRelayValidator {
             revert MismatchedRelayInfoLengths();
         }
 
-        // Decode all relay calls
-        AnypayRelayDecoder.DecodedRelayData[] memory allInferredRelayData =
-            new AnypayRelayDecoder.DecodedRelayData[](calls.length);
-        for (uint256 i = 0; i < calls.length; i++) {
-            allInferredRelayData[i] = AnypayRelayDecoder.decodeRelayCalldataForSapient(calls[i]);
+        uint256 numInfos = attestedExecutionInfos.length;
+        if (numInfos == 0) {
+            return false;
         }
 
-        // Filter out approval calls (requestId == bytes32(0))
-        uint256 actualRelayCallCount = 0;
-        for (uint256 i = 0; i < allInferredRelayData.length; i++) {
-            if (allInferredRelayData[i].requestId != bytes32(0)) {
-                actualRelayCallCount++;
+        // Validate all inferredRelayData upfront
+        for (uint256 i = 0; i < numInfos; i++) {
+            if (inferredRelayData[i].amount == 0) {
+                revert InvalidInferredMinAmount();
             }
         }
 
@@ -141,5 +138,7 @@ library TrailsRelayValidator {
                 );
             }
         }
+
+        return true;
     }
 }

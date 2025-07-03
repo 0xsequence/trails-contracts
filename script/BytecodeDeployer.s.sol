@@ -5,7 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 contract BytecodeDeployer is Script {
     // Predefined salt for deterministic deployment
-    bytes32 public constant DEPLOY_SALT = bytes32(uint256(0x4e59b44847b379578588920ca78fbf26c0b4956c));
+    bytes32 public constant DEPLOY_SALT = bytes32(uint256(uint160(0x4e59b44847b379578588920cA78FbF26c0B4956C)));
     
     // Expected deployment address (update with actual computed address)
     address public constant TARGET_ADDRESS = address(0);

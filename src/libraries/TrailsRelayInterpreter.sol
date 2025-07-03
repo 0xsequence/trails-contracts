@@ -13,23 +13,6 @@ import {TrailsRelayDecoder} from "@/libraries/TrailsRelayDecoder.sol";
  */
 library TrailsRelayInterpreter {
     // -------------------------------------------------------------------------
-    // Errors
-    // -------------------------------------------------------------------------
-
-    /// @notice Thrown when the lengths of attested and inferred Relay info arrays do not match.
-    error MismatchedRelayInfoLengths();
-    /// @notice Thrown when an inferred Relay info has a zero minimum amount.
-    error InvalidInferredMinAmount();
-    /// @notice Thrown when an attested Relay info cannot find a unique, matching inferred Relay info.
-    /// @param destinationChainId The destination chain ID of the attested info.
-    /// @param originToken The sending asset ID of the attested info.
-    error NoMatchingInferredInfoFound(uint256 destinationChainId, address originToken);
-    /// @notice Thrown when an inferred Relay info's inferred amount is larger than its matched attested one.
-    /// @param inferredAmount The amount from the inferred Relay info.
-    /// @param attestedAmount The amount from the attested Relay info.
-    error InferredAmountTooHigh(uint256 inferredAmount, uint256 attestedAmount);
-
-    // -------------------------------------------------------------------------
     // Functions
     // -------------------------------------------------------------------------
 
