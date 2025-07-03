@@ -5,8 +5,8 @@ pragma solidity ^0.8.30;
 import {Test, console} from "forge-std/Test.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiFlagDecoder} from "@/libraries/AnypayLiFiFlagDecoder.sol";
-import {AnypayDecodingStrategy} from "@/interfaces/AnypayLiFi.sol";
+import {TrailsLiFiFlagDecoder} from "@/libraries/TrailsLiFiFlagDecoder.sol";
+import {TrailsDecodingStrategy} from "@/interfaces/TrailsLiFi.sol";
 
 struct AcrossV3Data {
     address receiverAddress;
@@ -21,10 +21,10 @@ struct AcrossV3Data {
     bytes message;
 }
 
-contract AnypayDecoderTestHelperForAcross {
-    using AnypayLiFiFlagDecoder for bytes;
+contract TrailsDecoderTestHelperForAcross {
+    using TrailsLiFiFlagDecoder for bytes;
 
-    function mockDecodeLiFiDataOrRevert(bytes memory data, AnypayDecodingStrategy strategy)
+    function mockDecodeLiFiDataOrRevert(bytes memory data, TrailsDecodingStrategy strategy)
         external
         pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
@@ -65,7 +65,7 @@ contract MockAcrossFacetV3Test is Test {
     address public user = makeAddr("user");
     address public originalReceiver = address(0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF);
 
-    AnypayDecoderTestHelperForAcross public decoderHelper;
+    TrailsDecoderTestHelperForAcross public decoderHelper;
 
     ILiFi.BridgeData internal baseBridgeData = ILiFi.BridgeData({
         transactionId: bytes32(uint256(1)),
@@ -95,11 +95,11 @@ contract MockAcrossFacetV3Test is Test {
 
     function setUp() public {
         mockFacet = new MockAcrossFacetV3();
-        decoderHelper = new AnypayDecoderTestHelperForAcross();
+        decoderHelper = new TrailsDecoderTestHelperForAcross();
         deal(user, 10 ether);
     }
 
-    function test_AnypayDecoder_TryDecode_MockAcross_StartBridge() public view {
+    function test_TrailsDecoder_TryDecode_MockAcross_StartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         AcrossV3Data memory acrossDataInput = baseAcrossData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE01));
@@ -108,7 +108,7 @@ contract MockAcrossFacetV3Test is Test {
             abi.encodeCall(mockFacet.mockStartBridge, (bridgeDataInput, acrossDataInput));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA);
+            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForAcross, TrailsDecodingStrategy.SINGLE_BRIDGE_DATA);
 
         assertEq(
             decodedBridgeData.transactionId,
@@ -146,7 +146,7 @@ contract MockAcrossFacetV3Test is Test {
         assertEq(decodedSwapData.length, 0, "AD_ACROSS_01: Decoded SwapData array should be empty for mockStartBridge");
     }
 
-    function test_AnypayDecoder_TryDecode_MockAcross_SwapAndStartBridge() public view {
+    function test_TrailsDecoder_TryDecode_MockAcross_SwapAndStartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         AcrossV3Data memory acrossDataInput = baseAcrossData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE02));
@@ -167,7 +167,7 @@ contract MockAcrossFacetV3Test is Test {
             abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeDataInput, swapDataInput, acrossDataInput));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) = decoderHelper
-            .mockDecodeLiFiDataOrRevert(encodedCallForAcross, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
+            .mockDecodeLiFiDataOrRevert(encodedCallForAcross, TrailsDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
 
         assertEq(
             decodedBridgeData.transactionId,
@@ -215,7 +215,7 @@ contract MockAcrossFacetV3Test is Test {
         }
     }
 
-    function test_AnypayDecoder_DecodeOrRevert_MockAcross_SwapAndStartBridge() public view {
+    function test_TrailsDecoder_DecodeOrRevert_MockAcross_SwapAndStartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         AcrossV3Data memory acrossDataInput = baseAcrossData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE03));
@@ -236,7 +236,7 @@ contract MockAcrossFacetV3Test is Test {
             abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeDataInput, swapDataInput, acrossDataInput));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) = decoderHelper
-            .mockDecodeLiFiDataOrRevert(encodedCallForAcross, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
+            .mockDecodeLiFiDataOrRevert(encodedCallForAcross, TrailsDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
 
         assertTrue(true, "AD_ACROSS_03: decodeLiFiDataOrRevert should succeed for mockSwapAndStartBridge calldata");
 

@@ -37,32 +37,32 @@ Deployment scripts are in `script/` directory. Required environment variables:
 This is a Solidity project implementing **Sapient Signer modules** for Sequence v3 wallets, focusing on cross-chain payment and bridging functionality through LiFi and relay protocols.
 
 #### Primary Contracts
-- **AnypayLiFiSapientSigner** (`src/AnypayLiFiSapientSigner.sol`) - Validates LiFi protocol operations (swaps/bridges) via off-chain attestations. Targets a specific immutable `TARGET_LIFI_DIAMOND` address for security.
-- **AnypayRelaySapientSigner** (`src/AnypayRelaySapientSigner.sol`) - Validates relay operations through similar attestation mechanism.
-- **AnypayTokenSweeper** (`src/AnypayTokenSweeper.sol`) - Utility contract for token recovery operations.
+- **TrailsLiFiSapientSigner** (`src/TrailsLiFiSapientSigner.sol`) - Validates LiFi protocol operations (swaps/bridges) via off-chain attestations. Targets a specific immutable `TARGET_LIFI_DIAMOND` address for security.
+- **TrailsRelaySapientSigner** (`src/TrailsRelaySapientSigner.sol`) - Validates relay operations through similar attestation mechanism.
+- **TrailsTokenSweeper** (`src/TrailsTokenSweeper.sol`) - Utility contract for token recovery operations.
 
 #### Library Architecture
 The project uses a modular library approach under `src/libraries/`:
 
 **Execution Info Management:**
-- `AnypayExecutionInfoInterpreter.sol` - Standardizes cross-chain execution data
-- `AnypayExecutionInfoParams.sol` - Parameter handling for execution info
+- `TrailsExecutionInfoInterpreter.sol` - Standardizes cross-chain execution data
+- `TrailsExecutionInfoParams.sol` - Parameter handling for execution info
 
 **LiFi Integration:**
-- `AnypayLiFiFlagDecoder.sol` - Decodes LiFi call data using flag-based strategies
-- `AnypayLiFiInterpreter.sol` - Interprets and validates LiFi operations
-- `AnypayLiFiValidator.sol` - Validation logic for LiFi transactions
+- `TrailsLiFiFlagDecoder.sol` - Decodes LiFi call data using flag-based strategies
+- `TrailsLiFiInterpreter.sol` - Interprets and validates LiFi operations
+- `TrailsLiFiValidator.sol` - Validation logic for LiFi transactions
 
 **Relay Integration:**
-- `AnypayRelayDecoder.sol` - Decodes relay call data
-- `AnypayRelayInterpreter.sol` - Interprets relay operations
-- `AnypayRelayValidator.sol` - Validation logic for relay transactions
-- `AnypayRelayParams.sol` - Parameter handling for relay operations
+- `TrailsRelayDecoder.sol` - Decodes relay call data
+- `TrailsRelayInterpreter.sol` - Interprets relay operations
+- `TrailsRelayValidator.sol` - Validation logic for relay transactions
+- `TrailsRelayParams.sol` - Parameter handling for relay operations
 
 #### Interface Definitions
-- `AnypayExecutionInfo.sol` - Core execution info structure
-- `AnypayLiFi.sol` - LiFi-specific interfaces and decoding strategies
-- `AnypayRelay.sol` - Relay-specific interfaces
+- `TrailsExecutionInfo.sol` - Core execution info structure
+- `TrailsLiFi.sol` - LiFi-specific interfaces and decoding strategies
+- `TrailsRelay.sol` - Relay-specific interfaces
 
 ### Key Architecture Patterns
 
