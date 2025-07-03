@@ -27,4 +27,4 @@ library TrailsCCTPV2Params {
         if (attestationAddress == address(0)) revert AttestationAddressIsZero();
         return keccak256(abi.encode(executionInfos, attestationAddress));
     }
-} 
+}

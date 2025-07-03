@@ -11,25 +11,20 @@ import {CCTPExecutionInfo, ITokenMessengerV2} from "../interfaces/TrailsCCTPV2.s
 library TrailsCCTPV2Decoder {
     error InvalidCalldata();
 
-    bytes4 private constant DEPOSIT_FOR_BURN_WITH_HOOK_SELECTOR =
-        ITokenMessengerV2.depositForBurnWithHook.selector;
+    bytes4 private constant DEPOSIT_FOR_BURN_WITH_HOOK_SELECTOR = ITokenMessengerV2.depositForBurnWithHook.selector;
 
     /**
      * @notice Decodes the calldata of a `depositForBurnWithHook` call.
      * @param _callData The calldata of the transaction.
      * @return _executionInfo The decoded CCTP execution info.
      */
-    function decodeCCTPData(bytes memory _callData)
-        internal
-        pure
-        returns (CCTPExecutionInfo memory _executionInfo)
-    {
+    function decodeCCTPData(bytes memory _callData) internal pure returns (CCTPExecutionInfo memory _executionInfo) {
         if (bytes4(_callData) != DEPOSIT_FOR_BURN_WITH_HOOK_SELECTOR) {
             revert InvalidCalldata();
         }
 
         bytes memory params = new bytes(_callData.length - 4);
-        for (uint i = 0; i < params.length; i++) {
+        for (uint256 i = 0; i < params.length; i++) {
             params[i] = _callData[i + 4];
         }
 
@@ -54,4 +49,4 @@ library TrailsCCTPV2Decoder {
             minFinalityThreshold: minFinalityThreshold
         });
     }
-} 
+}

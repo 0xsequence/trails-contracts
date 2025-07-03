@@ -26,4 +26,4 @@ library TrailsCCTPV2Interpreter {
             inferredExecutionInfos[i] = TrailsCCTPV2Decoder.decodeCCTPData(calls[i].data);
         }
     }
-} 
+}

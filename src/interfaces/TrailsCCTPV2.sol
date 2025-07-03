@@ -43,4 +43,4 @@ struct CCTPExecutionInfo {
     address hook;
     uint256 maxFee;
     uint32 minFinalityThreshold;
-} 
+}
