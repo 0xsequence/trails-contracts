@@ -192,8 +192,14 @@ contract TrailsRelaySapientSignerTest is Test {
         Payload.Decoded memory payload = _createPayload(calls, 3, false);
 
         // 4. Prepare attested execution infos for the relay call only
-        TrailsExecutionInfo[] memory attestedExecutionInfos = new TrailsExecutionInfo[](1);
+        TrailsExecutionInfo[] memory attestedExecutionInfos = new TrailsExecutionInfo[](2);
         attestedExecutionInfos[0] = TrailsExecutionInfo({
+            originToken: address(mockToken),
+            amount: approvalAmount,
+            originChainId: block.chainid,
+            destinationChainId: block.chainid
+        });
+        attestedExecutionInfos[1] = TrailsExecutionInfo({
             originToken: address(mockToken),
             amount: transferAmount,
             originChainId: block.chainid,
