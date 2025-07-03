@@ -1,6 +1,6 @@
-# Deploying AnypayLiFiSapientSigner
+# Deploying TrailsLiFiSapientSigner
 
-This guide explains how to deploy the `AnypayLiFiSapientSigner` contract using Foundry's `forge script`.
+This guide explains how to deploy the `TrailsLiFiSapientSigner` contract using Foundry's `forge script`.
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ Follow the installation instructions for your operating system on the [official 
 
 **2. Create a `.envrc` file:**
 
-Create a file named `.envrc` in the root of your `anypay-contracts` project (or the directory from which you run the forge commands) with the following content:
+Create a file named `.envrc` in the root of your `trails-contracts` project (or the directory from which you run the forge commands) with the following content:
 
 ```bash
 export RPC_URL="your_rpc_url_here"
@@ -56,7 +56,7 @@ Now, whenever you `cd` into this directory, `direnv` will automatically load the
 Once the environment variables are set, you can deploy the contract using the following command:
 
 ```bash
-forge script script/AnypayLiFiSapientSigner.s.sol:Deploy --sig "run()" \
+forge script script/TrailsLiFiSapientSigner.s.sol:Deploy --sig "run()" \
     --rpc-url $RPC_URL \
     --broadcast \
     --verify \
@@ -69,7 +69,7 @@ forge script script/AnypayLiFiSapientSigner.s.sol:Deploy --sig "run()" \
 ```
 
 ```bash
-forge script script/AnypayRelaySapientSigner.s.sol:Deploy --sig "run()" \
+forge script script/TrailsRelaySapientSigner.s.sol:Deploy --sig "run()" \
     --rpc-url $RPC_URL \
     --broadcast \
     --verify \
@@ -82,7 +82,7 @@ forge script script/AnypayRelaySapientSigner.s.sol:Deploy --sig "run()" \
 ```
 
 **Explanation of flags:**
-*   `script/AnypayLiFiSapientSigner.s.sol:Deploy`: Specifies the script file and the contract within that file to run.
+*   `script/TrailsLiFiSapientSigner.s.sol:Deploy`: Specifies the script file and the contract within that file to run.
 *   `--sig "run()"`: Specifies the function signature to execute in the script contract.
 *   `--rpc-url $RPC_URL`: Specifies the RPC endpoint of the target blockchain.
 *   `--broadcast`: Broadcasts the transactions to the network.
@@ -98,7 +98,7 @@ For more information on `forge script` and its capabilities, refer to the offici
 
 ## Verifying an Already Deployed Contract
 
-If you have already deployed the `AnypayLiFiSapientSigner` contract and want to verify it separately, you can use the `forge verify-contract` command.
+If you have already deployed the `TrailsLiFiSapientSigner` contract and want to verify it separately, you can use the `forge verify-contract` command.
 
 **Prerequisites:**
 
@@ -111,7 +111,7 @@ Ensure the following environment variables are set, or provide them as command-l
 **Verification Command:**
 
 ```bash
-forge verify-contract 0xcae7b56c9134612240687ba70ed37b667300141b src/AnypayRelaySapientSigner.sol:AnypayRelaySapientSigner \
+forge verify-contract 0xcae7b56c9134612240687ba70ed37b667300141b src/TrailsRelaySapientSigner.sol:TrailsRelaySapientSigner \
     --chain $CHAIN_ID \
     --etherscan-api-key $ETHERSCAN_API_KEY \
     --verifier-url $VERIFIER_URL \
@@ -121,11 +121,11 @@ forge verify-contract 0xcae7b56c9134612240687ba70ed37b667300141b src/AnypayRelay
 
 **Explanation of flags:**
 
-*   `<DEPLOYED_CONTRACT_ADDRESS>`: The address of the `AnypayLiFiSapientSigner` contract on the blockchain.
-*   `src/AnypayLiFiSapientSigner.sol:AnypayLiFiSapientSigner`: The path to the source file and the contract name.
+*   `<DEPLOYED_CONTRACT_ADDRESS>`: The address of the `TrailsLiFiSapientSigner` contract on the blockchain.
+*   `src/TrailsLiFiSapientSigner.sol:TrailsLiFiSapientSigner`: The path to the source file and the contract name.
 *   `--chain <CHAIN_ID>`: The chain ID of the network (e.g., `1` for Ethereum Mainnet, `11155111` for Sepolia). You can often omit this if your `RPC_URL` points to the correct network.
 *   `--etherscan-api-key $ETHERSCAN_API_KEY`: Your Etherscan API key.
-*   `--constructor-args $(cast abi-encode "constructor(address)" "<LIFI_DIAMOND_ADDRESS>")`: The ABI-encoded constructor arguments. The `AnypayLiFiSapientSigner` constructor takes one argument: `address _lifiDiamondAddress`.
+*   `--constructor-args $(cast abi-encode "constructor(address)" "<LIFI_DIAMOND_ADDRESS>")`: The ABI-encoded constructor arguments. The `TrailsLiFiSapientSigner` constructor takes one argument: `address _lifiDiamondAddress`.
     *   Replace `<LIFI_DIAMOND_ADDRESS>` with the actual LiFi Diamond address that was used when the contract was deployed.
 *   `--compiler-version <YOUR_SOLC_VERSION>`: The Solidity compiler version used to compile your contract (e.g., `0.8.17`). You might need to specify the full version string (e.g., `v0.8.17+commit.8df45f5f`).
 *   `--num-of-optimizations <OPTIMIZER_RUNS>`: The number of optimizer runs used during compilation. If you didn't specify this during compilation, it might be the default (e.g., `200`). Check your `foundry.toml` or compilation output.
@@ -137,7 +137,7 @@ forge verify-contract 0xcae7b56c9134612240687ba70ed37b667300141b src/AnypayRelay
 *   **Compiler Version and Optimizer Runs:** Getting the exact compiler version and number of optimizer runs correct is crucial for successful verification. If verification fails, these are common culprits. You can often find this information in your `foundry.toml` or the compilation artifacts (e.g., in the `out/` directory).
 *   **LiFi Diamond Address:** Ensure the `<LIFI_DIAMOND_ADDRESS>` in the `--constructor-args` matches the one used when the specific contract instance was deployed.
 
-*   **Error: No matching artifact found:** If you encounter an error like `Error: No matching artifact found for AnypayLiFiSapientSigner`, it means Foundry cannot locate the compiled contract artifact. 
+*   **Error: No matching artifact found:** If you encounter an error like `Error: No matching artifact found for TrailsLiFiSapientSigner`, it means Foundry cannot locate the compiled contract artifact. 
     1.  Ensure you are running the command from the project root directory.
     2.  Run `forge build` in your project root to compile your contracts and generate the necessary artifacts. 
     3.  If the issue persists, try forcefully recompiling with `forge build --force` or cleaning and rebuilding with `forge clean && forge build`.

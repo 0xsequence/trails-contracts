@@ -5,8 +5,8 @@ pragma solidity ^0.8.30;
 import {Test, console} from "forge-std/Test.sol";
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {AnypayLiFiFlagDecoder} from "@/libraries/AnypayLiFiFlagDecoder.sol";
-import {AnypayDecodingStrategy} from "@/interfaces/AnypayLiFi.sol";
+import {TrailsLiFiFlagDecoder} from "@/libraries/TrailsLiFiFlagDecoder.sol";
+import {TrailsDecodingStrategy} from "@/interfaces/TrailsLiFi.sol";
 
 struct StargateSendParam {
     uint16 dstEid;
@@ -30,10 +30,10 @@ struct StargateData {
     address payable refundAddress;
 }
 
-contract AnypayDecoderTestHelperForStargate {
-    using AnypayLiFiFlagDecoder for bytes;
+contract TrailsDecoderTestHelperForStargate {
+    using TrailsLiFiFlagDecoder for bytes;
 
-    function mockDecodeLiFiDataOrRevert(bytes memory data, AnypayDecodingStrategy strategy)
+    function mockDecodeLiFiDataOrRevert(bytes memory data, TrailsDecodingStrategy strategy)
         external
         pure
         returns (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray)
@@ -69,7 +69,7 @@ contract MockStargateFacetV2Test is Test {
     address public user = makeAddr("user");
     address public originalReceiver = address(0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF);
 
-    AnypayDecoderTestHelperForStargate public decoderHelper;
+    TrailsDecoderTestHelperForStargate public decoderHelper;
 
     ILiFi.BridgeData internal baseBridgeData = ILiFi.BridgeData({
         transactionId: bytes32(uint256(1)),
@@ -101,11 +101,11 @@ contract MockStargateFacetV2Test is Test {
 
     function setUp() public {
         mockFacet = new MockStargateFacetV2();
-        decoderHelper = new AnypayDecoderTestHelperForStargate();
+        decoderHelper = new TrailsDecoderTestHelperForStargate();
         deal(user, 10 ether);
     }
 
-    function test_AnypayDecoder_TryDecode_MockStargate_StartBridge() public view {
+    function test_TrailsDecoder_TryDecode_MockStargate_StartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         StargateData memory stargateDataInput = baseStargateData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE51)); // Unique ID for this test
@@ -115,7 +115,7 @@ contract MockStargateFacetV2Test is Test {
             abi.encodeCall(mockFacet.mockStartBridge, (bridgeDataInput, stargateDataInput));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) =
-            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForStargate, AnypayDecodingStrategy.SINGLE_BRIDGE_DATA);
+            decoderHelper.mockDecodeLiFiDataOrRevert(encodedCallForStargate, TrailsDecodingStrategy.SINGLE_BRIDGE_DATA);
 
         assertEq(
             decodedBridgeData.transactionId,
@@ -154,7 +154,7 @@ contract MockStargateFacetV2Test is Test {
         );
     }
 
-    function test_AnypayDecoder_TryDecode_MockStargate_SwapAndStartBridge() public view {
+    function test_TrailsDecoder_TryDecode_MockStargate_SwapAndStartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         StargateData memory stargateDataInput = baseStargateData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE52)); // Unique ID
@@ -175,7 +175,7 @@ contract MockStargateFacetV2Test is Test {
             abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeDataInput, swapDataInput, stargateDataInput));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) = decoderHelper
-            .mockDecodeLiFiDataOrRevert(encodedCallForStargate, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
+            .mockDecodeLiFiDataOrRevert(encodedCallForStargate, TrailsDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
 
         assertEq(
             decodedBridgeData.transactionId,
@@ -225,7 +225,7 @@ contract MockStargateFacetV2Test is Test {
         }
     }
 
-    function test_AnypayDecoder_DecodeOrRevert_MockStargate_SwapAndStartBridge() public view {
+    function test_TrailsDecoder_DecodeOrRevert_MockStargate_SwapAndStartBridge() public view {
         ILiFi.BridgeData memory bridgeDataInput = baseBridgeData;
         StargateData memory stargateDataInput = baseStargateData;
         bridgeDataInput.transactionId = bytes32(uint256(0xDEC0DE53)); // Unique ID
@@ -246,7 +246,7 @@ contract MockStargateFacetV2Test is Test {
             abi.encodeCall(mockFacet.mockSwapAndStartBridge, (bridgeDataInput, swapDataInput, stargateDataInput));
 
         (ILiFi.BridgeData memory decodedBridgeData, LibSwap.SwapData[] memory decodedSwapData) = decoderHelper
-            .mockDecodeLiFiDataOrRevert(encodedCallForStargate, AnypayDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
+            .mockDecodeLiFiDataOrRevert(encodedCallForStargate, TrailsDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
 
         assertTrue(true, "AD_STARGATE_03: decodeLiFiDataOrRevert should succeed for mockSwapAndStartBridge calldata");
 
