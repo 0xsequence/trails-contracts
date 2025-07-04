@@ -6,10 +6,10 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
-import {CCTPExecutionInfo} from "@/interfaces/TrailsCCTPV2.sol";
+import {TrailsExecutionInfo} from "@/interfaces/TrailsExecutionInfo.sol";
 import {TrailsCCTPV2Interpreter} from "@/libraries/TrailsCCTPV2Interpreter.sol";
-import {TrailsCCTPV2Validator} from "@/libraries/TrailsCCTPV2Validator.sol";
-import {TrailsCCTPV2Params} from "@/libraries/TrailsCCTPV2Params.sol";
+import {TrailsExecutionInfoInterpreter} from "@/libraries/TrailsExecutionInfoInterpreter.sol";
+import {TrailsExecutionInfoParams} from "@/libraries/TrailsExecutionInfoParams.sol";
 
 /**
  * @title TrailsCCTPV2SapientSigner
@@ -28,8 +28,8 @@ contract TrailsCCTPV2SapientSigner is ISapient {
     using MessageHashUtils for bytes32;
     using Payload for Payload.Decoded;
     using TrailsCCTPV2Interpreter for Payload.Call[];
-    using TrailsCCTPV2Validator for CCTPExecutionInfo[];
-    using TrailsCCTPV2Params for CCTPExecutionInfo[];
+    using TrailsExecutionInfoInterpreter for TrailsExecutionInfo[];
+    using TrailsExecutionInfoParams for TrailsExecutionInfo[];
 
     // -------------------------------------------------------------------------
     // Immutables
@@ -84,7 +84,7 @@ contract TrailsCCTPV2SapientSigner is ISapient {
 
         // 3. Decode the signature
         (
-            CCTPExecutionInfo[] memory attestationExecutionInfos,
+            TrailsExecutionInfo[] memory attestationExecutionInfos,
             bytes memory attestationSignature,
             address attestationSigner
         ) = decodeSignature(encodedSignature);
@@ -99,13 +99,15 @@ contract TrailsCCTPV2SapientSigner is ISapient {
         }
 
         // 6. Get inferred execution infos from calldata
-        CCTPExecutionInfo[] memory inferredExecutionInfos = payload.calls.getInferredCCTPExecutionInfos();
+        TrailsExecutionInfo[] memory inferredExecutionInfos = payload.calls.getInferredCCTPExecutionInfos();
 
         // 7. Validate the attestations
-        inferredExecutionInfos.validateExecutionInfos(attestationExecutionInfos);
+        if (!inferredExecutionInfos.validateExecutionInfos(attestationExecutionInfos)) {
+            revert InvalidAttestation();
+        }
 
         // 8. Hash the CCTP intent params
-        bytes32 cctpIntentHash = attestationExecutionInfos.getCCTPExecutionInfoHash(attestationSigner);
+        bytes32 cctpIntentHash = attestationExecutionInfos.getTrailsExecutionInfoHash(attestationSigner);
 
         return cctpIntentHash;
     }
@@ -117,7 +119,7 @@ contract TrailsCCTPV2SapientSigner is ISapient {
     /**
      * @notice Decodes a combined signature into CCTP information and the attestation signature.
      * @param _signature The combined signature bytes.
-     * @return _executionInfos Array of CCTPExecutionInfo structs.
+     * @return _executionInfos Array of TrailsExecutionInfo structs.
      * @return _attestationSignature The ECDSA signature for attestation.
      * @return _attestationSigner The address of the signer for the attestation.
      */
@@ -125,12 +127,12 @@ contract TrailsCCTPV2SapientSigner is ISapient {
         public
         pure
         returns (
-            CCTPExecutionInfo[] memory _executionInfos,
+            TrailsExecutionInfo[] memory _executionInfos,
             bytes memory _attestationSignature,
             address _attestationSigner
         )
     {
         (_executionInfos, _attestationSignature, _attestationSigner) =
-            abi.decode(_signature, (CCTPExecutionInfo[], bytes, address));
+            abi.decode(_signature, (TrailsExecutionInfo[], bytes, address));
     }
 }
