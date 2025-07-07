@@ -13,3 +13,6 @@
 [submodule "lib/wallet-contracts-v3"]
 	path = lib/wallet-contracts-v3
 	url = https://github.com/0xsequence/wallet-contracts-v3
+[submodule "lib/evm-cctp-contracts"]
+	path = lib/evm-cctp-contracts
+	url = https://github.com/circlefin/evm-cctp-contracts
