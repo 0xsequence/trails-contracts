@@ -78,21 +78,6 @@ contract TrailsRelayValidatorTest is Test {
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
-    function test_ValidateRelayInfos_MismatchedLengths_Reverts() public {
-        _inferredInfos = new TrailsRelayDecoder.DecodedRelayData[](1);
-        _inferredInfos[0] = TrailsRelayDecoder.DecodedRelayData({
-            requestId: bytes32(0),
-            token: TOKEN_A,
-            amount: 100,
-            receiver: MOCK_TARGET
-        });
-        _attestedInfos = new TrailsExecutionInfo[](0);
-
-        vm.expectRevert(TrailsRelayValidator.MismatchedRelayInfoLengths.selector);
-        validateRelayInfosWrapper(_inferredInfos, _attestedInfos);
-    }
-
-    /// forge-config: default.allow_internal_expect_revert = true
     function test_ValidateRelayInfos_InferredZeroMinAmount_Reverts() public {
         _inferredInfos = new TrailsRelayDecoder.DecodedRelayData[](1);
         _inferredInfos[0] = TrailsRelayDecoder.DecodedRelayData({

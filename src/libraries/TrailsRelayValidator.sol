@@ -88,26 +88,15 @@ library TrailsRelayValidator {
         TrailsRelayDecoder.DecodedRelayData[] memory inferredRelayData,
         TrailsExecutionInfo[] memory attestedExecutionInfos
     ) internal view returns (bool) {
-        if (inferredRelayData.length != attestedExecutionInfos.length) {
-            revert MismatchedRelayInfoLengths();
+        uint256 numAttestedInfos = attestedExecutionInfos.length;
+        if (numAttestedInfos == 0) {
+            return true;
         }
 
-        uint256 numInfos = attestedExecutionInfos.length;
-        if (numInfos == 0) {
-            return false;
-        }
+        uint256 numInferredInfos = inferredRelayData.length;
+        bool[] memory inferredInfoUsed = new bool[](numInferredInfos);
 
-        // Validate all inferredRelayData upfront
-        for (uint256 i = 0; i < numInfos; i++) {
-            if (inferredRelayData[i].amount == 0) {
-                revert InvalidInferredMinAmount();
-            }
-        }
-
-        bool[] memory inferredInfoUsed = new bool[](numInfos);
-
-        // For each attestedExecutionInfo, find a unique, matching, and valid inferredRelayData
-        for (uint256 i = 0; i < numInfos; i++) {
+        for (uint256 i = 0; i < numAttestedInfos; i++) {
             TrailsExecutionInfo memory currentAttestedInfo = attestedExecutionInfos[i];
 
             if (currentAttestedInfo.originChainId != block.chainid) {
@@ -115,14 +104,19 @@ library TrailsRelayValidator {
             }
 
             bool foundMatch = false;
-            for (uint256 j = 0; j < numInfos; j++) {
+            for (uint256 j = 0; j < numInferredInfos; j++) {
                 if (inferredInfoUsed[j]) {
                     continue;
                 }
 
                 TrailsRelayDecoder.DecodedRelayData memory currentInferredInfo = inferredRelayData[j];
 
-                if (currentAttestedInfo.originToken == currentInferredInfo.token) {
+                address inferredToken = currentInferredInfo.token;
+
+                if (currentAttestedInfo.originToken == inferredToken) {
+                    if (currentInferredInfo.amount == 0) {
+                        revert InvalidInferredMinAmount();
+                    }
                     if (currentInferredInfo.amount > currentAttestedInfo.amount) {
                         revert InferredAmountTooHigh(currentInferredInfo.amount, currentAttestedInfo.amount);
                     }
