@@ -33,28 +33,9 @@ library TrailsRelayInterpreter {
         }
 
         // Decode all relay calls
-        TrailsRelayDecoder.DecodedRelayData[] memory allInferredRelayData =
-            new TrailsRelayDecoder.DecodedRelayData[](calls.length);
+        inferredRelayData = new TrailsRelayDecoder.DecodedRelayData[](calls.length);
         for (uint256 i = 0; i < calls.length; i++) {
-            allInferredRelayData[i] = TrailsRelayDecoder.decodeRelayCalldataForSapient(calls[i]);
-        }
-
-        // Filter out approval calls (requestId == bytes32(0))
-        uint256 actualRelayCallCount = 0;
-        for (uint256 i = 0; i < allInferredRelayData.length; i++) {
-            if (allInferredRelayData[i].requestId != bytes32(0)) {
-                actualRelayCallCount++;
-            }
-        }
-
-        // Create array containing only actual relay calls
-        inferredRelayData = new TrailsRelayDecoder.DecodedRelayData[](actualRelayCallCount);
-        uint256 actualIndex = 0;
-        for (uint256 i = 0; i < allInferredRelayData.length; i++) {
-            if (allInferredRelayData[i].requestId != bytes32(0)) {
-                inferredRelayData[actualIndex] = allInferredRelayData[i];
-                actualIndex++;
-            }
+            inferredRelayData[i] = TrailsRelayDecoder.decodeRelayCalldataForSapient(calls[i]);
         }
     }
 }
