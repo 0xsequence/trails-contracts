@@ -113,16 +113,18 @@ library TrailsRelayValidator {
 
                 address inferredToken = currentInferredInfo.token;
 
-                if (
-                    currentAttestedInfo.originToken == inferredToken
-                        && currentInferredInfo.amount == currentAttestedInfo.amount
-                ) {
+                if (currentAttestedInfo.originToken == inferredToken) {
                     if (currentInferredInfo.amount == 0) {
                         revert InvalidInferredMinAmount();
                     }
-                    inferredInfoUsed[j] = true;
-                    foundMatch = true;
-                    break;
+                    if (currentInferredInfo.amount > currentAttestedInfo.amount) {
+                        revert InferredAmountTooHigh(currentInferredInfo.amount, currentAttestedInfo.amount);
+                    }
+                    if (currentInferredInfo.amount == currentAttestedInfo.amount) {
+                        inferredInfoUsed[j] = true;
+                        foundMatch = true;
+                        break;
+                    }
                 }
             }
 
