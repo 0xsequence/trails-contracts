@@ -112,10 +112,6 @@ library TrailsRelayValidator {
 
                 TrailsRelayDecoder.DecodedRelayData memory currentInferredInfo = inferredRelayData[j];
 
-                if (currentInferredInfo.requestId == bytes32(type(uint256).max)) {
-                    continue;
-                }
-
                 address inferredToken = currentInferredInfo.token;
 
                 if (currentAttestedInfo.originToken == inferredToken) {

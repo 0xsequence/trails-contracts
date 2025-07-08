@@ -124,7 +124,7 @@ Ensure the following environment variables are set, or provide them as command-l
 **Verification Command:**
 
 ```bash
-forge verify-contract 0xcae7b56c9134612240687ba70ed37b667300141b src/TrailsRelaySapientSigner.sol:TrailsRelaySapientSigner \
+forge verify-contract 0x9a013e7d186611af36a918ef23d81886e8c256f8 src/TrailsRelaySapientSigner.sol:TrailsRelaySapientSigner \
     --chain $CHAIN_ID \
     --etherscan-api-key $ETHERSCAN_API_KEY \
     --verifier-url $VERIFIER_URL \
