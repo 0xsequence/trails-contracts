@@ -235,7 +235,6 @@ contract TrailsRelayDecoderTest is Test {
         call.value = value;
         call.data = data;
 
-        vm.expectRevert(TrailsRelayDecoder.InvalidCalldataLength.selector);
         TrailsRelayDecoder.decodeRelayCalldataForSapient(call);
     }
 }

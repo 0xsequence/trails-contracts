@@ -44,6 +44,13 @@ library TrailsRelayDecoder {
         pure
         returns (DecodedRelayData memory decodedData)
     {
+        if (call.to == TrailsRelayConstants.RELAY_MULTICALL_PROXY) {
+            decodedData.requestId = bytes32(type(uint256).max);
+            decodedData.token = address(0);
+            decodedData.amount = call.value;
+            decodedData.receiver = TrailsRelayConstants.RELAY_SOLVER;
+            return decodedData;
+        }
         if (call.data.length == 32) {
             // Native asset transfer. This could be to the RelayReceiver contract, which then forwards
             // to the RELAY_SOLVER, or it could be a direct transfer to another address (which should be the solver).
