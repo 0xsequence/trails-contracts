@@ -125,11 +125,9 @@ library TrailsRelayValidator {
                     if (currentInferredInfo.amount > currentAttestedInfo.amount) {
                         revert InferredAmountTooHigh(currentInferredInfo.amount, currentAttestedInfo.amount);
                     }
-                    if (currentInferredInfo.amount == currentAttestedInfo.amount) {
-                        inferredInfoUsed[j] = true;
-                        foundMatch = true;
-                        break;
-                    }
+                    inferredInfoUsed[j] = true;
+                    foundMatch = true;
+                    break;
                 }
             }
 

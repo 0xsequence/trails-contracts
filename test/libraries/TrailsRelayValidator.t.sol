@@ -182,6 +182,25 @@ contract TrailsRelayValidatorTest is Test {
         validateRelayInfosWrapper(_inferredInfos, _attestedInfos);
     }
 
+    function test_ValidateRelayInfos_InferredAmountLower_ShouldPass() public {
+        _inferredInfos = new TrailsRelayDecoder.DecodedRelayData[](1);
+        _inferredInfos[0] = TrailsRelayDecoder.DecodedRelayData({
+            requestId: bytes32(0),
+            token: TOKEN_A,
+            amount: 50,
+            receiver: MOCK_TARGET
+        });
+        _attestedInfos = new TrailsExecutionInfo[](1);
+        _attestedInfos[0] = TrailsExecutionInfo({
+            originToken: TOKEN_A,
+            amount: 100,
+            originChainId: block.chainid,
+            destinationChainId: MOCK_DEST_CHAIN_ID
+        });
+
+        validateRelayInfosWrapper(_inferredInfos, _attestedInfos);
+    }
+
     function test_ValidateRelayInfos_MultipleEntries_AllMatch() public {
         _inferredInfos = new TrailsRelayDecoder.DecodedRelayData[](2);
         _inferredInfos[0] = TrailsRelayDecoder.DecodedRelayData({
