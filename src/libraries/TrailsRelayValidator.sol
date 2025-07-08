@@ -47,14 +47,12 @@ library TrailsRelayValidator {
      * @return True if the recipient is the `relaySolver`, false otherwise.
      */
     function isValidRelayRecipient(Payload.Call memory call) internal pure returns (bool) {
-        if (call.to == TrailsRelayConstants.RELAY_MULTICALL_PROXY) {
-            return true;
-        }
         TrailsRelayDecoder.DecodedRelayData memory decodedData = TrailsRelayDecoder.decodeRelayCalldataForSapient(call);
         return decodedData.receiver == TrailsRelayConstants.RELAY_SOLVER
             || decodedData.receiver == TrailsRelayConstants.RELAY_APPROVAL_PROXY
             || decodedData.receiver == TrailsRelayConstants.RELAY_APPROVAL_PROXY_V2
-            || decodedData.receiver == TrailsRelayConstants.RELAY_RECEIVER;
+            || decodedData.receiver == TrailsRelayConstants.RELAY_RECEIVER
+            || decodedData.receiver == TrailsRelayConstants.RELAY_MULTICALL_PROXY;
     }
 
     /**

@@ -224,7 +224,7 @@ contract TrailsRelayDecoderTest is Test {
         assertEq(decodedData.receiver, RELAY_SOLVER);
     }
 
-    function test_revert_when_decoding_relay_calldata() public {
+    function test_revert_when_decoding_relay_calldata() public pure {
         address to = 0xF5042e6ffaC5a625D4E7848e0b01373D8eB9e222;
         uint256 value = 735346664605744126;
         bytes memory data =

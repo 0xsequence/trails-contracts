@@ -48,7 +48,7 @@ library TrailsRelayDecoder {
             decodedData.requestId = bytes32(type(uint256).max);
             decodedData.token = address(0);
             decodedData.amount = call.value;
-            decodedData.receiver = TrailsRelayConstants.RELAY_SOLVER;
+            decodedData.receiver = TrailsRelayConstants.RELAY_MULTICALL_PROXY;
             return decodedData;
         }
         if (call.data.length == 32) {
