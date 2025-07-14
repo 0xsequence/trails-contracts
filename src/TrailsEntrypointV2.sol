@@ -162,7 +162,7 @@ contract TrailsEntrypointV2 {
 
         for (uint256 i = 0; i < calls.length; i++) {
             Call memory c = calls[i];
-            (bool success, ) = c.target.call{value: c.value}(c.calldata_);
+            (bool success,) = c.target.call{value: c.value}(c.calldata_);
             require(success, "Call failed");
         }
 

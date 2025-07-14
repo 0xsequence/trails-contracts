@@ -131,9 +131,7 @@ library RLPReader {
         uint256 result;
         assembly {
             result := mload(memPtr)
-            if lt(len, 32) {
-                result := div(result, exp(256, sub(32, len)))
-            }
+            if lt(len, 32) { result := div(result, exp(256, sub(32, len))) }
         }
 
         return result;
@@ -153,9 +151,7 @@ library RLPReader {
         uint256 result;
         assembly {
             result := mload(memPtr)
-            if lt(len, 32) {
-                result := div(result, exp(256, sub(32, len)))
-            }
+            if lt(len, 32) { result := div(result, exp(256, sub(32, len))) }
         }
 
         return result;
@@ -251,16 +247,19 @@ library RLPReader {
             byte0 := byte(0, mload(memPtr))
         }
 
-        if (byte0 < STRING_SHORT_START) itemLen = 1;
-        else if (byte0 < STRING_LONG_START) itemLen = byte0 - STRING_SHORT_START + 1;
-        else if (byte0 < LIST_SHORT_START) {
+        if (byte0 < STRING_SHORT_START) {
+            itemLen = 1;
+        } else if (byte0 < STRING_LONG_START) {
+            itemLen = byte0 - STRING_SHORT_START + 1;
+        } else if (byte0 < LIST_SHORT_START) {
             assembly {
                 let byteLen := sub(byte0, 0xb7)
                 let dataLen := div(mload(add(memPtr, 1)), exp(256, sub(32, byteLen)))
                 itemLen := add(dataLen, add(byteLen, 1))
             }
-        } else if (byte0 < LIST_LONG_START) itemLen = byte0 - LIST_SHORT_START + 1;
-        else {
+        } else if (byte0 < LIST_LONG_START) {
+            itemLen = byte0 - LIST_SHORT_START + 1;
+        } else {
             assembly {
                 let byteLen := sub(byte0, 0xf7)
                 let dataLen := div(mload(add(memPtr, 1)), exp(256, sub(32, byteLen)))
@@ -279,9 +278,7 @@ library RLPReader {
         bytes32 result;
         assembly {
             result := mload(memPtr)
-            if lt(len, 32) {
-                result := div(result, exp(256, sub(32, len)))
-            }
+            if lt(len, 32) { result := div(result, exp(256, sub(32, len))) }
         }
         return result;
     }
