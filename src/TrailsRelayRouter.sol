@@ -12,16 +12,30 @@ import {TrailsRelayConstants} from "@/libraries/TrailsRelayConstants.sol";
  */
 contract TrailsRelayRouter {
     // -------------------------------------------------------------------------
-    // Constants
+    // Libraries
     // -------------------------------------------------------------------------
 
-    address public constant RELAY_MULTICALL_PROXY = TrailsRelayConstants.RELAY_MULTICALL_PROXY;
+    using TrailsRelayValidator for bytes;
+
+    // -------------------------------------------------------------------------
+    // Immutable
+    // -------------------------------------------------------------------------
+
+    address public immutable RELAY_MULTICALL_PROXY;
 
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
 
     error ExecutionFailed();
+
+    // -------------------------------------------------------------------------
+    // Constructor
+    // -------------------------------------------------------------------------
+
+    constructor(address relayMulticallProxy) {
+        RELAY_MULTICALL_PROXY = relayMulticallProxy;
+    }
 
     // -------------------------------------------------------------------------
     // Functions
@@ -35,9 +49,7 @@ contract TrailsRelayRouter {
      * @param data The abi-encoded array of Payload.Call structs for the Relay multicall.
      */
     function execute(bytes calldata data) external payable {
-        // Decode for validation purposes
-        Payload.Call[] memory calls = abi.decode(data, (Payload.Call[]));
-        require(TrailsRelayValidator.areValidRelayRecipients(calls), "Invalid relay recipients");
+        data.validate();
 
         // Execute the original calldata
         (bool success,) = RELAY_MULTICALL_PROXY.delegatecall(data);
