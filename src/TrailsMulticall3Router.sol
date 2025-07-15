@@ -32,4 +32,4 @@ contract TrailsMulticall3Router {
             returnData[i] = IMulticall3.Result(success, data);
         }
     }
-} 
+}

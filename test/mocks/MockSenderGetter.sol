@@ -5,4 +5,4 @@ contract MockSenderGetter {
     function getSender() external view returns (address) {
         return msg.sender;
     }
-} 
+}

@@ -46,4 +46,4 @@ contract TrailsMulticall3RouterTest is Test {
         address returnedSender = abi.decode(results[0].returnData, (address));
         assertEq(returnedSender, address(this), "sender should be the test contract");
     }
-} 
+}
