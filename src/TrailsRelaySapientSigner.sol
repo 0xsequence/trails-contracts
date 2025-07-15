@@ -64,21 +64,35 @@ contract TrailsRelaySapientSigner is ISapient {
             revert InvalidCallsLength();
         }
 
-        // 3. Decode the signature to get execution details and the attestation.
+        // 3. Validate relay recipients
+        if (!TrailsRelayValidator.areValidRelayRecipients(payload.calls)) {
+            revert InvalidRelayRecipient();
+        }
+
+        // 4. Decode the signature to get execution details and the attestation.
         (TrailsExecutionInfo[] memory executionInfos, bytes memory attestationSignature, address attestationSigner) =
             decodeSignature(encodedSignature);
 
-        // 4. Recover the signer from the attestation signature
+        // 5. Recover the signer from the attestation signature
         address recoveredAttestationSigner =
             payload.hashFor(address(0)).toEthSignedMessageHash().recover(attestationSignature);
 
-        // 5. Validate the attestation signer
+        // 6. Validate the attestation signer
         if (recoveredAttestationSigner != attestationSigner) {
             revert InvalidAttestationSigner(attestationSigner, recoveredAttestationSigner);
         }
 
-        // 6. Construct the digest for attestation.
+        // 7. Construct the digest for attestation.
         bytes32 digest = executionInfos.getTrailsExecutionInfoHash(attestationSigner);
+
+        // 8. Get inferred relay data from relay calls (filtering out approvals)
+        TrailsRelayDecoder.DecodedRelayData[] memory inferredRelayData =
+            payload.calls.getInferredRelayDatafromRelayCalls();
+
+        // 9. Validate the attestations against the inferred relay information
+        if (!inferredRelayData.validateRelayInfos(executionInfos)) {
+            revert InvalidAttestation();
+        }
 
         return digest;
     }
