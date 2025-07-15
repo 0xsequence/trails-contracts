@@ -7,10 +7,21 @@ pragma solidity ^0.8.18;
  * @notice Utility library for CCTP operations.
  */
 library TrailsCCTPUtils {
+    // -------------------------------------------------------------------------
+    // Errors
+    // -------------------------------------------------------------------------
+
     error InvalidCCTPDomain(uint32 domain);
+
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
 
     /**
      * @notice Converts a CCTP domain to a chain ID.
+     * @dev This function is used to convert the CCTP domain to a chain ID.
+     *      It is used to convert the CCTP domain to a chain ID.
+     *      It is used to convert the CCTP domain to a chain ID.
      * @param domain The CCTP domain.
      * @return The chain ID.
      */

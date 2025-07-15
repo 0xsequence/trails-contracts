@@ -13,12 +13,24 @@ interface IERC20 {
 }
 
 contract TrailsEntrypointV2 {
+    // -------------------------------------------------------------------------
+    // Libraries
+    // -------------------------------------------------------------------------
+
     using RLPReader for bytes;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for RLPReader.RLPItem[];
     using MerkleProof for bytes32[];
 
+    // -------------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------------
+
     bytes32 constant TRANSFER_SIG = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
+
+    // -------------------------------------------------------------------------
+    // Structs
+    // -------------------------------------------------------------------------
 
     struct DepositState {
         address owner;
@@ -27,12 +39,24 @@ contract TrailsEntrypointV2 {
         uint8 status; // 0: Pending, 1: Bridged, 2: Completed
     }
 
+    // -------------------------------------------------------------------------
+    // Mappings
+    // -------------------------------------------------------------------------
+
     mapping(bytes32 => DepositState) public deposits;
     mapping(bytes32 => bool) public processedTxs;
+
+    // -------------------------------------------------------------------------
+    // Events
+    // -------------------------------------------------------------------------
 
     event DepositProved(bytes32 indexed intentHash, address owner, address token, uint256 amount);
     event ETHDepositReceived(bytes32 indexed intentHash, address owner, uint256 amount);
     event IntentExecuted(bytes32 indexed intentHash, uint8 status);
+
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
 
     // Fallback for ETH deposits with calldata suffix (intent descriptor)
     fallback() external payable {
@@ -148,11 +172,19 @@ contract TrailsEntrypointV2 {
         emit DepositProved(intentHash, from, token, logAmount);
     }
 
+    // -------------------------------------------------------------------------
+    // Structs
+    // -------------------------------------------------------------------------
+
     struct Call {
         address target;
         bytes calldata_;
         uint256 value;
     }
+
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
 
     // Execute origin intent (generic arbitrary multicall; permissionless)
     // calls: Array of calls to execute in sequence (e.g., swap, bridge)

@@ -12,6 +12,10 @@ import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
  *      This is useful for smart contract wallets (intent addresses) that need to control msg.sender.
  */
 contract TrailsMulticall3Router {
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
+
     /**
      * @notice Aggregates multiple calls in a single transaction.
      * @dev See the contract-level documentation for the logic on how the call is performed.

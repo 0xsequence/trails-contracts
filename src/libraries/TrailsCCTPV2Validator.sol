@@ -9,10 +9,22 @@ import {CCTPExecutionInfo, ITokenMessengerV2} from "@/interfaces/TrailsCCTPV2.so
  * @notice Library for validating Trails CCTP V2 data.
  */
 library TrailsCCTPV2Validator {
+    // -------------------------------------------------------------------------
+    // Errors
+    // -------------------------------------------------------------------------
+
     error MismatchedAttestationLength();
     error InvalidAttestation();
 
+    // -------------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------------
+
     bytes4 private constant DEPOSIT_FOR_BURN_WITH_HOOK_SELECTOR = ITokenMessengerV2.depositForBurnWithHook.selector;
+
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
 
     /**
      * @notice Validates that each attested CCTPExecutionInfo struct matches the corresponding inferred CCTPExecutionInfo struct.

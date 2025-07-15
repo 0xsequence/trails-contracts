@@ -13,6 +13,10 @@ import {TrailsCCTPUtils} from "./TrailsCCTPUtils.sol";
  * @notice Library for interpreting CCTP data into TrailsExecutionInfo structs.
  */
 library TrailsCCTPV2Interpreter {
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
+
     /**
      * @notice Extracts CCTP execution data from payload calls.
      * @param calls The array of `Payload.Call` structs to decode.
