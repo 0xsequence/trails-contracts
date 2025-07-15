@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {ITokenMessengerV2} from "@/interfaces/TrailsCCTPV2.sol";
+import {TrailsCCTPV2Validator} from "@/libraries/TrailsCCTPV2Validator.sol";
 
 /**
  * @title TrailsCCTPV2Router
@@ -9,6 +10,12 @@ import {ITokenMessengerV2} from "@/interfaces/TrailsCCTPV2.sol";
  * @notice A router contract that validates and executes CCTP V2 calldata.
  */
 contract TrailsCCTPV2Router {
+    // -------------------------------------------------------------------------
+    // Libraries
+    // -------------------------------------------------------------------------
+
+    using TrailsCCTPV2Validator for bytes;
+
     // -------------------------------------------------------------------------
     // Constants
     // -------------------------------------------------------------------------
@@ -32,7 +39,7 @@ contract TrailsCCTPV2Router {
      * @param data The raw calldata for the CCTP V2 operation.
      */
     function execute(bytes calldata data) external payable {
-        require(bytes4(data) == DEPOSIT_FOR_BURN_WITH_HOOK_SELECTOR, "Invalid CCTP calldata");
+        data.validate();
 
         (bool success,) = TOKEN_MESSENGER.delegatecall(data);
         if (!success) {

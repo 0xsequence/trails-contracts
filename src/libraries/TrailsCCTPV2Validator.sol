@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.30;
 
-import {CCTPExecutionInfo} from "../interfaces/TrailsCCTPV2.sol";
+import {CCTPExecutionInfo, ITokenMessengerV2} from "@/interfaces/TrailsCCTPV2.sol";
 
 /**
  * @title TrailsCCTPV2Validator
@@ -12,6 +12,8 @@ library TrailsCCTPV2Validator {
     error MismatchedAttestationLength();
     error InvalidAttestation();
 
+    bytes4 private constant DEPOSIT_FOR_BURN_WITH_HOOK_SELECTOR = ITokenMessengerV2.depositForBurnWithHook.selector;
+
     /**
      * @notice Validates that each attested CCTPExecutionInfo struct matches the corresponding inferred CCTPExecutionInfo struct.
      * @param inferredExecutionInfos Array of CCTPExecutionInfo structs inferred from current transaction data.
@@ -20,7 +22,7 @@ library TrailsCCTPV2Validator {
     function validateExecutionInfos(
         CCTPExecutionInfo[] memory inferredExecutionInfos,
         CCTPExecutionInfo[] memory attestedExecutionInfos
-    ) internal pure returns (bool) {
+    ) internal pure {
         if (inferredExecutionInfos.length != attestedExecutionInfos.length) {
             revert MismatchedAttestationLength();
         }
@@ -30,7 +32,14 @@ library TrailsCCTPV2Validator {
                 revert InvalidAttestation();
             }
         }
+    }
 
-        return true;
+    /**
+     * @notice Validates the function selector of CCTP V2 calldata.
+     * @dev It checks that the function selector matches `depositForBurnWithHook`.
+     * @param data The raw calldata for the CCTP V2 operation.
+     */
+    function validate(bytes memory data) internal pure {
+        require(bytes4(data) == DEPOSIT_FOR_BURN_WITH_HOOK_SELECTOR, "Invalid CCTP calldata");
     }
 }
