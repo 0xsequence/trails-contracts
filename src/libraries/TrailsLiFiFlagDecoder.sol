@@ -4,7 +4,6 @@ pragma solidity ^0.8.30;
 
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
-import {TrailsLiFiValidator} from "@/libraries/TrailsLiFiValidator.sol";
 import {TrailsDecodingStrategy} from "@/interfaces/TrailsLiFi.sol";
 
 /**
@@ -20,7 +19,6 @@ library TrailsLiFiFlagDecoder {
     error SliceOutOfBounds();
     error CalldataTooShortForPayload();
     error InvalidDecodingStrategy();
-    error InvalidLiFiData();
 
     // -------------------------------------------------------------------------
     // Internal Helper Functions
@@ -159,37 +157,17 @@ library TrailsLiFiFlagDecoder {
         if (strategy == TrailsDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE) {
             // Decode as (BridgeData, SwapData[])
             (finalBridgeData, finalSwapDataArray) = decodeAsBridgeDataAndSwapDataTuple(calldataAfterSelector);
-
-            // Validate the decoded data
-            if (!TrailsLiFiValidator.isBridgeAndSwapDataTupleValid(finalBridgeData, finalSwapDataArray)) {
-                revert InvalidLiFiData();
-            }
         } else if (strategy == TrailsDecodingStrategy.SINGLE_BRIDGE_DATA) {
             // Decode as single BridgeData
             finalBridgeData = decodeAsSingleBridgeData(calldataAfterSelector);
-
-            // Validate the decoded data
-            if (!TrailsLiFiValidator.isBridgeDataValid(finalBridgeData)) {
-                revert InvalidLiFiData();
-            }
         } else if (strategy == TrailsDecodingStrategy.SWAP_DATA_ARRAY) {
             // Decode payload as SwapData[]
             // For SWAP_DATA_ARRAY and SINGLE_SWAP_DATA, the abi.decode expects the *arguments* part of calldata.
             // The original calldata 'data' includes the selector. The slice 'calldataAfterSelector' is what we need.
             finalSwapDataArray = decodeLifiSwapDataPayloadAsArray(calldataAfterSelector);
-
-            // Validate the decoded data
-            if (!TrailsLiFiValidator.isSwapDataArrayValid(finalSwapDataArray)) {
-                revert InvalidLiFiData();
-            }
         } else if (strategy == TrailsDecodingStrategy.SINGLE_SWAP_DATA) {
             // Decode payload as single SwapData
             LibSwap.SwapData memory singleSwapData = decodeLifiSwapDataPayloadAsSingle(calldataAfterSelector);
-
-            // Validate the decoded data
-            if (!TrailsLiFiValidator.isSwapDataValid(singleSwapData)) {
-                revert InvalidLiFiData();
-            }
 
             // Convert single SwapData to array
             finalSwapDataArray = new LibSwap.SwapData[](1);

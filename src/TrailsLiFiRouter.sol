@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import {TrailsLiFiFlagDecoder} from "@/libraries/TrailsLiFiFlagDecoder.sol";
+import {TrailsLiFiValidator} from "@/libraries/TrailsLiFiValidator.sol";
 import {TrailsDecodingStrategy} from "@/interfaces/TrailsLiFi.sol";
 
 /**
@@ -10,6 +10,12 @@ import {TrailsDecodingStrategy} from "@/interfaces/TrailsLiFi.sol";
  * @notice A router contract that validates and executes LiFi calldata.
  */
 contract TrailsLiFiRouter {
+    // -------------------------------------------------------------------------
+    // Libraries
+    // -------------------------------------------------------------------------
+
+    using TrailsLiFiValidator for bytes;
+
     // -------------------------------------------------------------------------
     // Constants
     // -------------------------------------------------------------------------
@@ -37,16 +43,14 @@ contract TrailsLiFiRouter {
 
     /**
      * @notice Validates and executes a LiFi operation via delegatecall.
-     * @dev This function first decodes the strategy and LiFi calldata from the input data,
-     *      then uses TrailsLiFiFlagDecoder to validate it. If valid, it executes the
-     *      LiFi calldata using delegatecall to the LiFi Diamond contract.
+     * @dev This function first validates the input data, then decodes it to extract the
+     *      LiFi calldata, and executes it using delegatecall to the LiFi Diamond contract.
      * @param data The abi-encoded tuple of (TrailsDecodingStrategy, bytes) for the LiFi operation.
      */
     function execute(bytes calldata data) external payable {
-        (TrailsDecodingStrategy strategy, bytes memory liFiData) = abi.decode(data, (TrailsDecodingStrategy, bytes));
+        data.validate();
 
-        // This function will revert if the data is invalid
-        TrailsLiFiFlagDecoder.decodeLiFiDataOrRevert(liFiData, strategy);
+        (, bytes memory liFiData) = abi.decode(data, (TrailsDecodingStrategy, bytes));
 
         (bool success,) = LIFI_DIAMOND.delegatecall(liFiData);
         if (!success) {

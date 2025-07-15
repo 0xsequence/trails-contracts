@@ -1,23 +1,26 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.30;
 
 import {ILiFi} from "lifi-contracts/Interfaces/ILiFi.sol";
 import {LibSwap} from "lifi-contracts/Libraries/LibSwap.sol";
+import {TrailsLiFiFlagDecoder} from "@/libraries/TrailsLiFiFlagDecoder.sol";
+import {TrailsDecodingStrategy} from "@/interfaces/TrailsLiFi.sol";
 
 /**
  * @title TrailsLiFiValidator
- * @author Shun Kakinoki w/ help from Gemini
+ * @author Shun Kakinoki
  * @notice Library for validating decoded LiFi Protocol data structures.
  *         Provides functions to check if BridgeData and SwapData are valid and not "empty".
  */
 library TrailsLiFiValidator {
+    error InvalidLiFiData();
     /**
      * @notice Checks if a single LibSwap.SwapData struct is valid and represents an actual swap.
      * @dev A swap is considered "not empty" if it has a target for the call, approval, or a positive amount.
      * @param swapData The SwapData struct to validate.
      * @return True if the swapData is valid and not empty, false otherwise.
      */
+
     function isSwapDataValid(LibSwap.SwapData memory swapData) internal pure returns (bool) {
         return swapData.callTo != address(0) || swapData.approveTo != address(0) || swapData.fromAmount > 0;
     }
@@ -79,6 +82,38 @@ library TrailsLiFiValidator {
             // If bridgeData indicates NO source swaps, then swapDataArray should be effectively empty
             // (i.e., not contain any "valid and non-empty" swaps).
             return !isSwapDataArrayValid(swapDataArray);
+        }
+    }
+
+    /**
+     * @notice Validates LiFi calldata by decoding it and checking the strategy.
+     * @dev This function decodes the LiFi data and strategy from the input bytes,
+     *      then uses TrailsLiFiFlagDecoder to validate it. It will revert if the data
+     *      is invalid.
+     * @param data The abi-encoded tuple of (TrailsDecodingStrategy, bytes).
+     */
+    function validate(bytes calldata data) internal pure {
+        (TrailsDecodingStrategy strategy, bytes memory liFiData) = abi.decode(data, (TrailsDecodingStrategy, bytes));
+
+        (ILiFi.BridgeData memory finalBridgeData, LibSwap.SwapData[] memory finalSwapDataArray) =
+            TrailsLiFiFlagDecoder.decodeLiFiDataOrRevert(liFiData, strategy);
+
+        if (strategy == TrailsDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE) {
+            if (!isBridgeAndSwapDataTupleValid(finalBridgeData, finalSwapDataArray)) {
+                revert InvalidLiFiData();
+            }
+        } else if (strategy == TrailsDecodingStrategy.SINGLE_BRIDGE_DATA) {
+            if (!isBridgeDataValid(finalBridgeData)) {
+                revert InvalidLiFiData();
+            }
+        } else if (strategy == TrailsDecodingStrategy.SWAP_DATA_ARRAY) {
+            if (!isSwapDataArrayValid(finalSwapDataArray)) {
+                revert InvalidLiFiData();
+            }
+        } else if (strategy == TrailsDecodingStrategy.SINGLE_SWAP_DATA) {
+            if (finalSwapDataArray.length != 1 || !isSwapDataValid(finalSwapDataArray[0])) {
+                revert InvalidLiFiData();
+            }
         }
     }
 }
