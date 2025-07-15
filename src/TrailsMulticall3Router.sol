@@ -5,7 +5,7 @@ import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 
 /**
  * @title TrailsMulticall3Router
- * @author Sequence
+ * @author Shun Kakinoki
  * @notice A wrapper to execute multiple calls via DELEGATECALL to preserve the original msg.sender.
  * @dev This contract mimics the Multicall3 interface but executes sub-calls via DELEGATECALL
  *      to ensure that for the sub-calls, msg.sender is the original caller of this contract.
