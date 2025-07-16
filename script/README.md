@@ -94,6 +94,19 @@ forge script script/TrailsCCTPV2SapientSigner.s.sol:Deploy --sig "run()" \
     -vvvv
 ```
 
+```bash
+forge script script/TrailsMulticall3Router.s.sol:Deploy --sig "run()" \
+    --rpc-url $RPC_URL \
+    --broadcast \
+    --verify \
+    --chain $CHAIN_ID \
+    --verifier-url $VERIFIER_URL \
+    --etherscan-api-key $ETHERSCAN_API_KEY \
+    --sender $ADDRESS \
+    --via-ir \
+    -vvvv
+```
+
 **Explanation of flags:**
 *   `script/TrailsLiFiSapientSigner.s.sol:Deploy`: Specifies the script file and the contract within that file to run.
 *   `--sig "run()"`: Specifies the function signature to execute in the script contract.
@@ -125,6 +138,15 @@ Ensure the following environment variables are set, or provide them as command-l
 
 ```bash
 forge verify-contract 0x9a013e7d186611af36a918ef23d81886e8c256f8 src/TrailsRelaySapientSigner.sol:TrailsRelaySapientSigner \
+    --chain $CHAIN_ID \
+    --etherscan-api-key $ETHERSCAN_API_KEY \
+    --verifier-url $VERIFIER_URL \
+    --compiler-version 0.8.30 \
+    --watch
+```
+
+```bash
+forge verify-contract 0x099E30e44A3fD4EdAb23D678a08cDE2dA2f2FF10 src/TrailsMulticall3Router.sol:TrailsMulticall3Router \
     --chain $CHAIN_ID \
     --etherscan-api-key $ETHERSCAN_API_KEY \
     --verifier-url $VERIFIER_URL \
