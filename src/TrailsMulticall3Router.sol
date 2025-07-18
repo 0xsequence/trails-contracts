@@ -13,27 +13,28 @@ import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
  */
 contract TrailsMulticall3Router {
     // -------------------------------------------------------------------------
+    // Immutable Variables
+    // -------------------------------------------------------------------------
+
+    address public immutable multicall3 = 0xcA11bde05977b3631167028862bE2a173976CA11;
+
+    // -------------------------------------------------------------------------
     // Functions
     // -------------------------------------------------------------------------
 
     /**
      * @notice Aggregates multiple calls in a single transaction.
      * @dev See the contract-level documentation for the logic on how the call is performed.
-     * @param calls An array of call objects.
-     * @return returnData An array of result objects from each call.
+     * @param data The data to execute.
+     * @return returnResults The result of the execution. (Expects the underlying data returned to be an array of IMulticall3.Result)
      */
-    function aggregate3(IMulticall3.Call3[] calldata calls)
+    function execute(bytes calldata data)
         public
         payable
-        returns (IMulticall3.Result[] memory returnData)
+        returns (IMulticall3.Result[] memory returnResults)
     {
-        returnData = new IMulticall3.Result[](calls.length);
-        for (uint256 i = 0; i < calls.length; i++) {
-            (bool success, bytes memory data) = calls[i].target.delegatecall(calls[i].callData);
-            if (!calls[i].allowFailure) {
-                require(success, "TrailsMulticall3Router: call failed");
-            }
-            returnData[i] = IMulticall3.Result(success, data);
-        }
+        (bool success, bytes memory returnData) = multicall3.delegatecall(data);
+        require(success, "TrailsMulticall3Router: call failed");
+        return abi.decode(returnData, (IMulticall3.Result[]));
     }
 }
