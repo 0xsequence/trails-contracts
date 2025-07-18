@@ -37,4 +37,11 @@ contract TrailsMulticall3Router {
         require(success, "TrailsMulticall3Router: call failed");
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
+
+    // -------------------------------------------------------------------------
+    // Receive ETH
+    // -------------------------------------------------------------------------
+
+    /// @notice Receive ETH
+    receive() external payable {}
 }
