@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 library TrailsSignatureDecoder {
-
     enum UserOpSignatureType {
         OFF_CHAIN,
         ON_CHAIN,
@@ -25,27 +24,20 @@ library TrailsSignatureDecoder {
      */
     function decodeSignature(bytes memory self) internal pure returns (UserOpSignature memory) {
         require(self.length > 0, "TrailsSignatureDecoder:: empty signature");
-        
+
         bytes memory sig = _slice(self, 1, self.length - 1);
         uint8 sigType = uint8(self[0]);
-        
+
         if (sigType == SIG_TYPE_OFF_CHAIN) {
-            return UserOpSignature(
-                UserOpSignatureType.OFF_CHAIN,
-                sig
-            );
+            return UserOpSignature(UserOpSignatureType.OFF_CHAIN, sig);
         } else if (sigType == SIG_TYPE_ON_CHAIN) {
-            return UserOpSignature(
-                UserOpSignatureType.ON_CHAIN,
-                sig
-            );
+            return UserOpSignature(UserOpSignatureType.ON_CHAIN, sig);
         } else if (sigType == SIG_TYPE_ERC20_PERMIT) {
-            return UserOpSignature(
-                UserOpSignatureType.ERC20_PERMIT,
-                sig
-            );
+            return UserOpSignature(UserOpSignatureType.ERC20_PERMIT, sig);
         } else {
-            revert("TrailsSignatureDecoder:: invalid userOp sig type. Expected prefix 0x00 for off-chain, 0x01 for on-chain or 0x02 for erc20 permit signature.");
+            revert(
+                "TrailsSignatureDecoder:: invalid userOp sig type. Expected prefix 0x00 for off-chain, 0x01 for on-chain or 0x02 for erc20 permit signature."
+            );
         }
     }
 
@@ -64,5 +56,4 @@ library TrailsSignatureDecoder {
         }
         return result;
     }
-
 }

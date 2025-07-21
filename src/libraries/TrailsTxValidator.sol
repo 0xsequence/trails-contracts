@@ -6,7 +6,6 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 library TrailsTxValidator {
-
     uint8 constant LEGACY_TX_TYPE = 0x00;
     uint8 constant EIP1559_TX_TYPE = 0x02;
 
@@ -39,18 +38,18 @@ library TrailsTxValidator {
      * Once parsed, the function will check for two conditions:
      *      1. is the expected hash found in the tx.data as the last 32bytes?
      *      2. is the recovered tx signer equal to the expected signer?
-     * 
+     *
      * If both conditions are met - outside contract can be sure that the expected signer has indeed
      * approved the given hash by performing given on-chain transaction.
-     * 
+     *
      * NOTES: This function will revert if either of following is met:
      *    1. the userOpSignature couldn't be parsed to a valid fully signed EVM transaction
      *    2. hash couldn't be extracted from the tx.data
      *    3. extracted hash wasn't equal to the provided expected hash
      *    4. recovered signer wasn't equal to the expected signer
-     * 
+     *
      * Returns true if the expected signer did indeed approve the given expectedHash by signing an on-chain transaction.
-     * 
+     *
      * @param userOpSignature Signature provided as the userOp.signature parameter. Expecting to receive
      *                        fully signed serialized EVM transcaction here of type 0x00 (LEGACY) or 0x02 (EIP1556).
      *                        For LEGACY tx type the "0x00" prefix has to be added manually while the EIP1559 tx type
@@ -59,15 +58,19 @@ library TrailsTxValidator {
      *                     If no hash found exception is thrown.
      * @param expectedSigner Signer expected to be recovered when decoding the signed transaction and recovering the signer.
      */
-    function validate(bytes memory userOpSignature, bytes32 expectedHash, address expectedSigner) internal pure returns (bool) {
+    function validate(bytes memory userOpSignature, bytes32 expectedHash, address expectedSigner)
+        internal
+        pure
+        returns (bool)
+    {
         TxData memory decodedTx = decodeTx(userOpSignature);
-        
+
         if (decodedTx.appendedHash != expectedHash) {
             revert("TrailsTxValidator:: Extracted hash not equal to the expected appended hash");
         }
 
         bytes memory signature = abi.encodePacked(decodedTx.r, decodedTx.s, decodedTx.v);
-        
+
         address recovered = MessageHashUtils.toEthSignedMessageHash(decodedTx.utxHash).recover(signature);
         if (expectedSigner != recovered) {
             recovered = decodedTx.utxHash.recover(signature);
@@ -84,7 +87,7 @@ library TrailsTxValidator {
         bytes memory rlpEncodedTx = _slice(self, 1, self.length - 1);
         RLPReader.RLPItem memory parsedRlpEncodedTx = rlpEncodedTx.toRlpItem();
         RLPReader.RLPItem[] memory parsedRlpEncodedTxItems = parsedRlpEncodedTx.toList();
-        TxParams memory params = extractParams(txType, parsedRlpEncodedTxItems);        
+        TxParams memory params = extractParams(txType, parsedRlpEncodedTxItems);
 
         return TxData(
             txType,
@@ -96,12 +99,16 @@ library TrailsTxValidator {
         );
     }
 
-    function extractParams(uint8 txType, RLPReader.RLPItem[] memory items) private pure returns (TxParams memory params) {
+    function extractParams(uint8 txType, RLPReader.RLPItem[] memory items)
+        private
+        pure
+        returns (TxParams memory params)
+    {
         uint8 dataPos;
         uint8 vPos;
         uint8 rPos;
         uint8 sPos;
-        
+
         if (txType == LEGACY_TX_TYPE) {
             dataPos = 5;
             vPos = 6;
@@ -112,27 +119,31 @@ library TrailsTxValidator {
             vPos = 9;
             rPos = 10;
             sPos = 11;
-        } else { revert("TrailsTxValidator:: unsupported evm tx type"); }
+        } else {
+            revert("TrailsTxValidator:: unsupported evm tx type");
+        }
 
         return TxParams(
-            items[vPos].toUint(),
-            bytes32(items[rPos].toUint()),
-            bytes32(items[sPos].toUint()),
-            items[dataPos].toBytes()
+            items[vPos].toUint(), bytes32(items[rPos].toUint()), bytes32(items[sPos].toUint()), items[dataPos].toBytes()
         );
     }
 
     function extractAppendedHash(bytes memory callData) private pure returns (bytes32 appendedHash) {
-        if (callData.length < HASH_BYTE_SIZE) { revert("TrailsTxValidator:: callData length too short"); }
+        if (callData.length < HASH_BYTE_SIZE) revert("TrailsTxValidator:: callData length too short");
         appendedHash = bytes32(_slice(callData, callData.length - HASH_BYTE_SIZE, HASH_BYTE_SIZE));
     }
 
-    function calculateUnsignedTxHash(uint8 txType, bytes memory rlpEncodedTx, uint256 rlpEncodedTxPayloadLen, uint256 v) private pure returns (bytes32 hash) {
+    function calculateUnsignedTxHash(uint8 txType, bytes memory rlpEncodedTx, uint256 rlpEncodedTxPayloadLen, uint256 v)
+        private
+        pure
+        returns (bytes32 hash)
+    {
         uint256 totalSignatureSize = RLP_ENCODED_R_S_BYTE_SIZE + _encodeUintLength(v);
         uint256 totalPrefixSize = rlpEncodedTx.length - rlpEncodedTxPayloadLen;
-        bytes memory rlpEncodedTxNoSigAndPrefix = _slice(rlpEncodedTx, totalPrefixSize, rlpEncodedTx.length - totalSignatureSize - totalPrefixSize);
+        bytes memory rlpEncodedTxNoSigAndPrefix =
+            _slice(rlpEncodedTx, totalPrefixSize, rlpEncodedTx.length - totalSignatureSize - totalPrefixSize);
         if (txType == EIP1559_TX_TYPE) {
-            return keccak256(abi.encodePacked(txType, prependRlpContentSize(rlpEncodedTxNoSigAndPrefix, "")));    
+            return keccak256(abi.encodePacked(txType, prependRlpContentSize(rlpEncodedTxNoSigAndPrefix, "")));
         } else if (txType == LEGACY_TX_TYPE) {
             if (v >= EIP_155_MIN_V_VALUE) {
                 return keccak256(
@@ -142,8 +153,9 @@ library TrailsTxValidator {
                             _encodeUint(uint256(_extractChainIdFromV(v))),
                             _encodeUint(uint256(0)),
                             _encodeUint(uint256(0))
-                        )    
-                    ));
+                        )
+                    )
+                );
             } else {
                 return keccak256(prependRlpContentSize(rlpEncodedTxNoSigAndPrefix, ""));
             }
@@ -184,7 +196,7 @@ library TrailsTxValidator {
     function _encodeUintLength(uint256 value) private pure returns (uint256) {
         if (value == 0) return 1;
         if (value <= 0x7f) return 1;
-        
+
         uint256 length = 0;
         uint256 temp = value;
         while (temp > 0) {
@@ -201,27 +213,27 @@ library TrailsTxValidator {
         if (value <= 0x7f) {
             return abi.encodePacked(uint8(value));
         }
-        
+
         bytes memory result;
         uint256 temp = value;
         uint256 length = 0;
-        
+
         // Calculate length
         while (temp > 0) {
             length++;
             temp = temp >> 8;
         }
-        
+
         result = new bytes(length + 1);
         result[0] = bytes1(uint8(0x80 + length));
-        
+
         // Encode the value
         temp = value;
         for (uint256 i = length; i > 0; i--) {
             result[i] = bytes1(uint8(temp & 0xff));
             temp = temp >> 8;
         }
-        
+
         return result;
     }
 
@@ -235,18 +247,17 @@ library TrailsTxValidator {
                 lengthOfLength++;
                 temp = temp >> 8;
             }
-            
+
             bytes memory result = new bytes(lengthOfLength + 1);
             result[0] = bytes1(uint8(shortStart + 55 + lengthOfLength));
-            
+
             temp = length;
             for (uint256 i = lengthOfLength; i > 0; i--) {
                 result[i] = bytes1(uint8(temp & 0xff));
                 temp = temp >> 8;
             }
-            
+
             return result;
         }
     }
-
 }

@@ -1,21 +1,25 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {RLPReader} from "./libraries/RLPReader.sol";
 import {TrailsTxValidator} from "./libraries/TrailsTxValidator.sol";
 import {TrailsPermitValidator} from "./libraries/TrailsPermitValidator.sol";
 import {TrailsSignatureDecoder} from "./libraries/TrailsSignatureDecoder.sol";
 
-// Placeholder interfaces for prototype (replace with actual in production)
-interface IERC20 {
-    function balanceOf(address account) external view returns (uint256);
-    function approve(address spender, uint256 amount) external returns (bool);
-    function transfer(address to, uint256 amount) external returns (bool);
-    function transferFrom(address from, address to, uint256 amount) external returns (bool);
-}
-
-contract TrailsEntrypointV2 {
+/**
+ * @title TrailsEntrypointV2
+ * @author Shun Kakinoki
+ * @notice A single entrypoint contract that accepts intents through ETH/ERC20 transfers with calldata suffixes.
+ *         Implements a commit-prove pattern eliminating the need for approve steps, enabling 1-click crypto transactions.
+ *         Inspired by Relay's suffix pattern and Klaster's transaction validation approach.
+ */
+contract TrailsEntrypointV2 is ReentrancyGuard {
     // -------------------------------------------------------------------------
     // Libraries
     // -------------------------------------------------------------------------
@@ -25,19 +29,27 @@ contract TrailsEntrypointV2 {
     using RLPReader for RLPReader.RLPItem[];
     using MerkleProof for bytes32[];
     using TrailsSignatureDecoder for bytes;
+    using SafeERC20 for IERC20;
+    using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
 
     // -------------------------------------------------------------------------
     // Constants
     // -------------------------------------------------------------------------
 
     bytes32 constant TRANSFER_SIG = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
-    
+    uint256 public constant MIN_INTENT_HASH_LENGTH = 32;
+    uint256 public constant MAX_INTENT_DEADLINE = 86400; // 24 hours
+
     // EIP-712 constants for intent hashing
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
-    bytes32 public constant INTENT_TYPEHASH = keccak256("Intent(address sender,address token,uint256 amount,uint256 destinationChain,address destinationAddress,bytes extraData,uint256 nonce,uint256 deadline)");
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 public constant INTENT_TYPEHASH = keccak256(
+        "Intent(address sender,address token,uint256 amount,uint256 destinationChain,address destinationAddress,bytes extraData,uint256 nonce,uint256 deadline)"
+    );
     string public constant NAME = "TrailsEntrypointV2";
     string public constant VERSION = "1";
-    
+
     bytes32 public immutable DOMAIN_SEPARATOR;
 
     // -------------------------------------------------------------------------
@@ -55,35 +67,87 @@ contract TrailsEntrypointV2 {
         uint256 deadline;
     }
 
-    struct IntentHash {
-        bytes32 hash;
-        uint256 chainId;
-        address verifyingContract;
-    }
-
     struct DepositState {
         address owner;
         address token;
         uint256 amount;
-        uint8 status; // 0: Pending, 1: Bridged, 2: Completed
+        uint8 status; // 0: Pending, 1: Proven, 2: Executed, 3: Failed
         Intent intent;
+        uint256 timestamp;
+        bytes32 commitmentHash;
+    }
+
+    enum IntentStatus {
+        Pending,
+        Proven,
+        Executed,
+        Failed
+    }
+
+    struct Call {
+        address target;
+        bytes data;
+        uint256 value;
     }
 
     // -------------------------------------------------------------------------
-    // Mappings
+    // State Variables
     // -------------------------------------------------------------------------
 
     mapping(bytes32 => DepositState) public deposits;
     mapping(bytes32 => bool) public processedTxs;
+    mapping(address => uint256) public nonces;
+    mapping(bytes32 => uint256) public intentExpirations;
+
+    address public owner;
+    bool public paused;
 
     // -------------------------------------------------------------------------
     // Events
     // -------------------------------------------------------------------------
 
-    event DepositProved(bytes32 indexed intentHash, address owner, address token, uint256 amount);
-    event ETHDepositReceived(bytes32 indexed intentHash, address owner, uint256 amount);
-    event IntentExecuted(bytes32 indexed intentHash, uint8 status);
-    event IntentCreated(bytes32 indexed intentHash, Intent intent);
+    event IntentCommitted(bytes32 indexed intentHash, address indexed sender, Intent intent);
+    event DepositReceived(bytes32 indexed intentHash, address indexed owner, address token, uint256 amount);
+    event IntentProven(bytes32 indexed intentHash, address indexed prover, bytes signature);
+    event IntentExecuted(bytes32 indexed intentHash, bool success, bytes returnData);
+    event IntentExpired(bytes32 indexed intentHash, address indexed sender);
+    event EmergencyWithdraw(bytes32 indexed intentHash, address indexed owner, uint256 amount);
+
+    // -------------------------------------------------------------------------
+    // Errors
+    // -------------------------------------------------------------------------
+
+    error ContractPaused();
+    error InvalidIntentHash();
+    error IntentAlreadyExists();
+    error IntentNotFound();
+    error IntentHasExpired();
+    error InvalidSender();
+    error InvalidAmount();
+    error InvalidToken();
+    error InvalidSignature();
+    error ExecutionFailed();
+    error InvalidStatus();
+    error Unauthorized();
+
+    // -------------------------------------------------------------------------
+    // Modifiers
+    // -------------------------------------------------------------------------
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert Unauthorized();
+        _;
+    }
+
+    modifier notPaused() {
+        if (paused) revert ContractPaused();
+        _;
+    }
+
+    modifier validIntentHash(bytes32 intentHash) {
+        if (intentHash == bytes32(0)) revert InvalidIntentHash();
+        _;
+    }
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -91,14 +155,10 @@ contract TrailsEntrypointV2 {
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(
-            abi.encode(
-                DOMAIN_TYPEHASH,
-                keccak256(bytes(NAME)),
-                keccak256(bytes(VERSION)),
-                block.chainid,
-                address(this)
-            )
+            abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(NAME)), keccak256(bytes(VERSION)), block.chainid, address(this))
         );
+        owner = msg.sender;
+        paused = false;
     }
 
     // -------------------------------------------------------------------------
@@ -106,6 +166,12 @@ contract TrailsEntrypointV2 {
     // -------------------------------------------------------------------------
 
     function hashIntent(Intent memory intent) public view returns (bytes32) {
+        if (intent.sender == address(0)) revert InvalidSender();
+        if (intent.amount == 0) revert InvalidAmount();
+        if (intent.deadline <= block.timestamp || intent.deadline > block.timestamp + MAX_INTENT_DEADLINE) {
+            revert IntentHasExpired();
+        }
+
         bytes32 structHash = keccak256(
             abi.encode(
                 INTENT_TYPEHASH,
@@ -122,20 +188,38 @@ contract TrailsEntrypointV2 {
         return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
     }
 
-    function createIntentHash(Intent memory intent) external returns (bytes32) {
+    function commitIntent(Intent memory intent) external notPaused returns (bytes32) {
         bytes32 intentHash = hashIntent(intent);
-        emit IntentCreated(intentHash, intent);
+
+        if (deposits[intentHash].owner != address(0)) revert IntentAlreadyExists();
+        if (nonces[intent.sender] != intent.nonce) revert InvalidSignature();
+
+        // Initialize deposit state
+        deposits[intentHash] = DepositState({
+            owner: intent.sender,
+            token: intent.token,
+            amount: intent.amount,
+            status: uint8(IntentStatus.Pending),
+            intent: intent,
+            timestamp: block.timestamp,
+            commitmentHash: intentHash
+        });
+
+        nonces[intent.sender]++;
+        intentExpirations[intentHash] = intent.deadline;
+
+        emit IntentCommitted(intentHash, intent.sender, intent);
         return intentHash;
     }
 
     // -------------------------------------------------------------------------
-    // Functions
+    // Deposit Functions
     // -------------------------------------------------------------------------
 
-    // Fallback for ETH deposits with calldata suffix (intent descriptor)
-    fallback() external payable {
-        require(msg.value > 0, "No ETH sent");
-        require(msg.data.length >= 32, "Invalid intent hash in calldata");
+    // Fallback for ETH deposits with calldata suffix containing intent hash
+    fallback() external payable nonReentrant notPaused {
+        if (msg.value == 0) revert InvalidAmount();
+        if (msg.data.length < MIN_INTENT_HASH_LENGTH) revert InvalidIntentHash();
 
         // Extract the intent hash from the last 32 bytes of calldata
         bytes32 intentHash;
@@ -143,168 +227,205 @@ contract TrailsEntrypointV2 {
             intentHash := calldataload(sub(calldatasize(), 32))
         }
 
-        // Verify that the intent hash corresponds to a valid intent that includes this ETH amount
-        DepositState storage deposit = deposits[intentHash];
-        require(deposit.intent.sender != address(0) || deposit.owner == address(0), "Intent already exists with different sender");
-        
-        if (deposit.owner == address(0)) {
-            // First deposit for this intent
-            deposit.owner = msg.sender;
-            deposit.token = address(0);
-            deposit.amount = msg.value;
-            deposit.status = 0;
-        } else {
-            // Additional deposit for existing intent
-            require(deposit.owner == msg.sender, "Sender mismatch");
-            require(deposit.token == address(0), "Token mismatch");
-            deposit.amount += msg.value;
-        }
+        if (intentHash == bytes32(0)) revert InvalidIntentHash();
 
-        emit ETHDepositReceived(intentHash, msg.sender, msg.value);
+        DepositState storage deposit = deposits[intentHash];
+        if (deposit.owner == address(0)) revert IntentNotFound();
+        if (deposit.owner != msg.sender) revert InvalidSender();
+        if (deposit.token != address(0)) revert InvalidToken(); // Must be ETH
+        if (deposit.amount != msg.value) revert InvalidAmount();
+        if (block.timestamp > intentExpirations[intentHash]) revert IntentHasExpired();
+        if (deposit.status != uint8(IntentStatus.Pending)) revert InvalidStatus();
+
+        // Mark as deposit received
+        emit DepositReceived(intentHash, msg.sender, address(0), msg.value);
     }
 
     receive() external payable {
-        revert("Use fallback with calldata for intent");
+        revert("ETH deposits must include intent hash in calldata - use fallback function");
     }
 
-    function proveETHDeposit(
-        bytes calldata userOpSignature,
-        bytes32 expectedHash,
-        address expectedSigner
-    ) external {
-        TrailsSignatureDecoder.UserOpSignature memory decodedSig = userOpSignature.decodeSignature();
-        
-        if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ON_CHAIN) {
-            TrailsTxValidator.validate(decodedSig.signature, expectedHash, expectedSigner);
-        } else {
-            revert("TrailsEntrypointV2:: ETH deposits must use on-chain signature validation");
-        }
-        
-        Intent memory intent = abi.decode(msg.data[4:], (Intent));
-        bytes32 intentHash = hashIntent(intent);
-        require(intentHash == expectedHash, "Intent hash mismatch");
-        
-        deposits[intentHash].owner = expectedSigner;
-        deposits[intentHash].token = address(0);
-        deposits[intentHash].amount = intent.amount;
-        deposits[intentHash].status = 0;
-        deposits[intentHash].intent = intent;
-        
-        emit DepositProved(intentHash, expectedSigner, address(0), intent.amount);
-    }
-
-    function proveERC20Deposit(
-        bytes calldata userOpSignature,
-        bytes32 expectedHash,
-        address expectedSigner
-    ) external {
-        TrailsSignatureDecoder.UserOpSignature memory decodedSig = userOpSignature.decodeSignature();
-        
-        if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ON_CHAIN) {
-            TrailsTxValidator.validate(decodedSig.signature, expectedHash, expectedSigner);
-        } else if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ERC20_PERMIT) {
-            TrailsPermitValidator.validate(decodedSig.signature, address(this), expectedHash, expectedSigner);
-        } else {
-            revert("TrailsEntrypointV2:: ERC20 deposits must use on-chain or permit signature validation");
-        }
-        
-        Intent memory intent = abi.decode(msg.data[4:], (Intent));
-        bytes32 intentHash = hashIntent(intent);
-        require(intentHash == expectedHash, "Intent hash mismatch");
-        
-        deposits[intentHash].owner = expectedSigner;
-        deposits[intentHash].token = intent.token;
-        deposits[intentHash].amount = intent.amount;
-        deposits[intentHash].status = 0;
-        deposits[intentHash].intent = intent;
-        
-        emit DepositProved(intentHash, expectedSigner, intent.token, intent.amount);
-    }
-
-    // -------------------------------------------------------------------------
-    // Structs
-    // -------------------------------------------------------------------------
-
-    struct Call {
-        address target;
-        bytes calldata_;
-        uint256 value;
-    }
-
-    // -------------------------------------------------------------------------
-    // Functions
-    // -------------------------------------------------------------------------
-
-    // Validate deposit proof using signature validation instead of merkle proofs
-    function validateDepositProof(
-        bytes32 intentHash,
-        bytes calldata userOpSignature,
-        address expectedSigner
-    ) external {
+    function depositERC20WithIntent(bytes32 intentHash, address token, uint256 amount)
+        external
+        nonReentrant
+        notPaused
+        validIntentHash(intentHash)
+    {
         DepositState storage deposit = deposits[intentHash];
-        require(deposit.owner != address(0), "Deposit does not exist");
-        require(deposit.status == 0, "Deposit not pending");
-        
-        TrailsSignatureDecoder.UserOpSignature memory decodedSig = userOpSignature.decodeSignature();
-        
-        if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ON_CHAIN) {
-            TrailsTxValidator.validate(decodedSig.signature, intentHash, expectedSigner);
-        } else if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ERC20_PERMIT) {
-            TrailsPermitValidator.validate(decodedSig.signature, address(this), intentHash, expectedSigner);
-        } else {
-            revert("TrailsEntrypointV2:: Invalid signature type for deposit proof");
-        }
-        
-        require(deposit.owner == expectedSigner, "Signer mismatch");
-        deposit.status = 1; // Mark as validated
-        emit IntentExecuted(intentHash, 1);
+        if (deposit.owner == address(0)) revert IntentNotFound();
+        if (deposit.owner != msg.sender) revert InvalidSender();
+        if (deposit.token != token) revert InvalidToken();
+        if (deposit.amount != amount) revert InvalidAmount();
+        if (block.timestamp > intentExpirations[intentHash]) revert IntentHasExpired();
+        if (deposit.status != uint8(IntentStatus.Pending)) revert InvalidStatus();
+
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        emit DepositReceived(intentHash, msg.sender, token, amount);
     }
 
-    // Execute origin intent (generic arbitrary multicall; permissionless)
-    // calls: Array of calls to execute in sequence (e.g., swap, bridge)
-    function executeOrigin(bytes32 intentHash, Call[] calldata calls) external {
+    // -------------------------------------------------------------------------
+    // Proof Functions
+    // -------------------------------------------------------------------------
+
+    function proveETHDeposit(bytes32 intentHash, bytes calldata signature)
+        external
+        nonReentrant
+        notPaused
+        validIntentHash(intentHash)
+    {
         DepositState storage deposit = deposits[intentHash];
-        require(deposit.status == 1, "Deposit not validated");
+        if (deposit.owner == address(0)) revert IntentNotFound();
+        if (deposit.status != uint8(IntentStatus.Pending)) revert InvalidStatus();
+        if (block.timestamp > intentExpirations[intentHash]) revert IntentHasExpired();
+
+        // Validate the signature proves the ETH deposit transaction
+        TrailsSignatureDecoder.UserOpSignature memory decodedSig = signature.decodeSignature();
+
+        if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ON_CHAIN) {
+            TrailsTxValidator.validate(decodedSig.signature, intentHash, deposit.owner);
+        } else {
+            revert InvalidSignature();
+        }
+
+        // Mark as proven
+        deposit.status = uint8(IntentStatus.Proven);
+        emit IntentProven(intentHash, msg.sender, signature);
+    }
+
+    function proveERC20Deposit(bytes32 intentHash, bytes calldata signature)
+        external
+        nonReentrant
+        notPaused
+        validIntentHash(intentHash)
+    {
+        DepositState storage deposit = deposits[intentHash];
+        if (deposit.owner == address(0)) revert IntentNotFound();
+        if (deposit.status != uint8(IntentStatus.Pending)) revert InvalidStatus();
+        if (block.timestamp > intentExpirations[intentHash]) revert IntentHasExpired();
+
+        TrailsSignatureDecoder.UserOpSignature memory decodedSig = signature.decodeSignature();
+
+        if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ON_CHAIN) {
+            TrailsTxValidator.validate(decodedSig.signature, intentHash, deposit.owner);
+        } else if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ERC20_PERMIT) {
+            TrailsPermitValidator.validate(decodedSig.signature, address(this), intentHash, deposit.owner);
+        } else {
+            revert InvalidSignature();
+        }
+
+        // Transfer the ERC20 tokens to this contract if not already done
+        if (deposit.token != address(0)) {
+            IERC20(deposit.token).safeTransferFrom(deposit.owner, address(this), deposit.amount);
+        }
+
+        deposit.status = uint8(IntentStatus.Proven);
+        emit IntentProven(intentHash, msg.sender, signature);
+        emit DepositReceived(intentHash, deposit.owner, deposit.token, deposit.amount);
+    }
+
+    // -------------------------------------------------------------------------
+    // Execution Functions
+    // -------------------------------------------------------------------------
+
+    function executeIntent(bytes32 intentHash, Call[] calldata calls)
+        external
+        nonReentrant
+        notPaused
+        validIntentHash(intentHash)
+    {
+        DepositState storage deposit = deposits[intentHash];
+        if (deposit.status != uint8(IntentStatus.Proven)) revert InvalidStatus();
+        if (block.timestamp > intentExpirations[intentHash]) revert IntentHasExpired();
+
+        bool allSuccess = true;
+        bytes memory lastReturnData;
 
         for (uint256 i = 0; i < calls.length; i++) {
-            Call memory c = calls[i];
-            (bool success,) = c.target.call{value: c.value}(c.calldata_);
-            require(success, "Call failed");
-        }
+            Call memory call = calls[i];
+            (bool success, bytes memory returnData) = call.target.call{value: call.value}(call.data);
 
-        deposit.status = 2; // Mark as executed
-        emit IntentExecuted(intentHash, 2);
-    }
-
-    // Support for different signature types in validation
-    function validateIntent(
-        bytes calldata userOpSignature,
-        bytes32 expectedHash,
-        address expectedSigner
-    ) external view returns (bool) {
-        TrailsSignatureDecoder.UserOpSignature memory decodedSig = userOpSignature.decodeSignature();
-        
-        if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.OFF_CHAIN) {
-            // For off-chain signatures, we would validate against ECDSA signature
-            // This is a simplified implementation - in production you'd want more robust validation
-            return true;
-        } else if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ON_CHAIN) {
-            // This would typically revert on failure, so we catch and return false
-            try this._validateOnChain(decodedSig.signature, expectedHash, expectedSigner) {
-                return true;
-            } catch {
-                return false;
+            if (!success) {
+                allSuccess = false;
+                lastReturnData = returnData;
+                break;
             }
-        } else if (decodedSig.signatureType == TrailsSignatureDecoder.UserOpSignatureType.ERC20_PERMIT) {
-            // Similar approach for permit validation
-            return true;
+            lastReturnData = returnData;
         }
-        
-        return false;
+
+        if (allSuccess) {
+            deposit.status = uint8(IntentStatus.Executed);
+        } else {
+            deposit.status = uint8(IntentStatus.Failed);
+            // Refund on failure
+            _refundDeposit(intentHash);
+        }
+
+        emit IntentExecuted(intentHash, allSuccess, lastReturnData);
     }
-    
-    // Internal function for try-catch pattern
-    function _validateOnChain(bytes calldata signature, bytes32 expectedHash, address expectedSigner) external pure {
-        TrailsTxValidator.validate(signature, expectedHash, expectedSigner);
+
+    // -------------------------------------------------------------------------
+    // Emergency & Admin Functions
+    // -------------------------------------------------------------------------
+
+    function emergencyWithdraw(bytes32 intentHash) external validIntentHash(intentHash) {
+        DepositState storage deposit = deposits[intentHash];
+        if (deposit.owner != msg.sender) revert InvalidSender();
+        if (deposit.status != uint8(IntentStatus.Failed) && block.timestamp <= intentExpirations[intentHash]) {
+            revert InvalidStatus();
+        }
+
+        _refundDeposit(intentHash);
+        emit EmergencyWithdraw(intentHash, msg.sender, deposit.amount);
+    }
+
+    function expireIntent(bytes32 intentHash) external validIntentHash(intentHash) {
+        DepositState storage deposit = deposits[intentHash];
+        if (block.timestamp <= intentExpirations[intentHash]) revert IntentHasExpired();
+        if (deposit.status == uint8(IntentStatus.Executed)) revert InvalidStatus();
+
+        _refundDeposit(intentHash);
+        deposit.status = uint8(IntentStatus.Failed);
+        emit IntentExpired(intentHash, deposit.owner);
+    }
+
+    function setPaused(bool _paused) external onlyOwner {
+        paused = _paused;
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert InvalidSender();
+        owner = newOwner;
+    }
+
+    // -------------------------------------------------------------------------
+    // View Functions
+    // -------------------------------------------------------------------------
+
+    function getDeposit(bytes32 intentHash) external view returns (DepositState memory) {
+        return deposits[intentHash];
+    }
+
+    function validateIntent(Intent memory intent, bytes calldata signature) external view returns (bool) {
+        bytes32 intentHash = hashIntent(intent);
+        bytes32 messageHash = intentHash.toEthSignedMessageHash();
+        address signer = messageHash.recover(signature);
+        return signer == intent.sender;
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal Functions
+    // -------------------------------------------------------------------------
+
+    function _refundDeposit(bytes32 intentHash) internal {
+        DepositState storage deposit = deposits[intentHash];
+
+        if (deposit.token == address(0)) {
+            // Refund ETH
+            (bool success,) = payable(deposit.owner).call{value: deposit.amount}("");
+            if (!success) revert ExecutionFailed();
+        } else {
+            // Refund ERC20
+            IERC20(deposit.token).safeTransfer(deposit.owner, deposit.amount);
+        }
     }
 }

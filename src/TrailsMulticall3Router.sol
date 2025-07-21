@@ -28,11 +28,7 @@ contract TrailsMulticall3Router {
      * @param data The data to execute.
      * @return returnResults The result of the execution. (Expects the underlying data returned to be an array of IMulticall3.Result)
      */
-    function execute(bytes calldata data)
-        public
-        payable
-        returns (IMulticall3.Result[] memory returnResults)
-    {
+    function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
         (bool success, bytes memory returnData) = multicall3.delegatecall(data);
         require(success, "TrailsMulticall3Router: call failed");
         return abi.decode(returnData, (IMulticall3.Result[]));
