@@ -21,7 +21,7 @@ contract TrailsEntrypointV2Test is Test {
         (bool success,) = address(entrypoint).call{value: depositAmount}(descriptor);
         assertTrue(success);
 
-        (address owner, address token, uint256 amount, uint8 status) = entrypoint.deposits(intentHash);
+        (address owner, address token, uint256 amount, uint8 status, ) = entrypoint.deposits(intentHash);
         assertEq(owner, address(this));
         assertEq(token, address(0));
         assertEq(amount, depositAmount);
