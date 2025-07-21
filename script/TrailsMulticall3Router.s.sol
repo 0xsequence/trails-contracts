@@ -19,4 +19,4 @@ contract Deploy is SingletonDeployer {
 
         console.log("TrailsMulticall3Router deployed at:", wrapper);
     }
-} 
+}

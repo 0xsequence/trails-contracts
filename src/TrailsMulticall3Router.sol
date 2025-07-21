@@ -44,11 +44,7 @@ contract TrailsMulticall3Router {
      * @param data The data to execute.
      * @return returnResults The result of the execution. (Expects the underlying data returned to be an array of IMulticall3.Result)
      */
-    function execute(bytes calldata data)
-        public
-        payable
-        returns (IMulticall3.Result[] memory returnResults)
-    {
+    function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
         if (msg.value > 0) {
             deposits[msg.sender][ETH_ADDRESS] += msg.value;
             emit Deposit(msg.sender, ETH_ADDRESS, msg.value);
@@ -95,11 +91,11 @@ contract TrailsMulticall3Router {
      */
     function withdrawETH(uint256 amount) external {
         require(deposits[msg.sender][ETH_ADDRESS] >= amount, "Insufficient ETH balance");
-        
+
         deposits[msg.sender][ETH_ADDRESS] -= amount;
         emit Withdraw(msg.sender, ETH_ADDRESS, amount);
-        
-        (bool success, ) = msg.sender.call{value: amount}("");
+
+        (bool success,) = msg.sender.call{value: amount}("");
         require(success, "ETH transfer failed");
     }
 
@@ -111,10 +107,10 @@ contract TrailsMulticall3Router {
     function withdrawToken(address token, uint256 amount) external {
         require(token != ETH_ADDRESS, "Use withdrawETH() for ETH");
         require(deposits[msg.sender][token] >= amount, "Insufficient token balance");
-        
+
         deposits[msg.sender][token] -= amount;
         emit Withdraw(msg.sender, token, amount);
-        
+
         IERC20(token).transfer(msg.sender, amount);
     }
 
