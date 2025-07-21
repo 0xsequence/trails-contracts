@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title TrailsMulticall3Router
@@ -13,7 +14,7 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
  *      This is useful for smart contract wallets (intent addresses) that need to control msg.sender.
  *      Additionally tracks deposits for emergency withdrawals when multicalls fail.
  */
-contract TrailsMulticall3Router {
+contract TrailsMulticall3Router is ReentrancyGuard {
     // -------------------------------------------------------------------------
     // Constants & Immutable Variables
     // -------------------------------------------------------------------------
@@ -55,6 +56,12 @@ contract TrailsMulticall3Router {
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
+    /**
+     * @notice Aggregates multiple calls in a single transaction.
+     * @dev See the contract-level documentation for the logic on how the call is performed.
+     * @param calls The calls to execute.
+     * @return returnResults The result of the execution. (Expects the underlying data returned to be an array of IMulticall3.Result)
+     */
     function aggregate3(IMulticall3.Call3[] calldata calls)
         public
         payable
@@ -76,7 +83,7 @@ contract TrailsMulticall3Router {
      * @param token The ERC20 token address to deposit.
      * @param amount The amount of tokens to deposit.
      */
-    function depositToken(address token, uint256 amount) external {
+    function depositToken(address token, uint256 amount) external nonReentrant {
         require(token != ETH_ADDRESS, "Use ETH deposit via execute()");
         require(amount > 0, "Amount must be greater than 0");
 
@@ -86,10 +93,10 @@ contract TrailsMulticall3Router {
     }
 
     /**
-     * @notice Emergency withdrawal of deposited ETH.
+     * @notice Withdrawal of deposited ETH.
      * @param amount The amount of ETH to withdraw.
      */
-    function withdrawETH(uint256 amount) external {
+    function withdrawETH(uint256 amount) external nonReentrant {
         require(deposits[msg.sender][ETH_ADDRESS] >= amount, "Insufficient ETH balance");
 
         deposits[msg.sender][ETH_ADDRESS] -= amount;
@@ -100,11 +107,11 @@ contract TrailsMulticall3Router {
     }
 
     /**
-     * @notice Emergency withdrawal of deposited ERC20 tokens.
+     * @notice Withdrawal of deposited ERC20 tokens.
      * @param token The ERC20 token address to withdraw.
      * @param amount The amount of tokens to withdraw.
      */
-    function withdrawToken(address token, uint256 amount) external {
+    function withdrawToken(address token, uint256 amount) external nonReentrant {
         require(token != ETH_ADDRESS, "Use withdrawETH() for ETH");
         require(deposits[msg.sender][token] >= amount, "Insufficient token balance");
 
