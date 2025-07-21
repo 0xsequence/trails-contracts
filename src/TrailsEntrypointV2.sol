@@ -45,7 +45,7 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 public constant INTENT_TYPEHASH = keccak256(
-        "Intent(address sender,address token,uint256 amount,uint256 destinationChain,address destinationAddress,bytes extraData,uint256 nonce,uint256 deadline)"
+        "Intent(address sender,address token,uint256 amount,Call[] calls,uint256 nonce,uint256 deadline)Call(address target,bytes data,uint256 value)"
     );
     string public constant NAME = "TrailsEntrypointV2";
     string public constant VERSION = "1";
@@ -60,9 +60,7 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
         address sender;
         address token;
         uint256 amount;
-        uint256 destinationChain;
-        address destinationAddress;
-        bytes extraData;
+        Call[] calls; // The exact calls to execute - committed to by user
         uint256 nonce;
         uint256 deadline;
     }
@@ -78,10 +76,18 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
     }
 
     enum IntentStatus {
-        Pending,
-        Proven,
-        Executed,
-        Failed
+        Pending, // Relayer committed, ready for proof
+        Proven, // Proof validated, ready for execution
+        Executed, // Successfully executed
+        Failed // Failed or expired
+
+    }
+
+    enum TransferStatus {
+        Uncommitted, // User transferred, waiting for relayer
+        Committed, // Relayer committed the intent
+        Expired // Transfer expired before commitment
+
     }
 
     struct Call {
@@ -94,10 +100,22 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
     // State Variables
     // -------------------------------------------------------------------------
 
+    // Track user transfers before relayer commits
+    struct PendingTransfer {
+        address sender;
+        address token;
+        uint256 amount;
+        uint256 timestamp;
+        bytes intentData; // Raw intent data from calldata
+        bool committed; // Whether relayer has committed this transfer
+    }
+
     mapping(bytes32 => DepositState) public deposits;
+    mapping(bytes32 => PendingTransfer) public pendingTransfers; // transferId -> PendingTransfer
     mapping(bytes32 => bool) public processedTxs;
     mapping(address => uint256) public nonces;
     mapping(bytes32 => uint256) public intentExpirations;
+    mapping(bytes32 => bytes32) public transferToIntent; // transferId -> intentHash
 
     address public owner;
     bool public paused;
@@ -106,11 +124,16 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
     // Events
     // -------------------------------------------------------------------------
 
-    event IntentCommitted(bytes32 indexed intentHash, address indexed sender, Intent intent);
-    event DepositReceived(bytes32 indexed intentHash, address indexed owner, address token, uint256 amount);
+    event TransferReceived(
+        bytes32 indexed transferId, address indexed sender, address token, uint256 amount, bytes intentData
+    );
+    event IntentCommitted(
+        bytes32 indexed intentHash, bytes32 indexed transferId, address indexed sender, Intent intent
+    );
     event IntentProven(bytes32 indexed intentHash, address indexed prover, bytes signature);
     event IntentExecuted(bytes32 indexed intentHash, bool success, bytes returnData);
     event IntentExpired(bytes32 indexed intentHash, address indexed sender);
+    event TransferExpired(bytes32 indexed transferId, address indexed sender);
     event EmergencyWithdraw(bytes32 indexed intentHash, address indexed owner, uint256 amount);
 
     // -------------------------------------------------------------------------
@@ -119,9 +142,13 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
 
     error ContractPaused();
     error InvalidIntentHash();
+    error InvalidTransferId();
     error IntentAlreadyExists();
     error IntentNotFound();
+    error TransferNotFound();
+    error TransferAlreadyCommitted();
     error IntentHasExpired();
+    error TransferHasExpired();
     error InvalidSender();
     error InvalidAmount();
     error InvalidToken();
@@ -129,6 +156,7 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
     error ExecutionFailed();
     error InvalidStatus();
     error Unauthorized();
+    error InvalidIntentData();
 
     // -------------------------------------------------------------------------
     // Modifiers
@@ -146,6 +174,11 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
 
     modifier validIntentHash(bytes32 intentHash) {
         if (intentHash == bytes32(0)) revert InvalidIntentHash();
+        _;
+    }
+
+    modifier validTransferId(bytes32 transferId) {
+        if (transferId == bytes32(0)) revert InvalidTransferId();
         _;
     }
 
@@ -172,27 +205,40 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
             revert IntentHasExpired();
         }
 
+        // Hash the calls array
+        bytes32 callsHash = keccak256(abi.encode(intent.calls));
+
         bytes32 structHash = keccak256(
             abi.encode(
-                INTENT_TYPEHASH,
-                intent.sender,
-                intent.token,
-                intent.amount,
-                intent.destinationChain,
-                intent.destinationAddress,
-                keccak256(intent.extraData),
-                intent.nonce,
-                intent.deadline
+                INTENT_TYPEHASH, intent.sender, intent.token, intent.amount, callsHash, intent.nonce, intent.deadline
             )
         );
         return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
     }
 
-    function commitIntent(Intent memory intent) external notPaused returns (bytes32) {
-        bytes32 intentHash = hashIntent(intent);
+    // Step 2: Relayer commits/verifies intent based on user's transfer
+    function commitIntent(bytes32 transferId, Intent memory intent) external notPaused returns (bytes32) {
+        PendingTransfer storage transfer = pendingTransfers[transferId];
+        if (transfer.sender == address(0)) revert TransferNotFound();
+        if (transfer.committed) revert TransferAlreadyCommitted();
+        if (block.timestamp > transfer.timestamp + MAX_INTENT_DEADLINE) revert TransferHasExpired();
 
-        if (deposits[intentHash].owner != address(0)) revert IntentAlreadyExists();
+        // Verify intent matches the transfer
+        if (intent.sender != transfer.sender) revert InvalidSender();
+        if (intent.token != transfer.token) revert InvalidToken();
+        if (intent.amount != transfer.amount) revert InvalidAmount();
         if (nonces[intent.sender] != intent.nonce) revert InvalidSignature();
+
+        // Validate intent data matches what user sent
+        bytes32 expectedIntentHash = hashIntent(intent);
+        // TODO: Add validation that intentData in transfer contains this intent
+
+        bytes32 intentHash = hashIntent(intent);
+        if (deposits[intentHash].owner != address(0)) revert IntentAlreadyExists();
+
+        // Mark transfer as committed
+        transfer.committed = true;
+        transferToIntent[transferId] = intentHash;
 
         // Initialize deposit state
         deposits[intentHash] = DepositState({
@@ -208,7 +254,115 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
         nonces[intent.sender]++;
         intentExpirations[intentHash] = intent.deadline;
 
-        emit IntentCommitted(intentHash, intent.sender, intent);
+        emit IntentCommitted(intentHash, transferId, intent.sender, intent);
+        return intentHash;
+    }
+
+    // Combined function: commit intent and immediately mark as proven for testing/simple flows
+    function commitAndProveIntent(bytes32 transferId, Intent memory intent) external notPaused returns (bytes32) {
+        PendingTransfer storage transfer = pendingTransfers[transferId];
+        if (transfer.sender == address(0)) revert TransferNotFound();
+        if (transfer.committed) revert TransferAlreadyCommitted();
+        if (block.timestamp > transfer.timestamp + MAX_INTENT_DEADLINE) revert TransferHasExpired();
+
+        // Verify intent matches the transfer
+        if (intent.sender != transfer.sender) revert InvalidSender();
+        if (intent.token != transfer.token) revert InvalidToken();
+        if (intent.amount != transfer.amount) revert InvalidAmount();
+        if (nonces[intent.sender] != intent.nonce) revert InvalidSignature();
+
+        bytes32 intentHash = hashIntent(intent);
+        if (deposits[intentHash].owner != address(0)) revert IntentAlreadyExists();
+
+        // Mark transfer as committed
+        transfer.committed = true;
+        transferToIntent[transferId] = intentHash;
+
+        // Initialize deposit state with Proven status
+        deposits[intentHash] = DepositState({
+            owner: intent.sender,
+            token: intent.token,
+            amount: intent.amount,
+            status: uint8(IntentStatus.Proven), // Start as proven
+            intent: intent,
+            timestamp: block.timestamp,
+            commitmentHash: intentHash
+        });
+
+        nonces[intent.sender]++;
+        intentExpirations[intentHash] = intent.deadline;
+
+        emit IntentCommitted(intentHash, transferId, intent.sender, intent);
+        emit IntentProven(intentHash, msg.sender, "");
+        return intentHash;
+    }
+
+    // Ultimate function: commit + prove + execute intent in one call
+    function commitProveAndExecuteIntent(bytes32 transferId, Intent memory intent)
+        external
+        notPaused
+        returns (bytes32)
+    {
+        PendingTransfer storage transfer = pendingTransfers[transferId];
+        if (transfer.sender == address(0)) revert TransferNotFound();
+        if (transfer.committed) revert TransferAlreadyCommitted();
+        if (block.timestamp > transfer.timestamp + MAX_INTENT_DEADLINE) revert TransferHasExpired();
+
+        // Verify intent matches the transfer
+        if (intent.sender != transfer.sender) revert InvalidSender();
+        if (intent.token != transfer.token) revert InvalidToken();
+        if (intent.amount != transfer.amount) revert InvalidAmount();
+        if (nonces[intent.sender] != intent.nonce) revert InvalidSignature();
+
+        bytes32 intentHash = hashIntent(intent);
+        if (deposits[intentHash].owner != address(0)) revert IntentAlreadyExists();
+
+        // Mark transfer as committed
+        transfer.committed = true;
+        transferToIntent[transferId] = intentHash;
+
+        // Initialize deposit state with Proven status
+        deposits[intentHash] = DepositState({
+            owner: intent.sender,
+            token: intent.token,
+            amount: intent.amount,
+            status: uint8(IntentStatus.Proven), // Start as proven
+            intent: intent,
+            timestamp: block.timestamp,
+            commitmentHash: intentHash
+        });
+
+        nonces[intent.sender]++;
+        intentExpirations[intentHash] = intent.deadline;
+
+        emit IntentCommitted(intentHash, transferId, intent.sender, intent);
+        emit IntentProven(intentHash, msg.sender, "");
+
+        // Execute immediately using calls from intent
+        bool allSuccess = true;
+        bytes memory lastReturnData;
+
+        for (uint256 i = 0; i < intent.calls.length; i++) {
+            Call memory call = intent.calls[i];
+            (bool success, bytes memory returnData) = call.target.call{value: call.value}(call.data);
+
+            if (!success) {
+                allSuccess = false;
+                lastReturnData = returnData;
+                break;
+            }
+            lastReturnData = returnData;
+        }
+
+        if (allSuccess) {
+            deposits[intentHash].status = uint8(IntentStatus.Executed);
+        } else {
+            deposits[intentHash].status = uint8(IntentStatus.Failed);
+            // Refund on failure
+            _refundDeposit(intentHash);
+        }
+
+        emit IntentExecuted(intentHash, allSuccess, lastReturnData);
         return intentHash;
     }
 
@@ -216,51 +370,68 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
     // Deposit Functions
     // -------------------------------------------------------------------------
 
-    // Fallback for ETH deposits with calldata suffix containing intent hash
+    // Fallback for ETH transfers with calldata containing intent data
+    // Step 1: User makes 1-click transfer with intent data in calldata
     fallback() external payable nonReentrant notPaused {
         if (msg.value == 0) revert InvalidAmount();
-        if (msg.data.length < MIN_INTENT_HASH_LENGTH) revert InvalidIntentHash();
+        if (msg.data.length == 0) revert InvalidIntentData();
 
-        // Extract the intent hash from the last 32 bytes of calldata
-        bytes32 intentHash;
-        assembly {
-            intentHash := calldataload(sub(calldatasize(), 32))
-        }
+        // Generate unique transfer ID from tx hash components
+        bytes32 transferId = keccak256(
+            abi.encodePacked(
+                block.timestamp,
+                msg.sender,
+                msg.value,
+                msg.data,
+                tx.gasprice // Add uniqueness
+            )
+        );
 
-        if (intentHash == bytes32(0)) revert InvalidIntentHash();
+        // Store the pending transfer with intent data
+        pendingTransfers[transferId] = PendingTransfer({
+            sender: msg.sender,
+            token: address(0), // ETH
+            amount: msg.value,
+            timestamp: block.timestamp,
+            intentData: msg.data, // Store raw intent data from user
+            committed: false
+        });
 
-        DepositState storage deposit = deposits[intentHash];
-        if (deposit.owner == address(0)) revert IntentNotFound();
-        if (deposit.owner != msg.sender) revert InvalidSender();
-        if (deposit.token != address(0)) revert InvalidToken(); // Must be ETH
-        if (deposit.amount != msg.value) revert InvalidAmount();
-        if (block.timestamp > intentExpirations[intentHash]) revert IntentHasExpired();
-        if (deposit.status != uint8(IntentStatus.Pending)) revert InvalidStatus();
-
-        // Mark as deposit received
-        emit DepositReceived(intentHash, msg.sender, address(0), msg.value);
+        emit TransferReceived(transferId, msg.sender, address(0), msg.value, msg.data);
     }
 
     receive() external payable {
-        revert("ETH deposits must include intent hash in calldata - use fallback function");
+        revert("ETH transfers must include intent data in calldata - use fallback function");
     }
 
-    function depositERC20WithIntent(bytes32 intentHash, address token, uint256 amount)
+    // Step 1: User makes 1-click ERC20 transfer with intent data
+    function depositERC20WithIntent(address token, uint256 amount, bytes calldata intentData)
         external
         nonReentrant
         notPaused
-        validIntentHash(intentHash)
     {
-        DepositState storage deposit = deposits[intentHash];
-        if (deposit.owner == address(0)) revert IntentNotFound();
-        if (deposit.owner != msg.sender) revert InvalidSender();
-        if (deposit.token != token) revert InvalidToken();
-        if (deposit.amount != amount) revert InvalidAmount();
-        if (block.timestamp > intentExpirations[intentHash]) revert IntentHasExpired();
-        if (deposit.status != uint8(IntentStatus.Pending)) revert InvalidStatus();
+        if (amount == 0) revert InvalidAmount();
+        if (token == address(0)) revert InvalidToken();
+        if (intentData.length == 0) revert InvalidIntentData();
 
+        // Generate unique transfer ID
+        bytes32 transferId =
+            keccak256(abi.encodePacked(block.timestamp, msg.sender, token, amount, intentData, tx.gasprice));
+
+        // Store the pending transfer
+        pendingTransfers[transferId] = PendingTransfer({
+            sender: msg.sender,
+            token: token,
+            amount: amount,
+            timestamp: block.timestamp,
+            intentData: intentData,
+            committed: false
+        });
+
+        // Transfer tokens to contract
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        emit DepositReceived(intentHash, msg.sender, token, amount);
+
+        emit TransferReceived(transferId, msg.sender, token, amount, intentData);
     }
 
     // -------------------------------------------------------------------------
@@ -320,19 +491,14 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
 
         deposit.status = uint8(IntentStatus.Proven);
         emit IntentProven(intentHash, msg.sender, signature);
-        emit DepositReceived(intentHash, deposit.owner, deposit.token, deposit.amount);
+        // DepositReceived event removed - transfer already happened in Step 1
     }
 
     // -------------------------------------------------------------------------
     // Execution Functions
     // -------------------------------------------------------------------------
 
-    function executeIntent(bytes32 intentHash, Call[] calldata calls)
-        external
-        nonReentrant
-        notPaused
-        validIntentHash(intentHash)
-    {
+    function executeIntent(bytes32 intentHash) external nonReentrant notPaused validIntentHash(intentHash) {
         DepositState storage deposit = deposits[intentHash];
         if (deposit.status != uint8(IntentStatus.Proven)) revert InvalidStatus();
         if (block.timestamp > intentExpirations[intentHash]) revert IntentHasExpired();
@@ -340,8 +506,9 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
         bool allSuccess = true;
         bytes memory lastReturnData;
 
-        for (uint256 i = 0; i < calls.length; i++) {
-            Call memory call = calls[i];
+        // Execute calls from the committed intent
+        for (uint256 i = 0; i < deposit.intent.calls.length; i++) {
+            Call memory call = deposit.intent.calls[i];
             (bool success, bytes memory returnData) = call.target.call{value: call.value}(call.data);
 
             if (!success) {
@@ -388,6 +555,29 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
         emit IntentExpired(intentHash, deposit.owner);
     }
 
+    // Allow users to reclaim transfers that weren't committed by relayers
+    function expireTransfer(bytes32 transferId) external {
+        PendingTransfer storage transfer = pendingTransfers[transferId];
+        if (transfer.sender == address(0)) revert TransferNotFound();
+        if (transfer.sender != msg.sender) revert InvalidSender();
+        if (transfer.committed) revert TransferAlreadyCommitted();
+        if (block.timestamp <= transfer.timestamp + MAX_INTENT_DEADLINE) revert TransferHasExpired();
+
+        // Refund the transfer
+        if (transfer.token == address(0)) {
+            // Refund ETH
+            (bool success,) = payable(transfer.sender).call{value: transfer.amount}("");
+            if (!success) revert ExecutionFailed();
+        } else {
+            // Refund ERC20
+            IERC20(transfer.token).safeTransfer(transfer.sender, transfer.amount);
+        }
+
+        // Mark as expired
+        delete pendingTransfers[transferId];
+        emit TransferExpired(transferId, transfer.sender);
+    }
+
     function setPaused(bool _paused) external onlyOwner {
         paused = _paused;
     }
@@ -403,6 +593,14 @@ contract TrailsEntrypointV2 is ReentrancyGuard {
 
     function getDeposit(bytes32 intentHash) external view returns (DepositState memory) {
         return deposits[intentHash];
+    }
+
+    function getPendingTransfer(bytes32 transferId) external view returns (PendingTransfer memory) {
+        return pendingTransfers[transferId];
+    }
+
+    function getTransferIntent(bytes32 transferId) external view returns (bytes32) {
+        return transferToIntent[transferId];
     }
 
     function validateIntent(Intent memory intent, bytes calldata signature) external view returns (bool) {

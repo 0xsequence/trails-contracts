@@ -2,7 +2,7 @@
 
 ## Overview
 
-TrailsEntrypointV2 is a revolutionary single entrypoint contract that enables 1-click crypto transactions by accepting intents through ETH/ERC20 transfers with calldata suffixes. It implements a commit-prove pattern that eliminates the traditional approve step, inspired by Relay's suffix pattern and Klaster's transaction validation approach.
+TrailsEntrypointV2 is a revolutionary single entrypoint contract that enables truly 1-click crypto transactions through a unique reversed flow: users make transfers first with intent data, then relayers detect and commit these intents. This eliminates all user complexity - no approvals, no intent management, just a single transfer. The system monitors user transfers and handles all backend complexity through relayers. Inspired by Relay's suffix pattern and Klaster's transaction validation approach.
 
 ## Architecture
 
@@ -11,16 +11,19 @@ TrailsEntrypointV2 is a revolutionary single entrypoint contract that enables 1-
 The contract combines:
 - **Single Entrypoint**: All intents flow through one contract
 - **Transfer Suffix Pattern**: ETH/ERC20 transfers carry intent hash in calldata suffix
+- **Relayer-Operated Architecture**: Users only transfer, relayers handle everything else
+- **True 1-Click Experience**: No approvals, no intent management for users
 - **Commit-Prove Pattern**: Two-phase validation eliminating approve step
 - **Intent-Based Architecture**: Generic cross-chain operations via structured intents
 
 ### Key Components
 
-1. **Intent Management**: EIP-712 structured intent hashing with nonce-based anti-replay
-2. **Deposit Handling**: ETH via fallback function, ERC20 via dedicated functions
-3. **Proof Validation**: On-chain transaction validation using signature proofs
-4. **Generic Execution**: Arbitrary multicall support for bridges, swaps, and DeFi operations
+1. **Relayer-Operated Intent Management**: EIP-712 structured intent hashing with nonce-based anti-replay (handled by relayers)
+2. **1-Click Deposit Handling**: ETH via fallback function, ERC20 via dedicated functions (user's only action)
+3. **Automated Proof Validation**: On-chain transaction validation using signature proofs (relayer responsibility)
+4. **Generic Execution**: Arbitrary multicall support for bridges, swaps, and DeFi operations (relayer-executed)
 5. **Safety Mechanisms**: Emergency withdrawals, intent expiration, and pause functionality
+6. **True User Abstraction**: Users only transfer, relayers handle all complexity
 
 ## Technical Specification
 
@@ -115,24 +118,30 @@ function hashIntent(Intent memory intent) public view returns (bytes32) {
 
 ### Intent Commitment
 
-#### `commitIntent(Intent memory intent) external returns (bytes32)`
-Creates an intent commitment and initializes tracking state.
+#### `commitIntent(bytes32 transferId, Intent memory intent) external returns (bytes32)`
+**IMPORTANT: This function is intended for relayers/operators, NOT end users.**
+
+Commits an intent based on a user's existing transfer. Relayers detect user transfers via `TransferReceived` events and call this to validate and commit the associated intent.
 
 **Parameters:**
-- `intent`: Intent structure containing all operation details
+- `transferId`: The ID of the user's pending transfer
+- `intent`: Intent structure that should match the transfer details
 
 **Returns:**
 - `bytes32`: The computed intent hash
 
 **Validation:**
-- Sender cannot be zero address
-- Amount must be greater than zero
-- Deadline must be in future but within 24 hours
+- Transfer must exist and not be committed yet
+- Intent sender must match transfer sender  
+- Intent token/amount must match transfer token/amount
 - Nonce must match sender's current nonce
-- Intent hash must not already exist
+- Transfer must not be expired
 
 **Events:**
-- `IntentCommitted(bytes32 indexed intentHash, address indexed sender, Intent intent)`
+- `IntentCommitted(bytes32 indexed intentHash, bytes32 indexed transferId, address indexed sender, Intent intent)`
+
+**Usage Context:**
+Relayers monitor `TransferReceived` events from user transfers and validate the intent data before committing.
 
 ### Deposit Functions
 
@@ -257,51 +266,61 @@ function expireIntent(bytes32 intentHash) external validIntentHash(intentHash)
 
 ## Usage Flows
 
-### Standard Flow: ETH Bridge
+### Standard Flow: ETH Bridge (User Transfer First)
 
 ```mermaid
 sequenceDiagram
     participant User
     participant Frontend
     participant Entrypoint
-    participant Backend
+    participant Relayer
     participant Bridge
 
-    User->>Frontend: Initiate bridge request
-    Frontend->>Entrypoint: commitIntent(intent)
-    Entrypoint-->>Frontend: intentHash
+    User->>Frontend: Express intent to bridge ETH
+    Frontend->>User: Request ETH transfer with intent data
+    User->>Entrypoint: fallback(intentData) + ETH [ONLY USER ACTION]
+    Entrypoint-->>Relayer: TransferReceived event
     
-    Frontend->>User: Request ETH transfer with suffix
-    User->>Entrypoint: fallback(data + intentHash) + ETH
-    Entrypoint-->>User: DepositReceived event
+    Note over Relayer: Detects transfer, validates intent
+    Relayer->>Entrypoint: commitIntent(transferId, intent)
+    Entrypoint-->>Relayer: IntentCommitted event
     
-    Backend->>Entrypoint: proveETHDeposit(intentHash, signature)
-    Entrypoint-->>Backend: IntentProven event
+    Relayer->>Entrypoint: proveETHDeposit(intentHash, signature)
+    Entrypoint-->>Relayer: IntentProven event
     
-    Backend->>Entrypoint: executeIntent(intentHash, [bridgeCall])
+    Relayer->>Entrypoint: executeIntent(intentHash, [bridgeCall])
     Entrypoint->>Bridge: bridge(token, amount, destChain)
     Bridge-->>Entrypoint: success
-    Entrypoint-->>Backend: IntentExecuted event
+    Entrypoint-->>Relayer: IntentExecuted event
 ```
 
-### Advanced Flow: ERC20 Swap + Bridge
+### Advanced Flow: ERC20 Swap + Bridge (User Transfer First)
 
 ```mermaid
 sequenceDiagram
     participant User
     participant Frontend
     participant Entrypoint
-    participant Backend
+    participant Relayer
     participant DEX
     participant Bridge
 
-    Frontend->>Entrypoint: commitIntent(erc20Intent)
-    User->>Entrypoint: depositERC20WithIntent(hash, token, amount)
-    Backend->>Entrypoint: proveERC20Deposit(hash, permitSig)
+    User->>Frontend: Express intent to swap + bridge ERC20
+    Frontend->>User: Request ERC20 transfer with intent data
+    User->>Entrypoint: depositERC20WithIntent(token, amount, intentData) [ONLY USER ACTION]
+    Entrypoint-->>Relayer: TransferReceived event
     
-    Backend->>Entrypoint: executeIntent(hash, [swapCall, bridgeCall])
+    Note over Relayer: Detects transfer, validates intent
+    Relayer->>Entrypoint: commitIntent(transferId, erc20Intent)
+    Entrypoint-->>Relayer: IntentCommitted event
+    
+    Relayer->>Entrypoint: proveERC20Deposit(intentHash, permitSig)
+    Entrypoint-->>Relayer: IntentProven event
+    
+    Relayer->>Entrypoint: executeIntent(intentHash, [swapCall, bridgeCall])
     Entrypoint->>DEX: swap(tokenA, tokenB, amount)
     Entrypoint->>Bridge: bridge(tokenB, swappedAmount, destChain)
+    Entrypoint-->>Relayer: IntentExecuted event
 ```
 
 ## Security Considerations
@@ -330,8 +349,9 @@ sequenceDiagram
 
 ### Frontend Integration
 
-#### 1. Intent Creation
+#### 1. Intent Data Preparation
 ```javascript
+// Frontend creates intent data to be included in transfer
 const intent = {
     sender: userAddress,
     token: "0x0000000000000000000000000000000000000000", // ETH
@@ -343,66 +363,96 @@ const intent = {
     deadline: Math.floor(Date.now() / 1000) + 3600 // 1 hour
 };
 
-const intentHash = await entrypoint.commitIntent(intent);
-```
-
-#### 2. ETH Deposit with Suffix
-```javascript
-const calldata = ethers.utils.concat([
-    ethers.utils.randomBytes(32), // arbitrary data
-    intentHash // 32-byte intent hash at end
-]);
-
-await user.sendTransaction({
-    to: entrypoint.address,
-    value: intent.amount,
-    data: calldata
-});
-```
-
-#### 3. ERC20 Deposit
-```javascript
-// Approve first
-await token.approve(entrypoint.address, intent.amount);
-
-// Then deposit
-await entrypoint.depositERC20WithIntent(
-    intentHash,
-    intent.token,
-    intent.amount
+// Encode intent data to include in transfer calldata
+const intentData = ethers.utils.defaultAbiCoder.encode(
+    ["tuple(address,address,uint256,uint256,address,bytes,uint256,uint256)"],
+    [intent]
 );
 ```
 
-### Backend Integration
-
-#### 1. Transaction Monitoring
+#### 2. User's 1-Click ETH Transfer (ONLY USER ACTION)
 ```javascript
-// Listen for deposit events
-entrypoint.on("DepositReceived", async (intentHash, owner, token, amount) => {
-    // Validate the deposit transaction
+// This is the ONLY action users need to take - truly 1-click!
+// Transfer includes intent data in calldata
+await user.sendTransaction({
+    to: entrypoint.address,
+    value: intent.amount,
+    data: intentData // Intent data encoded above
+});
+
+// User is done! Relayer monitors TransferReceived events
+// and handles everything else: commitment, proof, execution
+```
+
+#### 3. User's 1-Click ERC20 Transfer (ONLY USER ACTION)
+```javascript
+// This is the ONLY action users need to take - truly 1-click!
+// Function signature changed to accept intent data directly
+await entrypoint.depositERC20WithIntent(
+    intent.token,
+    intent.amount,
+    intentData // Intent data encoded above
+);
+
+// User is done! Relayer monitors TransferReceived events
+// and handles everything else: commitment, proof, execution
+```
+
+### Relayer/Backend Integration
+
+#### 1. Transfer Monitoring (Relayer Responsibility)
+```javascript
+// Relayer monitors TransferReceived events from user transfers
+entrypoint.on("TransferReceived", async (transferId, sender, token, amount, intentData) => {
+    // Decode and validate intent data from user's transfer
+    const [intent] = ethers.utils.defaultAbiCoder.decode(
+        ["tuple(address,address,uint256,uint256,address,bytes,uint256,uint256)"],
+        intentData
+    );
+    
+    // Validate intent matches transfer
+    if (intent.sender !== sender || intent.amount !== amount || intent.token !== token) {
+        console.log("Invalid intent data, skipping");
+        return;
+    }
+    
+    // Commit the intent on behalf of user
+    const intentHash = await entrypoint.commitIntent(transferId, intent);
+    console.log("Intent committed:", intentHash);
+});
+```
+
+#### 2. Intent Commitment (Relayer Responsibility)  
+```javascript
+// After monitoring transfers, relayer commits validated intents
+entrypoint.on("IntentCommitted", async (intentHash, transferId, sender) => {
+    // Generate proof for the user's transfer transaction
     const txProof = await generateTxProof(intentHash);
     
-    // Prove the deposit
+    // Prove the deposit based on the original transfer
     await entrypoint.proveETHDeposit(intentHash, txProof);
 });
 ```
 
-#### 2. Intent Execution
+#### 3. Intent Execution (Relayer Responsibility)
 ```javascript
-// Prepare execution calls
-const bridgeCalls = [{
-    target: BRIDGE_CONTRACT,
-    data: bridge.interface.encodeFunctionData("bridge", [
-        intent.token,
-        intent.amount,
-        intent.destinationChain,
-        intent.destinationAddress
-    ]),
-    value: intent.token === ethers.constants.AddressZero ? intent.amount : 0
-}];
-
-// Execute the intent
-await entrypoint.executeIntent(intentHash, bridgeCalls);
+// Relayer prepares and executes the intent after proof
+entrypoint.on("IntentProven", async (intentHash, prover) => {
+    // Prepare execution calls
+    const bridgeCalls = [{
+        target: BRIDGE_CONTRACT,
+        data: bridge.interface.encodeFunctionData("bridge", [
+            intent.token,
+            intent.amount,
+            intent.destinationChain,
+            intent.destinationAddress
+        ]),
+        value: intent.token === ethers.constants.AddressZero ? intent.amount : 0
+    }];
+    
+    // Relayer executes the intent
+    await entrypoint.executeIntent(intentHash, bridgeCalls);
+});
 ```
 
 ## Gas Optimization
@@ -489,6 +539,13 @@ constructor() {
 
 ## Conclusion
 
-TrailsEntrypointV2 represents a significant advancement in user experience for cross-chain and DeFi operations. By eliminating the approve step and providing a unified interface for intent-based transactions, it enables true 1-click crypto transactions while maintaining security and flexibility.
+TrailsEntrypointV2 represents a revolutionary advancement in user experience for cross-chain and DeFi operations. By implementing a relayer-operated architecture where users only make transfers and third-party operators handle all intent management, it achieves true 1-click crypto transactions without any user-facing complexity.
 
-The contract's innovative use of transfer suffixes and commitment-proof patterns creates a new paradigm for user-friendly blockchain interactions, making complex multi-step operations as simple as a single transaction.
+**Key Achievements:**
+- **True 1-Click Experience**: Users make only ONE action - a transfer with intent data
+- **No Approvals**: Eliminates the traditional approve + transfer pattern
+- **No Intent Management**: Users don't interact with commitments, proofs, or executions
+- **Relayer-Operated**: Third parties handle all complexity on users' behalf
+- **Security Maintained**: Full validation and proof requirements preserved
+
+The contract's innovative combination of transfer suffixes, relayer operations, and commitment-proof patterns creates a new paradigm for truly user-friendly blockchain interactions, making complex multi-step operations as simple as sending a single transaction. This represents the next evolution in blockchain UX - from multi-step processes to genuine 1-click interactions.
