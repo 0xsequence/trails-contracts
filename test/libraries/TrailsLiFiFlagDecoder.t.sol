@@ -166,7 +166,7 @@ contract TrailsLiFiFlagDecoderTest is Test {
         assertEq(decodedSwapData.length, 0, "Expected empty SwapData array");
     }
 
-    function test_BridgeDataAndSwapDataTuple_Reverts_InvalidBridgeData() public {
+    function test_BridgeDataAndSwapDataTuple_DoesNotRevert_OnInvalidBridgeData() public {
         ILiFi.BridgeData memory invalidBridgeData = baseBridgeData;
         invalidBridgeData.transactionId = bytes32(0);
         invalidBridgeData.bridge = "";
@@ -174,11 +174,10 @@ contract TrailsLiFiFlagDecoderTest is Test {
         bytes memory encodedCall =
             abi.encodeCall(helper.mockSwapAndStartBridge, (invalidBridgeData, singleSwapData, baseAcrossData));
 
-        vm.expectRevert(TrailsLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, TrailsDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
     }
 
-    function test_BridgeDataAndSwapDataTuple_Reverts_InconsistentSwapFlag() public {
+    function test_BridgeDataAndSwapDataTuple_DoesNotRevert_OnInconsistentSwapFlag() public {
         ILiFi.BridgeData memory localBridgeData = baseBridgeData;
         localBridgeData.hasSourceSwaps = true;
         LibSwap.SwapData[] memory emptySwapDataArray = new LibSwap.SwapData[](0);
@@ -186,7 +185,6 @@ contract TrailsLiFiFlagDecoderTest is Test {
         bytes memory encodedCall =
             abi.encodeCall(helper.mockSwapAndStartBridge, (localBridgeData, emptySwapDataArray, baseAcrossData));
 
-        vm.expectRevert(TrailsLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, TrailsDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE);
     }
 
@@ -208,14 +206,13 @@ contract TrailsLiFiFlagDecoderTest is Test {
         assertEq(decodedSwapData.length, 0, "SwapData should be empty for SINGLE_BRIDGE_DATA strategy");
     }
 
-    function test_SingleBridgeData_Reverts_InvalidBridgeData() public {
+    function test_SingleBridgeData_DoesNotRevert_OnInvalidBridgeData() public {
         ILiFi.BridgeData memory invalidBridgeData = baseBridgeData;
         invalidBridgeData.transactionId = bytes32(0);
         invalidBridgeData.receiver = address(0);
 
         bytes memory encodedCall = abi.encodeCall(helper.mockSingleBridgeArg, (invalidBridgeData));
 
-        vm.expectRevert(TrailsLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, TrailsDecodingStrategy.SINGLE_BRIDGE_DATA);
     }
 
@@ -260,18 +257,17 @@ contract TrailsLiFiFlagDecoderTest is Test {
         assertEq(decodedSwapData[1].callTo, multipleSwapData[1].callTo, "SwapData[1].callTo mismatch");
     }
 
-    function test_SwapDataArray_Reverts_EmptySwapData() public {
+    function test_SwapDataArray_DoesNotRevert_OnEmptySwapData() public {
         LibSwap.SwapData[] memory emptySwapData = new LibSwap.SwapData[](0);
         bytes memory encodedCall = abi.encodeCall(
             helper.mockSwapTokensMultiple,
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, emptySwapData)
         );
 
-        vm.expectRevert(TrailsLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, TrailsDecodingStrategy.SWAP_DATA_ARRAY);
     }
 
-    function test_SwapDataArray_Reverts_InvalidSwapData() public {
+    function test_SwapDataArray_DoesNotRevert_OnInvalidSwapData() public {
         LibSwap.SwapData[] memory invalidSwapData = new LibSwap.SwapData[](1);
         invalidSwapData[0] = LibSwap.SwapData({
             callTo: address(0),
@@ -288,7 +284,6 @@ contract TrailsLiFiFlagDecoderTest is Test {
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, invalidSwapData)
         );
 
-        vm.expectRevert(TrailsLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, TrailsDecodingStrategy.SWAP_DATA_ARRAY);
     }
 
@@ -321,7 +316,7 @@ contract TrailsLiFiFlagDecoderTest is Test {
         assertEq(decodedSwapData[0].fromAmount, singleSwap.fromAmount, "SwapData.fromAmount mismatch");
     }
 
-    function test_SingleSwapData_Reverts_InvalidSwapData() public {
+    function test_SingleSwapData_DoesNotRevert_OnInvalidSwapData() public {
         LibSwap.SwapData memory invalidSwap = LibSwap.SwapData({
             callTo: address(0),
             approveTo: address(0),
@@ -337,7 +332,6 @@ contract TrailsLiFiFlagDecoderTest is Test {
             (dummyTxId, dummyIntegrator, dummyReferrer, dummyReceiver, dummyMinAmountOut, invalidSwap)
         );
 
-        vm.expectRevert(TrailsLiFiFlagDecoder.InvalidLiFiData.selector);
         helper.decodeLiFiDataOrRevert(encodedCall, TrailsDecodingStrategy.SINGLE_SWAP_DATA);
     }
 

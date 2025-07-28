@@ -65,7 +65,7 @@ contract TrailsRelaySapientSigner is ISapient {
         }
 
         // 3. Validate relay recipients
-        if (!TrailsRelayValidator.areValidRelayRecipients(payload.calls)) {
+        if (!TrailsRelayValidator.areValidRelayRecipients(abi.encode(payload.calls))) {
             revert InvalidRelayRecipient();
         }
 

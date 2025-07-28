@@ -38,6 +38,11 @@ library TrailsRelayValidator {
     // Functions
     // -------------------------------------------------------------------------
 
+    function validate(bytes calldata data) internal pure {
+        bytes memory dataAsMemory = data;
+        require(areValidRelayRecipients(dataAsMemory), "Invalid relay recipients");
+    }
+
     /**
      * @notice Validates if the recipient of a relay call is the designated relay solver.
      * @dev This function decodes the relay calldata from a `Payload.Call` struct to determine
@@ -46,7 +51,7 @@ library TrailsRelayValidator {
      * @param call The `Payload.Call` struct representing a single transaction in the payload.
      * @return True if the recipient is the `relaySolver`, false otherwise.
      */
-    function isValidRelayRecipient(Payload.Call memory call) internal pure returns (bool) {
+    function isValidRelayRecipient(Payload.Call memory call) private pure returns (bool) {
         TrailsRelayDecoder.DecodedRelayData memory decodedData = TrailsRelayDecoder.decodeRelayCalldataForSapient(call);
         return decodedData.receiver == TrailsRelayConstants.RELAY_SOLVER
             || decodedData.receiver == TrailsRelayConstants.RELAY_APPROVAL_PROXY
@@ -59,10 +64,11 @@ library TrailsRelayValidator {
      * @notice Validates an array of relay calls to ensure all are sent to the relay solver.
      * @dev Iterates through an array of `Payload.Call` structs and uses `isValidRelayRecipient`
      *      to verify each one. The function returns false if the array is empty.
-     * @param calls The array of `Payload.Call` structs to validate.
+     * @param data The abi-encoded array of `Payload.Call` structs to validate.
      * @return True if all calls are to the `relaySolver`, false otherwise.
      */
-    function areValidRelayRecipients(Payload.Call[] memory calls) internal pure returns (bool) {
+    function areValidRelayRecipients(bytes memory data) internal pure returns (bool) {
+        Payload.Call[] memory calls = abi.decode(data, (Payload.Call[]));
         if (calls.length == 0) {
             return false;
         }
@@ -95,6 +101,10 @@ library TrailsRelayValidator {
         }
 
         uint256 numInferredInfos = inferredRelayData.length;
+        if (numInferredInfos != numAttestedInfos) {
+            revert MismatchedRelayInfoLengths();
+        }
+
         bool[] memory inferredInfoUsed = new bool[](numInferredInfos);
 
         for (uint256 i = 0; i < numAttestedInfos; i++) {

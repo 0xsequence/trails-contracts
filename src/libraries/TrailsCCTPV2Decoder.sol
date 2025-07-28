@@ -9,9 +9,22 @@ import {CCTPExecutionInfo, ITokenMessengerV2} from "../interfaces/TrailsCCTPV2.s
  * @notice Library to decode calldata for Trails CCTP V2 operations.
  */
 library TrailsCCTPV2Decoder {
+    // -------------------------------------------------------------------------
+    // Errors
+    // -------------------------------------------------------------------------
+
     error InvalidCalldata();
+    error InvalidCCTPDomain(uint32 domain);
+
+    // -------------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------------
 
     bytes4 private constant DEPOSIT_FOR_BURN_WITH_HOOK_SELECTOR = ITokenMessengerV2.depositForBurnWithHook.selector;
+
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
 
     /**
      * @notice Decodes the calldata of a `depositForBurnWithHook` call.

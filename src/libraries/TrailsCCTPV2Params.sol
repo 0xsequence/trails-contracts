@@ -9,8 +9,16 @@ import {CCTPExecutionInfo} from "../interfaces/TrailsCCTPV2.sol";
  * @notice Library for handling Trails CCTP V2 intent parameters, specifically for hashing.
  */
 library TrailsCCTPV2Params {
+    // -------------------------------------------------------------------------
+    // Errors
+    // -------------------------------------------------------------------------
+
     error ExecutionInfosIsEmpty();
     error AttestationAddressIsZero();
+
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
 
     /**
      * @notice Generates a unique bytes32 hash for an array of CCTPExecutionInfo.

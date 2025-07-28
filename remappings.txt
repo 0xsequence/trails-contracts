@@ -1,5 +1,7 @@
 @/=src/
 
+test/=test/
+
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
 forge-std/=lib/forge-std/src/
 lifi-contracts/=lib/contracts/src/

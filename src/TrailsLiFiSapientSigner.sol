@@ -13,6 +13,7 @@ import {TrailsLiFiInterpreter} from "@/libraries/TrailsLiFiInterpreter.sol";
 import {TrailsExecutionInfoInterpreter, TrailsExecutionInfo} from "@/libraries/TrailsExecutionInfoInterpreter.sol";
 import {TrailsExecutionInfoParams} from "@/libraries/TrailsExecutionInfoParams.sol";
 import {TrailsDecodingStrategy} from "@/interfaces/TrailsLiFi.sol";
+import {TrailsLiFiValidator} from "@/libraries/TrailsLiFiValidator.sol";
 
 /**
  * @title TrailsLiFiSapientSigner
@@ -52,6 +53,7 @@ contract TrailsLiFiSapientSigner is ISapient {
     error InvalidLifiDiamondAddress();
     error InvalidAttestationSigner(address expectedSigner, address actualSigner);
     error InvalidAttestation();
+    error InvalidLiFiData();
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -116,6 +118,24 @@ contract TrailsLiFiSapientSigner is ISapient {
         for (uint256 i = 0; i < payload.calls.length; i++) {
             (ILiFi.BridgeData memory bridgeData, LibSwap.SwapData[] memory swapData) =
                 payload.calls[i].data.decodeLiFiDataOrRevert(decodingStrategy);
+
+            if (decodingStrategy == TrailsDecodingStrategy.BRIDGE_DATA_AND_SWAP_DATA_TUPLE) {
+                if (!TrailsLiFiValidator.isBridgeAndSwapDataTupleValid(bridgeData, swapData)) {
+                    revert InvalidLiFiData();
+                }
+            } else if (decodingStrategy == TrailsDecodingStrategy.SINGLE_BRIDGE_DATA) {
+                if (!TrailsLiFiValidator.isBridgeDataValid(bridgeData)) {
+                    revert InvalidLiFiData();
+                }
+            } else if (decodingStrategy == TrailsDecodingStrategy.SWAP_DATA_ARRAY) {
+                if (!TrailsLiFiValidator.isSwapDataArrayValid(swapData)) {
+                    revert InvalidLiFiData();
+                }
+            } else if (decodingStrategy == TrailsDecodingStrategy.SINGLE_SWAP_DATA) {
+                if (swapData.length != 1 || !TrailsLiFiValidator.isSwapDataValid(swapData[0])) {
+                    revert InvalidLiFiData();
+                }
+            }
 
             inferredExecutionInfos[i] = bridgeData.getOriginSwapInfo(swapData);
         }
