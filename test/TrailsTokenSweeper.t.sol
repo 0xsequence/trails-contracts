@@ -12,13 +12,13 @@ contract TrailsTokenSweeperTest is Test {
 
     function setUp() public {
         recipient = payable(address(0x1));
-        sweeper = new TrailsTokenSweeper(recipient);
+        sweeper = new TrailsTokenSweeper();
         erc20 = new ERC20Mock();
     }
 
-    function test_constructor_revertsIfRecipientIsZeroAddress() public {
+    function test_sweep_revertsIfRecipientIsZeroAddress() public {
         vm.expectRevert("TrailsTokenSweeper: recipient cannot be the zero address");
-        new TrailsTokenSweeper(payable(address(0)));
+        sweeper.sweep(address(0), address(0));
     }
 
     function test_getBalance_nativeToken() public {
@@ -38,7 +38,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(address(sweeper), amount);
 
         uint256 recipientBalanceBefore = recipient.balance;
-        sweeper.sweep(address(0));
+        sweeper.sweep(address(0), recipient);
         uint256 recipientBalanceAfter = recipient.balance;
 
         assertEq(sweeper.getBalance(address(0)), 0);
@@ -50,7 +50,7 @@ contract TrailsTokenSweeperTest is Test {
         erc20.mint(address(sweeper), amount);
 
         uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
-        sweeper.sweep(address(erc20));
+        sweeper.sweep(address(erc20), recipient);
         uint256 recipientBalanceAfter = erc20.balanceOf(recipient);
 
         assertEq(sweeper.getBalance(address(erc20)), 0);
@@ -59,12 +59,12 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_noBalance() public {
         uint256 recipientNativeBalanceBefore = recipient.balance;
-        sweeper.sweep(address(0));
+        sweeper.sweep(address(0), recipient);
         uint256 recipientNativeBalanceAfter = recipient.balance;
         assertEq(recipientNativeBalanceAfter, recipientNativeBalanceBefore);
 
         uint256 recipientErc20BalanceBefore = erc20.balanceOf(recipient);
-        sweeper.sweep(address(erc20));
+        sweeper.sweep(address(erc20), recipient);
         uint256 recipientErc20BalanceAfter = erc20.balanceOf(recipient);
         assertEq(recipientErc20BalanceAfter, recipientErc20BalanceBefore);
     }
