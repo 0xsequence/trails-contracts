@@ -120,7 +120,7 @@ contract TrailsTokenSweeperTest is Test {
     }
 
     function testFuzz_sweep_erc20Token(uint256 amount) public {
-        vm.assume(amount > 0 && amount <= 1_000_000_000_000_000_000_000_000); 
+        vm.assume(amount > 0 && amount <= 1_000_000_000_000_000_000_000_000);
         erc20.mint(address(sweeper), amount);
 
         uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
