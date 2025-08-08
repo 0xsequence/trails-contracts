@@ -398,10 +398,7 @@ contract TrailsEntrypointV2 {
     }
 
     // Step 1: User makes 1-click ERC20 transfer with intent data
-    function depositERC20WithIntent(address token, uint256 amount, bytes calldata intentData)
-        external
-        notPaused
-    {
+    function depositERC20WithIntent(address token, uint256 amount, bytes calldata intentData) external notPaused {
         if (amount == 0) revert InvalidAmount();
         if (token == address(0)) revert InvalidToken();
         if (intentData.length == 0) revert InvalidIntentData();
