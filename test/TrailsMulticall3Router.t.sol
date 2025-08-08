@@ -105,21 +105,7 @@ contract WithdrawETHReentrancyAttacker {
     }
 }
 
-// Mock Multicall3 contract for testing that preserves msg.sender via delegatecall
-contract MockMulticall3 {
-    function aggregate3(IMulticall3.Call3[] calldata calls)
-        external
-        payable
-        returns (IMulticall3.Result[] memory results)
-    {
-        results = new IMulticall3.Result[](calls.length);
-        for (uint256 i = 0; i < calls.length; i++) {
-            // Use delegatecall to preserve msg.sender from the TrailsMulticall3Router context
-            (bool success, bytes memory returnData) = calls[i].target.delegatecall(calls[i].callData);
-            results[i] = IMulticall3.Result({success: success || calls[i].allowFailure, returnData: returnData});
-        }
-    }
-}
+// Use imported MockMulticall3
 
 contract TrailsMulticall3RouterTest is Test {
     TrailsMulticall3Router internal multicallWrapper;
