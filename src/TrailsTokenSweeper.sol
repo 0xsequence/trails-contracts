@@ -18,6 +18,19 @@ contract TrailsTokenSweeper {
     using SafeERC20 for IERC20;
 
     // -------------------------------------------------------------------------
+    // Errors
+    // -------------------------------------------------------------------------
+
+    error RecipientIsZeroAddress();
+    error NativeTransferFailed();
+
+    // -------------------------------------------------------------------------
+    // Events
+    // -------------------------------------------------------------------------
+
+    event Swept(address indexed token, address indexed recipient, uint256 amount);
+
+    // -------------------------------------------------------------------------
     // Receive Function
     // -------------------------------------------------------------------------
 
@@ -54,7 +67,7 @@ contract TrailsTokenSweeper {
      * @param _recipient The address to send the swept tokens to.
      */
     function sweep(address _token, address _recipient) external {
-        require(_recipient != address(0), "TrailsTokenSweeper: recipient cannot be the zero address");
+        if (_recipient == address(0)) revert RecipientIsZeroAddress();
         uint256 balance = getBalance(_token);
 
         if (balance == 0) {
@@ -63,9 +76,11 @@ contract TrailsTokenSweeper {
 
         if (_token == address(0)) {
             (bool success,) = payable(_recipient).call{value: balance}("");
-            require(success, "TrailsTokenSweeper: Native token transfer failed");
+            if (!success) revert NativeTransferFailed();
         } else {
             IERC20(_token).safeTransfer(_recipient, balance);
         }
+
+        emit Swept(_token, _recipient, balance);
     }
 }
