@@ -1,29 +1,3 @@
-# Trails Contracts
-
-Smart contracts for cross-chain payment and bridging functionality through LiFi and relay protocols, featuring **Sapient Signer modules** for Sequence v3 wallets.
-
-## 🚀 TrailsEntrypointV2 - Revolutionary 1-Click Transactions
-
-The latest addition to the Trails ecosystem: **TrailsEntrypointV2** enables true 1-click crypto transactions by accepting intents through ETH/ERC20 transfers with calldata suffixes, eliminating the traditional approve step.
-
-### Key Features
-- **Single Entrypoint**: All intents flow through one contract
-- **Transfer Suffix Pattern**: ETH/ERC20 transfers carry intent hash in calldata
-- **Commit-Prove Pattern**: Two-phase validation without approve step
-- **Generic Execution**: Arbitrary multicall support for bridges/swaps
-
-📖 **[Complete Technical Specification →](docs/TrailsEntrypointV2.md)**
-
-## Architecture Overview
-
-This is a Solidity project implementing **Sapient Signer modules** for Sequence v3 wallets, focusing on cross-chain payment and bridging functionality through LiFi and relay protocols.
-
-### Primary Contracts
-- **TrailsEntrypointV2** (`src/TrailsEntrypointV2.sol`) - Revolutionary single entrypoint for 1-click transactions
-- **TrailsLiFiSapientSigner** (`src/TrailsLiFiSapientSigner.sol`) - Validates LiFi protocol operations via off-chain attestations
-- **TrailsRelaySapientSigner** (`src/TrailsRelaySapientSigner.sol`) - Validates relay operations through attestation mechanism
-- **TrailsTokenSweeper** (`src/TrailsTokenSweeper.sol`) - Utility contract for token recovery operations
-
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
@@ -37,8 +11,7 @@ Foundry consists of:
 
 ## Documentation
 
-- [TrailsEntrypointV2 Technical Specification](docs/TrailsEntrypointV2.md)
-- [Foundry Book](https://book.getfoundry.sh/)
+https://book.getfoundry.sh/
 
 ## Usage
 
