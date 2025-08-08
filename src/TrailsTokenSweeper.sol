@@ -9,7 +9,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @title TrailsTokenSweeper
  * @author Shun Kakinoki
  * @dev This contract can be used to sweep native tokens or ERC20 tokens from this contract to a specified address.
- * The recipient address is set at deployment and is immutable.
  */
 contract TrailsTokenSweeper {
     // -------------------------------------------------------------------------
@@ -19,23 +18,17 @@ contract TrailsTokenSweeper {
     using SafeERC20 for IERC20;
 
     // -------------------------------------------------------------------------
-    // Immutables
+    // Errors
     // -------------------------------------------------------------------------
 
-    /// @dev The address to send the swept tokens to.
-    address payable public immutable recipient;
+    error RecipientIsZeroAddress();
+    error NativeTransferFailed();
 
     // -------------------------------------------------------------------------
-    // Constructor
+    // Events
     // -------------------------------------------------------------------------
 
-    /**
-     * @dev Sets the recipient address.
-     */
-    constructor(address payable _recipient) {
-        require(_recipient != address(0), "TrailsTokenSweeper: recipient cannot be the zero address");
-        recipient = _recipient;
-    }
+    event Swept(address indexed token, address indexed recipient, uint256 amount);
 
     // -------------------------------------------------------------------------
     // Receive Function
@@ -68,11 +61,13 @@ contract TrailsTokenSweeper {
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Sweeps the entire balance of a given token to the immutable recipient address.
+     * @notice Sweeps the entire balance of a given token to the specified recipient address.
      * @dev Anyone can call this function.
      * @param _token The address of the token to sweep. Use address(0) for the native token.
+     * @param _recipient The address to send the swept tokens to.
      */
-    function sweep(address _token) external {
+    function sweep(address _token, address _recipient) external {
+        if (_recipient == address(0)) revert RecipientIsZeroAddress();
         uint256 balance = getBalance(_token);
 
         if (balance == 0) {
@@ -80,10 +75,12 @@ contract TrailsTokenSweeper {
         }
 
         if (_token == address(0)) {
-            (bool success,) = recipient.call{value: balance}("");
-            require(success, "TrailsTokenSweeper: Native token transfer failed");
+            (bool success,) = payable(_recipient).call{value: balance}("");
+            if (!success) revert NativeTransferFailed();
         } else {
-            IERC20(_token).safeTransfer(recipient, balance);
+            IERC20(_token).safeTransfer(_recipient, balance);
         }
+
+        emit Swept(_token, _recipient, balance);
     }
 }

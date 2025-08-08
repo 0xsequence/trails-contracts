@@ -2,23 +2,34 @@
 pragma solidity ^0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {TrailsTokenSweeper} from "@/TrailsTokenSweeper.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+
+// Helper receiver that always reverts on receiving native tokens
+contract RevertingReceiver {
+    receive() external payable {
+        revert("RevertingReceiver: revert on receive");
+    }
+}
 
 contract TrailsTokenSweeperTest is Test {
     TrailsTokenSweeper public sweeper;
     ERC20Mock public erc20;
     address payable public recipient;
 
+    // Redeclare event for expectEmit
+    event Swept(address indexed token, address indexed recipient, uint256 amount);
+
     function setUp() public {
         recipient = payable(address(0x1));
-        sweeper = new TrailsTokenSweeper(recipient);
+        sweeper = new TrailsTokenSweeper();
         erc20 = new ERC20Mock();
     }
 
-    function test_constructor_revertsIfRecipientIsZeroAddress() public {
-        vm.expectRevert("TrailsTokenSweeper: recipient cannot be the zero address");
-        new TrailsTokenSweeper(payable(address(0)));
+    function test_sweep_revertsIfRecipientIsZeroAddress() public {
+        vm.expectRevert(TrailsTokenSweeper.RecipientIsZeroAddress.selector);
+        sweeper.sweep(address(0), address(0));
     }
 
     function test_getBalance_nativeToken() public {
@@ -38,7 +49,10 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(address(sweeper), amount);
 
         uint256 recipientBalanceBefore = recipient.balance;
-        sweeper.sweep(address(0));
+
+        vm.expectEmit(true, true, false, true);
+        emit Swept(address(0), recipient, amount);
+        sweeper.sweep(address(0), recipient);
         uint256 recipientBalanceAfter = recipient.balance;
 
         assertEq(sweeper.getBalance(address(0)), 0);
@@ -50,7 +64,10 @@ contract TrailsTokenSweeperTest is Test {
         erc20.mint(address(sweeper), amount);
 
         uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
-        sweeper.sweep(address(erc20));
+
+        vm.expectEmit(true, true, false, true);
+        emit Swept(address(erc20), recipient, amount);
+        sweeper.sweep(address(erc20), recipient);
         uint256 recipientBalanceAfter = erc20.balanceOf(recipient);
 
         assertEq(sweeper.getBalance(address(erc20)), 0);
@@ -59,13 +76,60 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_noBalance() public {
         uint256 recipientNativeBalanceBefore = recipient.balance;
-        sweeper.sweep(address(0));
+        vm.recordLogs();
+        sweeper.sweep(address(0), recipient);
+        Vm.Log[] memory logsNative = vm.getRecordedLogs();
         uint256 recipientNativeBalanceAfter = recipient.balance;
         assertEq(recipientNativeBalanceAfter, recipientNativeBalanceBefore);
+        assertEq(logsNative.length, 0);
 
         uint256 recipientErc20BalanceBefore = erc20.balanceOf(recipient);
-        sweeper.sweep(address(erc20));
+        vm.recordLogs();
+        sweeper.sweep(address(erc20), recipient);
+        Vm.Log[] memory logsErc20 = vm.getRecordedLogs();
         uint256 recipientErc20BalanceAfter = erc20.balanceOf(recipient);
         assertEq(recipientErc20BalanceAfter, recipientErc20BalanceBefore);
+        assertEq(logsErc20.length, 0);
+    }
+
+    function test_sweep_revertsOnNativeTransferFailure() public {
+        uint256 amount = 1 ether;
+        vm.deal(address(sweeper), amount);
+
+        RevertingReceiver revertingReceiver = new RevertingReceiver();
+
+        vm.expectRevert(TrailsTokenSweeper.NativeTransferFailed.selector);
+        sweeper.sweep(address(0), address(revertingReceiver));
+
+        // Balance remains in sweeper
+        assertEq(sweeper.getBalance(address(0)), amount);
+    }
+
+    function testFuzz_sweep_nativeToken(uint256 amount) public {
+        vm.assume(amount > 0 && amount <= 1_000 ether);
+        vm.deal(address(sweeper), amount);
+
+        uint256 recipientBalanceBefore = recipient.balance;
+
+        vm.expectEmit(true, true, false, true);
+        emit Swept(address(0), recipient, amount);
+        sweeper.sweep(address(0), recipient);
+
+        assertEq(sweeper.getBalance(address(0)), 0);
+        assertEq(recipient.balance - recipientBalanceBefore, amount);
+    }
+
+    function testFuzz_sweep_erc20Token(uint256 amount) public {
+        vm.assume(amount > 0 && amount <= 1_000_000_000_000_000_000_000_000);
+        erc20.mint(address(sweeper), amount);
+
+        uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
+
+        vm.expectEmit(true, true, false, true);
+        emit Swept(address(erc20), recipient, amount);
+        sweeper.sweep(address(erc20), recipient);
+
+        assertEq(sweeper.getBalance(address(erc20)), 0);
+        assertEq(erc20.balanceOf(recipient) - recipientBalanceBefore, amount);
     }
 }

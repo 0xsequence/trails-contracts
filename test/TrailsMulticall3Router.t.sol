@@ -105,6 +105,8 @@ contract WithdrawETHReentrancyAttacker {
     }
 }
 
+// Use imported MockMulticall3
+
 contract TrailsMulticall3RouterTest is Test {
     TrailsMulticall3Router internal multicallWrapper;
     MockSenderGetter internal getter;
@@ -137,7 +139,8 @@ contract TrailsMulticall3RouterTest is Test {
         });
 
         vm.prank(eoa, eoa);
-        IMulticall3.Result[] memory results = multicallWrapper.aggregate3(calls);
+        bytes memory callData = abi.encodeWithSelector(IMulticall3.aggregate3.selector, calls);
+        IMulticall3.Result[] memory results = multicallWrapper.execute(callData);
 
         assertTrue(results[0].success, "call should succeed");
         address returnedSender = abi.decode(results[0].returnData, (address));
@@ -152,7 +155,8 @@ contract TrailsMulticall3RouterTest is Test {
             callData: abi.encodeWithSignature("getSender()")
         });
 
-        IMulticall3.Result[] memory results = multicallWrapper.aggregate3(calls);
+        bytes memory callData = abi.encodeWithSelector(IMulticall3.aggregate3.selector, calls);
+        IMulticall3.Result[] memory results = multicallWrapper.execute(callData);
         assertTrue(results[0].success, "call should succeed");
         address returnedSender = abi.decode(results[0].returnData, (address));
         assertEq(returnedSender, address(multicallWrapper), "sender should be the router contract");
