@@ -107,6 +107,19 @@ forge script script/TrailsMulticall3Router.s.sol:Deploy --sig "run()" \
     -vvvv
 ```
 
+```bash
+forge script script/TrailsTokenSweeper.s.sol:Deploy --sig "run()" \
+    --rpc-url $RPC_URL \
+    --broadcast \
+    --verify \
+    --chain $CHAIN_ID \
+    --verifier-url $VERIFIER_URL \
+    --etherscan-api-key $ETHERSCAN_API_KEY \
+    --sender $ADDRESS \
+    --via-ir \
+    -vvvv
+```
+
 **Explanation of flags:**
 *   `script/TrailsLiFiSapientSigner.s.sol:Deploy`: Specifies the script file and the contract within that file to run.
 *   `--sig "run()"`: Specifies the function signature to execute in the script contract.
