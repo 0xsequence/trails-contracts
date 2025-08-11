@@ -167,6 +167,15 @@ forge verify-contract 0x099E30e44A3fD4EdAb23D678a08cDE2dA2f2FF10 src/TrailsMulti
     --watch
 ```
 
+```bash
+forge verify-contract 0xc19b0E88eb6c09f4922CFc3CAa6aE01C075712f5 src/TrailsTokenSweeper.sol:TrailsTokenSweeper \
+    --chain $CHAIN_ID \
+    --etherscan-api-key $ETHERSCAN_API_KEY \
+    --verifier-url $VERIFIER_URL \
+    --compiler-version 0.8.30 \
+    --watch
+```
+
 **Explanation of flags:**
 
 *   `<DEPLOYED_CONTRACT_ADDRESS>`: The address of the `TrailsLiFiSapientSigner` contract on the blockchain.
