@@ -14,7 +14,7 @@ contract RevertingReceiver {
 }
 
 contract TrailsTokenSweeperTest is Test {
-    TrailsTokenSweeper public sweeper; // used only to fetch runtime code
+    TrailsTokenSweeper public sweeper;
     ERC20Mock public erc20;
     address payable public holder; // address that holds balances and hosts the sweeper code
     address payable public recipient; // destination that receives swept funds
@@ -26,19 +26,16 @@ contract TrailsTokenSweeperTest is Test {
         holder = payable(address(0xbabe));
         recipient = payable(address(0x1));
         sweeper = new TrailsTokenSweeper();
-        // Install sweeper runtime code at the holder address
-        vm.etch(holder, address(sweeper).code);
         erc20 = new ERC20Mock();
     }
 
     function test_sweep_nativeToken_zeroRecipientEmitsAndSweeps() public {
         uint256 amount = 1 ether;
         vm.deal(holder, amount);
-
         vm.prank(holder);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), address(0), amount);
-        TrailsTokenSweeper(holder).sweep(address(0), address(0));
+        sweeper.sweep{value: amount}(address(0), address(0));
 
         assertEq(holder.balance, 0);
     }
@@ -47,14 +44,14 @@ contract TrailsTokenSweeperTest is Test {
         uint256 amount = 1 ether;
         vm.deal(holder, amount);
         vm.prank(holder);
-        assertEq(TrailsTokenSweeper(holder).getBalance(address(0)), amount);
+        assertEq(sweeper.getBalance(address(0)), amount);
     }
 
     function test_getBalance_erc20Token() public {
         uint256 amount = 100 * 1e18;
         erc20.mint(holder, amount);
         vm.prank(holder);
-        assertEq(TrailsTokenSweeper(holder).getBalance(address(erc20)), amount);
+        assertEq(sweeper.getBalance(address(erc20)), amount);
     }
 
     function test_sweep_nativeToken() public {
@@ -66,7 +63,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.prank(holder);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, amount);
-        TrailsTokenSweeper(holder).sweep(address(0), recipient);
+        sweeper.sweep{value: amount}(address(0), recipient);
         uint256 recipientBalanceAfter = recipient.balance;
 
         assertEq(holder.balance, 0);
@@ -76,13 +73,15 @@ contract TrailsTokenSweeperTest is Test {
     function test_sweep_erc20Token() public {
         uint256 amount = 100 * 1e18;
         erc20.mint(holder, amount);
+        vm.prank(holder);
+        erc20.approve(address(sweeper), amount);
 
         uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
 
         vm.prank(holder);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
-        TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
+        sweeper.sweep(address(erc20), recipient);
         uint256 recipientBalanceAfter = erc20.balanceOf(recipient);
 
         assertEq(erc20.balanceOf(holder), 0);
@@ -95,7 +94,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.prank(holder);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 0);
-        TrailsTokenSweeper(holder).sweep(address(0), recipient);
+        sweeper.sweep{value: 0}(address(0), recipient);
         uint256 recipientNativeBalanceAfter = recipient.balance;
         assertEq(recipientNativeBalanceAfter, recipientNativeBalanceBefore);
 
@@ -103,7 +102,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.prank(holder);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, 0);
-        TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
+        sweeper.sweep(address(erc20), recipient);
         uint256 recipientErc20BalanceAfter = erc20.balanceOf(recipient);
         assertEq(recipientErc20BalanceAfter, recipientErc20BalanceBefore);
     }
@@ -116,11 +115,11 @@ contract TrailsTokenSweeperTest is Test {
 
         vm.prank(holder);
         vm.expectRevert(TrailsTokenSweeper.NativeTransferFailed.selector);
-        TrailsTokenSweeper(holder).sweep(address(0), address(revertingReceiver));
+        sweeper.sweep{value: amount}(address(0), address(revertingReceiver));
 
         // Balance remains in sweeper
         vm.prank(holder);
-        assertEq(TrailsTokenSweeper(holder).getBalance(address(0)), amount);
+        assertEq(sweeper.getBalance(address(0)), amount);
     }
 
     function testFuzz_sweep_nativeToken(uint256 amount) public {
@@ -132,7 +131,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.prank(holder);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, amount);
-        TrailsTokenSweeper(holder).sweep(address(0), recipient);
+        sweeper.sweep{value: amount}(address(0), recipient);
 
         assertEq(holder.balance, 0);
         assertEq(recipient.balance - recipientBalanceBefore, amount);
@@ -141,13 +140,15 @@ contract TrailsTokenSweeperTest is Test {
     function testFuzz_sweep_erc20Token(uint256 amount) public {
         vm.assume(amount > 0 && amount <= 1_000_000_000_000_000_000_000_000);
         erc20.mint(holder, amount);
+        vm.prank(holder);
+        erc20.approve(address(sweeper), amount);
 
         uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
 
         vm.prank(holder);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
-        TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
+        sweeper.sweep(address(erc20), recipient);
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(recipient) - recipientBalanceBefore, amount);

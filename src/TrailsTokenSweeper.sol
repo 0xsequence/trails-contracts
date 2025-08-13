@@ -60,21 +60,22 @@ contract TrailsTokenSweeper {
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Sweeps the entire balance of a given token to the specified recipient address.
-     * @dev Anyone can call this function.
+     * @notice Sweeps the entire balance of a given token owned by the caller to the specified recipient.
+     * @dev For ERC20 tokens, the caller must approve this contract first. For native tokens,
+     *      this function forwards the msg.value sent with the call.
      * @param _token The address of the token to sweep. Use address(0) for the native token.
      * @param _recipient The address to send the swept tokens to.
      */
-    function sweep(address _token, address _recipient) external {
-        uint256 balance = getBalance(_token);
-
+    function sweep(address _token, address _recipient) external payable {
         if (_token == address(0)) {
-            (bool success,) = payable(_recipient).call{value: balance}("");
+            uint256 amount = msg.value;
+            (bool success,) = payable(_recipient).call{value: amount}("");
             if (!success) revert NativeTransferFailed();
+            emit Sweep(_token, _recipient, amount);
         } else {
-            IERC20(_token).safeTransfer(_recipient, balance);
+            uint256 balance = IERC20(_token).balanceOf(msg.sender);
+            IERC20(_token).safeTransferFrom(msg.sender, _recipient, balance);
+            emit Sweep(_token, _recipient, balance);
         }
-
-        emit Sweep(_token, _recipient, balance);
     }
 }
