@@ -21,7 +21,6 @@ contract TrailsTokenSweeper {
     // Errors
     // -------------------------------------------------------------------------
 
-    error RecipientIsZeroAddress();
     error NativeTransferFailed();
 
     // -------------------------------------------------------------------------
@@ -50,9 +49,9 @@ contract TrailsTokenSweeper {
      */
     function getBalance(address _token) public view returns (uint256) {
         if (_token == address(0)) {
-            return address(this).balance;
+            return msg.sender.balance;
         } else {
-            return IERC20(_token).balanceOf(address(this));
+            return IERC20(_token).balanceOf(msg.sender);
         }
     }
 
@@ -67,12 +66,7 @@ contract TrailsTokenSweeper {
      * @param _recipient The address to send the swept tokens to.
      */
     function sweep(address _token, address _recipient) external {
-        if (_recipient == address(0)) revert RecipientIsZeroAddress();
         uint256 balance = getBalance(_token);
-
-        if (balance == 0) {
-            return;
-        }
 
         if (_token == address(0)) {
             (bool success,) = payable(_recipient).call{value: balance}("");
