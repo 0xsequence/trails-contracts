@@ -27,7 +27,7 @@ contract TrailsTokenSweeper {
     // Events
     // -------------------------------------------------------------------------
 
-    event Swept(address indexed token, address indexed recipient, uint256 amount);
+    event Sweep(address indexed token, address indexed recipient, uint256 amount);
 
     // -------------------------------------------------------------------------
     // Receive Function
@@ -75,6 +75,6 @@ contract TrailsTokenSweeper {
             IERC20(_token).safeTransfer(_recipient, balance);
         }
 
-        emit Swept(_token, _recipient, balance);
+        emit Sweep(_token, _recipient, balance);
     }
 }
