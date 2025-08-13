@@ -22,6 +22,7 @@ contract TrailsTokenSweeper {
     // -------------------------------------------------------------------------
 
     error NativeTransferFailed();
+    error NotDelegateCall();
 
     // -------------------------------------------------------------------------
     // Events
@@ -30,13 +31,15 @@ contract TrailsTokenSweeper {
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
 
     // -------------------------------------------------------------------------
-    // Receive Function
+    // Constants / Modifiers
     // -------------------------------------------------------------------------
 
-    /**
-     * @dev Allows the contract to receive Ether.
-     */
-    receive() external payable {}
+    address private immutable SELF = address(this);
+
+    modifier onlyDelegatecall() {
+        if (address(this) == SELF) revert NotDelegateCall();
+        _;
+    }
 
     // -------------------------------------------------------------------------
     // View Functions
@@ -66,16 +69,16 @@ contract TrailsTokenSweeper {
      * @param _token The address of the token to sweep. Use address(0) for the native token.
      * @param _recipient The address to send the swept tokens to.
      */
-    function sweep(address _token, address _recipient) external payable {
+    function sweep(address _token, address _recipient) external payable onlyDelegatecall {
         if (_token == address(0)) {
-            uint256 amount = msg.value;
+            uint256 amount = address(this).balance;
             (bool success,) = payable(_recipient).call{value: amount}("");
             if (!success) revert NativeTransferFailed();
             emit Sweep(_token, _recipient, amount);
         } else {
-            uint256 balance = IERC20(_token).balanceOf(msg.sender);
-            IERC20(_token).safeTransferFrom(msg.sender, _recipient, balance);
-            emit Sweep(_token, _recipient, balance);
+            uint256 amount = IERC20(_token).balanceOf(address(this));
+            IERC20(_token).safeTransfer(_recipient, amount);
+            emit Sweep(_token, _recipient, amount);
         }
     }
 }
