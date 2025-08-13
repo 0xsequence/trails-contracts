@@ -27,17 +27,17 @@ contract TrailsTokenSweeperTest is Test {
         erc20 = new ERC20Mock();
     }
 
-	function test_sweep_nativeToken_zeroRecipientEmitsAndSweeps() public {
-		uint256 amount = 1 ether;
-		vm.deal(address(this), amount);
-		vm.deal(address(sweeper), amount);
+    function test_sweep_nativeToken_zeroRecipientEmitsAndSweeps() public {
+        uint256 amount = 1 ether;
+        vm.deal(address(this), amount);
+        vm.deal(address(sweeper), amount);
 
-		vm.expectEmit(true, true, false, true);
-		emit Swept(address(0), address(0), amount);
-		sweeper.sweep(address(0), address(0));
+        vm.expectEmit(true, true, false, true);
+        emit Swept(address(0), address(0), amount);
+        sweeper.sweep(address(0), address(0));
 
-		assertEq(address(sweeper).balance, 0);
-	}
+        assertEq(address(sweeper).balance, 0);
+    }
 
     function test_getBalance_nativeToken() public {
         uint256 amount = 1 ether;
@@ -83,22 +83,22 @@ contract TrailsTokenSweeperTest is Test {
         assertEq(recipientBalanceAfter - recipientBalanceBefore, amount);
     }
 
-	function test_sweep_noBalance() public {
-		uint256 recipientNativeBalanceBefore = recipient.balance;
-		vm.deal(address(this), 0);
-		vm.expectEmit(true, true, false, true);
-		emit Swept(address(0), recipient, 0);
-		sweeper.sweep(address(0), recipient);
-		uint256 recipientNativeBalanceAfter = recipient.balance;
-		assertEq(recipientNativeBalanceAfter, recipientNativeBalanceBefore);
+    function test_sweep_noBalance() public {
+        uint256 recipientNativeBalanceBefore = recipient.balance;
+        vm.deal(address(this), 0);
+        vm.expectEmit(true, true, false, true);
+        emit Swept(address(0), recipient, 0);
+        sweeper.sweep(address(0), recipient);
+        uint256 recipientNativeBalanceAfter = recipient.balance;
+        assertEq(recipientNativeBalanceAfter, recipientNativeBalanceBefore);
 
-		uint256 recipientErc20BalanceBefore = erc20.balanceOf(recipient);
-		vm.expectEmit(true, true, false, true);
-		emit Swept(address(erc20), recipient, 0);
-		sweeper.sweep(address(erc20), recipient);
-		uint256 recipientErc20BalanceAfter = erc20.balanceOf(recipient);
-		assertEq(recipientErc20BalanceAfter, recipientErc20BalanceBefore);
-	}
+        uint256 recipientErc20BalanceBefore = erc20.balanceOf(recipient);
+        vm.expectEmit(true, true, false, true);
+        emit Swept(address(erc20), recipient, 0);
+        sweeper.sweep(address(erc20), recipient);
+        uint256 recipientErc20BalanceAfter = erc20.balanceOf(recipient);
+        assertEq(recipientErc20BalanceAfter, recipientErc20BalanceBefore);
+    }
 
     function test_sweep_revertsOnNativeTransferFailure() public {
         uint256 amount = 1 ether;
