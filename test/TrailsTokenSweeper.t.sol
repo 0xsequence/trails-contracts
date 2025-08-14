@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {TrailsTokenSweeper} from "@/TrailsTokenSweeper.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 
 // Helper receiver that always reverts on receiving native tokens
 contract RevertingReceiver {
@@ -140,5 +141,48 @@ contract TrailsTokenSweeperTest is Test {
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(recipient) - recipientBalanceBefore, amount);
+    }
+
+    function test_handleSequenceDelegateCall_dispatches_to_sweep_native() public {
+        uint256 amount = 1 ether;
+        vm.deal(holder, amount);
+
+        // Build delegated call data for sweep(address,address)
+        bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(0), recipient);
+
+        // Expect event from delegated sweep
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), recipient, amount);
+
+        // Call the delegated entrypoint at holder (code installed from sweeper)
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+
+        assertEq(holder.balance, 0);
+        assertEq(recipient.balance, amount);
+    }
+
+    function test_handleSequenceDelegateCall_dispatches_to_sweep_erc20() public {
+        uint256 amount = 100 * 1e18;
+        erc20.mint(holder, amount);
+
+        bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(erc20), recipient);
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), recipient, amount);
+
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+
+        assertEq(erc20.balanceOf(holder), 0);
+        assertEq(erc20.balanceOf(recipient), amount);
+    }
+
+    function test_handleSequenceDelegateCall_invalid_selector_reverts() public {
+        // Unknown selector
+        bytes memory data = hex"deadbeef";
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TrailsTokenSweeper.InvalidDelegatedSelector.selector, bytes4(0xdeadbeef))
+        );
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 }
