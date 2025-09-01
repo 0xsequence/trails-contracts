@@ -86,6 +86,56 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         }
     }
 
+    /**
+     * @notice Refunds up to `_refundAmount` to `_refundRecipient`, then sweeps any remaining balance to `_sweepRecipient`.
+     * @dev For ERC20 tokens, sets infinite approval to `SELF` in delegatecall context for compatibility, then transfers.
+     * @param _token The token address to operate on. Use address(0) for native.
+     * @param _refundRecipient Address receiving the refund portion.
+     * @param _refundAmount Maximum amount to refund.
+     * @param _sweepRecipient Address receiving the remaining balance.
+     */
+    function refundAndSweep(
+        address _token,
+        address _refundRecipient,
+        uint256 _refundAmount,
+        address _sweepRecipient
+    ) public payable onlyDelegatecall {
+        if (_token == address(0)) {
+            uint256 balance = address(this).balance;
+            uint256 toRefund = _refundAmount > balance ? balance : _refundAmount;
+
+            if (toRefund > 0) {
+                (bool successRefund,) = payable(_refundRecipient).call{value: toRefund}("");
+                if (!successRefund) revert NativeTransferFailed();
+                emit Sweep(_token, _refundRecipient, toRefund);
+            }
+
+            uint256 remaining = address(this).balance;
+            if (remaining > 0) {
+                (bool successSweep,) = payable(_sweepRecipient).call{value: remaining}("");
+                if (!successSweep) revert NativeTransferFailed();
+                emit Sweep(_token, _sweepRecipient, remaining);
+            }
+        } else {
+            IERC20 erc20 = IERC20(_token);
+            SafeERC20.forceApprove(erc20, SELF, type(uint256).max);
+
+            uint256 balance = erc20.balanceOf(address(this));
+            uint256 toRefund = _refundAmount > balance ? balance : _refundAmount;
+
+            if (toRefund > 0) {
+                SafeERC20.safeTransfer(erc20, _refundRecipient, toRefund);
+                emit Sweep(_token, _refundRecipient, toRefund);
+            }
+
+            uint256 remaining = erc20.balanceOf(address(this));
+            if (remaining > 0) {
+                SafeERC20.safeTransfer(erc20, _sweepRecipient, remaining);
+                emit Sweep(_token, _sweepRecipient, remaining);
+            }
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Sequence Delegated Extension Entry Point
     // -------------------------------------------------------------------------
@@ -112,6 +162,13 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         if (selector == this.sweep.selector) {
             (address token, address recipient) = abi.decode(_data[4:], (address, address));
             sweep(token, recipient);
+            return;
+        }
+
+        if (selector == this.refundAndSweep.selector) {
+            (address token, address refundRecipient, uint256 refundAmount, address sweepRecipient) =
+                abi.decode(_data[4:], (address, address, uint256, address));
+            refundAndSweep(token, refundRecipient, refundAmount, sweepRecipient);
             return;
         }
 
