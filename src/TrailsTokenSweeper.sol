@@ -65,9 +65,9 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     // Internal Helpers
     // -------------------------------------------------------------------------
 
-    function _ensureERC20Approval(address _token) internal {
+    function _ensureERC20Approval(address _token, uint256 _amount) internal {
         IERC20 erc20 = IERC20(_token);
-        SafeERC20.forceApprove(erc20, SELF, type(uint256).max);
+        SafeERC20.forceApprove(erc20, SELF, _amount);
     }
 
     function _transferNative(address _to, uint256 _amount) internal {
@@ -133,7 +133,8 @@ contract TrailsTokenSweeper is IDelegatedExtension {
             _transferNative(_sweepRecipient, remaining);
             emit Sweep(_token, _sweepRecipient, remaining);
         } else {
-            _ensureERC20Approval(_token);
+            uint256 balance = _erc20Balance(_token);
+            _ensureERC20Approval(_token, balance);
 
             _transferERC20(_token, _refundRecipient, _refundAmount);
             emit Refund(_token, _refundRecipient, _refundAmount);
