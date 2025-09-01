@@ -30,8 +30,8 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     // Events
     // -------------------------------------------------------------------------
 
-    event Sweep(address indexed token, address indexed recipient, uint256 amount);
     event Refund(address indexed token, address indexed recipient, uint256 amount);
+    event Sweep(address indexed token, address indexed recipient, uint256 amount);
 
     // -------------------------------------------------------------------------
     // Constants / Modifiers
