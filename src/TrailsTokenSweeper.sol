@@ -126,8 +126,8 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         onlyDelegatecall
     {
         if (_token == address(0)) {
-            _transferNative(_refundRecipient, toRefund);
-            emit Refund(_token, _refundRecipient, toRefund);
+            _transferNative(_refundRecipient, _refundAmount);
+            emit Refund(_token, _refundRecipient, _refundAmount);
 
             uint256 remaining = _nativeBalance();
             _transferNative(_sweepRecipient, remaining);
@@ -135,8 +135,8 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         } else {
             _ensureERC20Approval(_token);
 
-            _transferERC20(_token, _refundRecipient, toRefund);
-            emit Refund(_token, _refundRecipient, toRefund);
+            _transferERC20(_token, _refundRecipient, _refundAmount);
+            emit Refund(_token, _refundRecipient, _refundAmount);
 
             uint256 remaining = _erc20Balance(_token);
             _transferERC20(_token, _sweepRecipient, remaining);
