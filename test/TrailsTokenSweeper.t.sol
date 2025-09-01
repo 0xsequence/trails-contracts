@@ -137,6 +137,127 @@ contract TrailsTokenSweeperTest is Test {
         assertEq(TrailsTokenSweeper(holder).getBalance(address(0)), amount);
     }
 
+    function test_refundAndSweep_native_partialRefund() public {
+        address refundRecipient = address(0x101);
+        address sweepRecipient = address(0x102);
+
+        uint256 amount = 3 ether;
+        vm.deal(holder, amount);
+
+        // Expect refund event then sweep event
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), refundRecipient, 1 ether);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), sweepRecipient, 2 ether);
+
+        TrailsTokenSweeper(holder).refundAndSweep(address(0), refundRecipient, 1 ether, sweepRecipient);
+
+        assertEq(holder.balance, 0);
+        assertEq(refundRecipient.balance, 1 ether);
+        assertEq(sweepRecipient.balance, 2 ether);
+    }
+
+    function test_refundAndSweep_native_refundMoreThanBalance() public {
+        address refundRecipient = address(0x201);
+        address sweepRecipient = address(0x202);
+
+        uint256 amount = 1 ether;
+        vm.deal(holder, amount);
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), refundRecipient, amount);
+
+        TrailsTokenSweeper(holder).refundAndSweep(address(0), refundRecipient, 5 ether, sweepRecipient);
+
+        assertEq(holder.balance, 0);
+        assertEq(refundRecipient.balance, amount);
+        assertEq(sweepRecipient.balance, 0);
+    }
+
+    function test_refundAndSweep_erc20_partialRefund() public {
+        address refundRecipient = address(0x301);
+        address sweepRecipient = address(0x302);
+
+        uint256 amount = 300 * 1e18;
+        uint256 refund = 120 * 1e18;
+        erc20.mint(holder, amount);
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), refundRecipient, refund);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), sweepRecipient, amount - refund);
+
+        TrailsTokenSweeper(holder).refundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient);
+
+        assertEq(erc20.balanceOf(holder), 0);
+        assertEq(erc20.balanceOf(refundRecipient), refund);
+        assertEq(erc20.balanceOf(sweepRecipient), amount - refund);
+    }
+
+    function test_refundAndSweep_erc20_refundMoreThanBalance() public {
+        address refundRecipient = address(0x401);
+        address sweepRecipient = address(0x402);
+
+        uint256 amount = 100 * 1e18;
+        erc20.mint(holder, amount);
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), refundRecipient, amount);
+
+        TrailsTokenSweeper(holder).refundAndSweep(address(erc20), refundRecipient, 500 * 1e18, sweepRecipient);
+
+        assertEq(erc20.balanceOf(holder), 0);
+        assertEq(erc20.balanceOf(refundRecipient), amount);
+        assertEq(erc20.balanceOf(sweepRecipient), 0);
+    }
+
+    function test_handleSequenceDelegateCall_dispatches_to_refundAndSweep_native() public {
+        address refundRecipient = address(0x501);
+        address sweepRecipient = address(0x502);
+
+        uint256 amount = 5 ether;
+        vm.deal(holder, amount);
+
+        bytes memory data = abi.encodeWithSelector(
+            TrailsTokenSweeper.refundAndSweep.selector, address(0), refundRecipient, 2 ether, sweepRecipient
+        );
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), refundRecipient, 2 ether);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), sweepRecipient, 3 ether);
+
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+
+        assertEq(holder.balance, 0);
+        assertEq(refundRecipient.balance, 2 ether);
+        assertEq(sweepRecipient.balance, 3 ether);
+    }
+
+    function test_handleSequenceDelegateCall_dispatches_to_refundAndSweep_erc20() public {
+        address refundRecipient = address(0x601);
+        address sweepRecipient = address(0x602);
+
+        uint256 amount = 500 * 1e18;
+        uint256 refund = 125 * 1e18;
+        erc20.mint(holder, amount);
+
+        bytes memory data = abi.encodeWithSelector(
+            TrailsTokenSweeper.refundAndSweep.selector, address(erc20), refundRecipient, refund, sweepRecipient
+        );
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), refundRecipient, refund);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), sweepRecipient, amount - refund);
+
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+
+        assertEq(erc20.balanceOf(holder), 0);
+        assertEq(erc20.balanceOf(refundRecipient), refund);
+        assertEq(erc20.balanceOf(sweepRecipient), amount - refund);
+    }
+
     function testFuzz_sweep_nativeToken(uint256 amount) public {
         vm.assume(amount > 0 && amount <= 1_000 ether);
         vm.deal(holder, amount);

@@ -61,6 +61,33 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     }
 
     // -------------------------------------------------------------------------
+    // Internal Helpers
+    // -------------------------------------------------------------------------
+
+    function _ensureERC20Approval(address _token) internal {
+        IERC20 erc20 = IERC20(_token);
+        SafeERC20.forceApprove(erc20, SELF, type(uint256).max);
+    }
+
+    function _transferNative(address _to, uint256 _amount) internal {
+        (bool success,) = payable(_to).call{value: _amount}("");
+        if (!success) revert NativeTransferFailed();
+    }
+
+    function _transferERC20(address _token, address _to, uint256 _amount) internal {
+        IERC20 erc20 = IERC20(_token);
+        SafeERC20.safeTransfer(erc20, _to, _amount);
+    }
+
+    function _nativeBalance() internal view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function _erc20Balance(address _token) internal view returns (uint256) {
+        return IERC20(_token).balanceOf(address(this));
+    }
+
+    // -------------------------------------------------------------------------
     // External Functions
     // -------------------------------------------------------------------------
 
@@ -73,15 +100,13 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      */
     function sweep(address _token, address _recipient) public payable onlyDelegatecall {
         if (_token == address(0)) {
-            uint256 amount = address(this).balance;
-            (bool success,) = payable(_recipient).call{value: amount}("");
-            if (!success) revert NativeTransferFailed();
+            uint256 amount = _nativeBalance();
+            _transferNative(_recipient, amount);
             emit Sweep(_token, _recipient, amount);
         } else {
-            IERC20 erc20 = IERC20(_token);
-            SafeERC20.forceApprove(erc20, SELF, type(uint256).max);
-            uint256 amount = erc20.balanceOf(address(this));
-            SafeERC20.safeTransfer(erc20, _recipient, amount);
+            _ensureERC20Approval(_token);
+            uint256 amount = _erc20Balance(_token);
+            _transferERC20(_token, _recipient, amount);
             emit Sweep(_token, _recipient, amount);
         }
     }
@@ -94,43 +119,39 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      * @param _refundAmount Maximum amount to refund.
      * @param _sweepRecipient Address receiving the remaining balance.
      */
-    function refundAndSweep(
-        address _token,
-        address _refundRecipient,
-        uint256 _refundAmount,
-        address _sweepRecipient
-    ) public payable onlyDelegatecall {
+    function refundAndSweep(address _token, address _refundRecipient, uint256 _refundAmount, address _sweepRecipient)
+        public
+        payable
+        onlyDelegatecall
+    {
         if (_token == address(0)) {
-            uint256 balance = address(this).balance;
+            uint256 balance = _nativeBalance();
             uint256 toRefund = _refundAmount > balance ? balance : _refundAmount;
 
             if (toRefund > 0) {
-                (bool successRefund,) = payable(_refundRecipient).call{value: toRefund}("");
-                if (!successRefund) revert NativeTransferFailed();
+                _transferNative(_refundRecipient, toRefund);
                 emit Sweep(_token, _refundRecipient, toRefund);
             }
 
-            uint256 remaining = address(this).balance;
+            uint256 remaining = _nativeBalance();
             if (remaining > 0) {
-                (bool successSweep,) = payable(_sweepRecipient).call{value: remaining}("");
-                if (!successSweep) revert NativeTransferFailed();
+                _transferNative(_sweepRecipient, remaining);
                 emit Sweep(_token, _sweepRecipient, remaining);
             }
         } else {
-            IERC20 erc20 = IERC20(_token);
-            SafeERC20.forceApprove(erc20, SELF, type(uint256).max);
+            _ensureERC20Approval(_token);
 
-            uint256 balance = erc20.balanceOf(address(this));
+            uint256 balance = _erc20Balance(_token);
             uint256 toRefund = _refundAmount > balance ? balance : _refundAmount;
 
             if (toRefund > 0) {
-                SafeERC20.safeTransfer(erc20, _refundRecipient, toRefund);
+                _transferERC20(_token, _refundRecipient, toRefund);
                 emit Sweep(_token, _refundRecipient, toRefund);
             }
 
-            uint256 remaining = erc20.balanceOf(address(this));
+            uint256 remaining = _erc20Balance(_token);
             if (remaining > 0) {
-                SafeERC20.safeTransfer(erc20, _sweepRecipient, remaining);
+                _transferERC20(_token, _sweepRecipient, remaining);
                 emit Sweep(_token, _sweepRecipient, remaining);
             }
         }
