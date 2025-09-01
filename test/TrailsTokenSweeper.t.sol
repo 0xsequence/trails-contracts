@@ -85,6 +85,27 @@ contract TrailsTokenSweeperTest is Test {
         assertEq(recipientBalanceAfter - recipientBalanceBefore, amount);
     }
 
+    function test_sweep_erc20Token_twice_idempotentApproval() public {
+        uint256 amount1 = 50 * 1e18;
+        uint256 amount2 = 20 * 1e18;
+
+        // First sweep
+        erc20.mint(holder, amount1);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), recipient, amount1);
+        TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
+        assertEq(erc20.balanceOf(holder), 0);
+
+        // Second sweep after additional mint (should not revert and should transfer)
+        erc20.mint(holder, amount2);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), recipient, amount2);
+        TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
+
+        assertEq(erc20.balanceOf(holder), 0);
+        assertEq(erc20.balanceOf(recipient), amount1 + amount2);
+    }
+
     function test_sweep_noBalance() public {
         uint256 recipientNativeBalanceBefore = recipient.balance;
         vm.deal(holder, 0);
@@ -174,6 +195,29 @@ contract TrailsTokenSweeperTest is Test {
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(recipient), amount);
+    }
+
+    function test_handleSequenceDelegateCall_dispatches_to_sweep_erc20_twice() public {
+        uint256 amount1 = 40 * 1e18;
+        uint256 amount2 = 10 * 1e18;
+
+        bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(erc20), recipient);
+
+        // First delegated sweep
+        erc20.mint(holder, amount1);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), recipient, amount1);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        assertEq(erc20.balanceOf(holder), 0);
+
+        // Second delegated sweep after additional mint
+        erc20.mint(holder, amount2);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), recipient, amount2);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+
+        assertEq(erc20.balanceOf(holder), 0);
+        assertEq(erc20.balanceOf(recipient), amount1 + amount2);
     }
 
     function test_handleSequenceDelegateCall_invalid_selector_reverts() public {

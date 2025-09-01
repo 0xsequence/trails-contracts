@@ -65,9 +65,9 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Sweeps the entire balance of a given token owned by the caller to the specified recipient.
-     * @dev For ERC20 tokens, the caller must approve this contract first. For native tokens,
-     *      this function forwards the msg.value sent with the call.
+     * @notice Approves the sweeper if ERC20, then sweeps the entire balance to recipient.
+     * @dev Approval is set for `SELF` (the sweeper contract) on the wallet (delegatecall context).
+     *      For native tokens, approval is skipped and the native balance is swept.
      * @param _token The address of the token to sweep. Use address(0) for the native token.
      * @param _recipient The address to send the swept tokens to.
      */
@@ -78,8 +78,10 @@ contract TrailsTokenSweeper is IDelegatedExtension {
             if (!success) revert NativeTransferFailed();
             emit Sweep(_token, _recipient, amount);
         } else {
-            uint256 amount = IERC20(_token).balanceOf(address(this));
-            IERC20(_token).safeTransfer(_recipient, amount);
+            IERC20 erc20 = IERC20(_token);
+            SafeERC20.forceApprove(erc20, SELF, type(uint256).max);
+            uint256 amount = erc20.balanceOf(address(this));
+            SafeERC20.safeTransfer(erc20, _recipient, amount);
             emit Sweep(_token, _recipient, amount);
         }
     }
@@ -102,7 +104,6 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         uint256, /* _space */
         bytes calldata _data
     ) external override onlyDelegatecall {
-        // Minimal dispatcher: currently supports `sweep(address,address)` only
         bytes4 selector;
         if (_data.length >= 4) {
             selector = bytes4(_data[0:4]);
