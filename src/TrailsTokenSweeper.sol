@@ -31,6 +31,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     // -------------------------------------------------------------------------
 
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
+    event Refund(address indexed token, address indexed recipient, uint256 amount);
 
     // -------------------------------------------------------------------------
     // Constants / Modifiers
@@ -130,7 +131,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
 
             if (toRefund > 0) {
                 _transferNative(_refundRecipient, toRefund);
-                emit Sweep(_token, _refundRecipient, toRefund);
+                emit Refund(_token, _refundRecipient, toRefund);
             }
 
             uint256 remaining = _nativeBalance();
@@ -146,7 +147,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
 
             if (toRefund > 0) {
                 _transferERC20(_token, _refundRecipient, toRefund);
-                emit Sweep(_token, _refundRecipient, toRefund);
+                emit Refund(_token, _refundRecipient, toRefund);
             }
 
             uint256 remaining = _erc20Balance(_token);
