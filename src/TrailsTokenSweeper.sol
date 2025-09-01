@@ -25,6 +25,8 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     error NativeTransferFailed();
     error NotDelegateCall();
     error InvalidDelegatedSelector(bytes4 selector);
+    error InsufficientNativeBalance(address account, uint256 required, uint256 available);
+    error InsufficientERC20Balance(address token, address account, uint256 required, uint256 available);
 
     // -------------------------------------------------------------------------
     // Events
@@ -60,6 +62,34 @@ contract TrailsTokenSweeper is IDelegatedExtension {
             return IERC20(_token).balanceOf(msg.sender);
         }
     }
+
+    /**
+     * @notice Ensures `account` has at least `minExpected` balance for `token`.
+     * @dev Use `token == address(0)` to validate native balance. Reverts with
+     *      specific errors on failure and returns the current balance on success.
+     * @param token The token address to check. Use address(0) for native.
+     * @param account The account whose balance to validate.
+     * @param minExpected The minimum required balance.
+     * @return current The current balance of `account` for the given asset.
+     */
+    function validateBalance(address token, address account, uint256 minExpected)
+        external
+        view
+        returns (uint256 current)
+    {
+        if (token == address(0)) {
+            current = account.balance;
+            if (current < minExpected) {
+                revert InsufficientNativeBalance(account, minExpected, current);
+            }
+        } else {
+            current = IERC20(token).balanceOf(account);
+            if (current < minExpected) {
+                revert InsufficientERC20Balance(token, account, minExpected, current);
+            }
+        }
+    }
+
 
     // -------------------------------------------------------------------------
     // Internal Helpers
@@ -105,8 +135,8 @@ contract TrailsTokenSweeper is IDelegatedExtension {
             _transferNative(_recipient, amount);
             emit Sweep(_token, _recipient, amount);
         } else {
-            _ensureERC20Approval(_token);
             uint256 amount = _erc20Balance(_token);
+            _ensureERC20Approval(_token, amount);
             _transferERC20(_token, _recipient, amount);
             emit Sweep(_token, _recipient, amount);
         }
