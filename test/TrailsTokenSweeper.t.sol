@@ -22,6 +22,7 @@ contract TrailsTokenSweeperTest is Test {
 
     // Redeclare event for expectEmit
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
+    event Refund(address indexed token, address indexed recipient, uint256 amount);
 
     function setUp() public {
         holder = payable(address(0xbabe));
@@ -146,7 +147,7 @@ contract TrailsTokenSweeperTest is Test {
 
         // Expect refund event then sweep event
         vm.expectEmit(true, true, false, true);
-        emit Sweep(address(0), refundRecipient, 1 ether);
+        emit Refund(address(0), refundRecipient, 1 ether);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), sweepRecipient, 2 ether);
 
@@ -165,7 +166,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(holder, amount);
 
         vm.expectEmit(true, true, false, true);
-        emit Sweep(address(0), refundRecipient, amount);
+        emit Refund(address(0), refundRecipient, amount);
 
         TrailsTokenSweeper(holder).refundAndSweep(address(0), refundRecipient, 5 ether, sweepRecipient);
 
@@ -188,7 +189,7 @@ contract TrailsTokenSweeperTest is Test {
 
         if (expectedRefund > 0) {
             vm.expectEmit(true, true, false, true);
-            emit Sweep(address(0), refundRecipient, expectedRefund);
+            emit Refund(address(0), refundRecipient, expectedRefund);
         }
         if (expectedSweep > 0) {
             vm.expectEmit(true, true, false, true);
@@ -216,7 +217,7 @@ contract TrailsTokenSweeperTest is Test {
 
         if (expectedRefund > 0) {
             vm.expectEmit(true, true, false, true);
-            emit Sweep(address(erc20), refundRecipient, expectedRefund);
+            emit Refund(address(erc20), refundRecipient, expectedRefund);
         }
         if (expectedSweep > 0) {
             vm.expectEmit(true, true, false, true);
@@ -248,7 +249,7 @@ contract TrailsTokenSweeperTest is Test {
 
         if (expectedRefund > 0) {
             vm.expectEmit(true, true, false, true);
-            emit Sweep(address(0), refundRecipient, expectedRefund);
+            emit Refund(address(0), refundRecipient, expectedRefund);
         }
         if (expectedSweep > 0) {
             vm.expectEmit(true, true, false, true);
@@ -280,7 +281,7 @@ contract TrailsTokenSweeperTest is Test {
 
         if (expectedRefund > 0) {
             vm.expectEmit(true, true, false, true);
-            emit Sweep(address(erc20), refundRecipient, expectedRefund);
+            emit Refund(address(erc20), refundRecipient, expectedRefund);
         }
         if (expectedSweep > 0) {
             vm.expectEmit(true, true, false, true);
@@ -303,7 +304,7 @@ contract TrailsTokenSweeperTest is Test {
         erc20.mint(holder, amount);
 
         vm.expectEmit(true, true, false, true);
-        emit Sweep(address(erc20), refundRecipient, refund);
+        emit Refund(address(erc20), refundRecipient, refund);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), sweepRecipient, amount - refund);
 
@@ -322,7 +323,7 @@ contract TrailsTokenSweeperTest is Test {
         erc20.mint(holder, amount);
 
         vm.expectEmit(true, true, false, true);
-        emit Sweep(address(erc20), refundRecipient, amount);
+        emit Refund(address(erc20), refundRecipient, amount);
 
         TrailsTokenSweeper(holder).refundAndSweep(address(erc20), refundRecipient, 500 * 1e18, sweepRecipient);
 
@@ -343,7 +344,7 @@ contract TrailsTokenSweeperTest is Test {
         );
 
         vm.expectEmit(true, true, false, true);
-        emit Sweep(address(0), refundRecipient, 2 ether);
+        emit Refund(address(0), refundRecipient, 2 ether);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), sweepRecipient, 3 ether);
 
@@ -367,7 +368,7 @@ contract TrailsTokenSweeperTest is Test {
         );
 
         vm.expectEmit(true, true, false, true);
-        emit Sweep(address(erc20), refundRecipient, refund);
+        emit Refund(address(erc20), refundRecipient, refund);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), sweepRecipient, amount - refund);
 
@@ -469,5 +470,118 @@ contract TrailsTokenSweeperTest is Test {
             abi.encodeWithSelector(TrailsTokenSweeper.InvalidDelegatedSelector.selector, bytes4(0xdeadbeef))
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+    }
+
+    // ---------------------------------------------------------------------
+    // validateBalance
+    // ---------------------------------------------------------------------
+
+    function test_validateBalance_native_success() public {
+        vm.deal(holder, 2 ether);
+        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(0), holder, 1 ether);
+        assertEq(current, 2 ether);
+    }
+
+    function test_validateBalance_native_revert() public {
+        vm.deal(holder, 0.5 ether);
+        vm.expectRevert(
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 1 ether, 0.5 ether)
+        );
+        TrailsTokenSweeper(holder).validateBalance(address(0), holder, 1 ether);
+    }
+
+    function test_validateBalance_erc20_success() public {
+        uint256 amount = 100 * 1e18;
+        erc20.mint(holder, amount);
+        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(erc20), holder, amount - 1);
+        assertEq(current, amount);
+    }
+
+    function test_validateBalance_erc20_revert() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), holder, 1, 0)
+        );
+        TrailsTokenSweeper(holder).validateBalance(address(erc20), holder, 1);
+    }
+
+    // ---------------------------------------------------------------------
+    // validateAndSweep
+    // ---------------------------------------------------------------------
+
+    function test_validateAndSweep_native_success() public {
+        uint256 amount = 3 ether;
+        vm.deal(holder, amount);
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), recipient, amount);
+
+        TrailsTokenSweeper(holder).validateAndSweep(address(0), amount - 1, recipient);
+
+        assertEq(holder.balance, 0);
+        assertEq(recipient.balance, amount);
+    }
+
+    function test_validateAndSweep_native_revert_when_insufficient() public {
+        vm.deal(holder, 1 ether);
+        vm.expectRevert(
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 2 ether, 1 ether)
+        );
+        TrailsTokenSweeper(holder).validateAndSweep(address(0), 2 ether, recipient);
+        assertEq(holder.balance, 1 ether);
+        assertEq(recipient.balance, 0);
+    }
+
+    function test_validateAndSweep_erc20_success() public {
+        uint256 amount = 250 * 1e18;
+        erc20.mint(holder, amount);
+
+        uint256 recipientBefore = erc20.balanceOf(recipient);
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), recipient, amount);
+
+        TrailsTokenSweeper(holder).validateAndSweep(address(erc20), amount - 1, recipient);
+
+        assertEq(erc20.balanceOf(holder), 0);
+        assertEq(erc20.balanceOf(recipient) - recipientBefore, amount);
+    }
+
+    function test_validateAndSweep_erc20_revert_when_insufficient() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), holder, 1, 0)
+        );
+        TrailsTokenSweeper(holder).validateAndSweep(address(erc20), 1, recipient);
+        assertEq(erc20.balanceOf(holder), 0);
+        assertEq(erc20.balanceOf(recipient), 0);
+    }
+
+    function test_handleSequenceDelegateCall_dispatches_to_validateAndSweep_native() public {
+        uint256 amount = 7 ether;
+        vm.deal(holder, amount);
+
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), amount - 1, recipient);
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), recipient, amount);
+
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        assertEq(holder.balance, 0);
+        assertEq(recipient.balance, amount);
+    }
+
+    function test_handleSequenceDelegateCall_dispatches_to_validateAndSweep_erc20() public {
+        uint256 amount = 360 * 1e18;
+        erc20.mint(holder, amount);
+
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(erc20), amount - 1, recipient);
+
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(erc20), recipient, amount);
+
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        assertEq(erc20.balanceOf(holder), 0);
+        assertEq(erc20.balanceOf(recipient), amount);
     }
 }

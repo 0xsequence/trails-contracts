@@ -73,7 +73,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      * @return current The current balance of `account` for the given asset.
      */
     function validateBalance(address token, address account, uint256 minExpected)
-        external
+        public
         view
         returns (uint256 current)
     {
@@ -90,6 +90,28 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Validate and Execute
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice Validates minimum balance then sweeps the entire balance to recipient.
+     * @dev Use address(0) for native token. Runs under delegatecall context.
+     * @param _token The asset to sweep. address(0) for native.
+     * @param _minExpected The minimum required balance before sweeping.
+     * @param _recipient The address to receive the sweep.
+     */
+    function validateAndSweep(address _token, uint256 _minExpected, address _recipient)
+        public
+        payable
+        onlyDelegatecall
+    {
+        // Validate required minimum balance first; will revert if insufficient.
+        validateBalance(_token, address(this), _minExpected);
+
+        // Sweep the balance to the recipient and emit events.
+        sweep(_token, _recipient);
+    }
 
     // -------------------------------------------------------------------------
     // Internal Helpers
@@ -156,22 +178,33 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         onlyDelegatecall
     {
         if (_token == address(0)) {
-            _transferNative(_refundRecipient, _refundAmount);
-            emit Refund(_token, _refundRecipient, _refundAmount);
+            uint256 current = _nativeBalance();
+            uint256 actualRefund = _refundAmount > current ? current : _refundAmount;
+            if (actualRefund > 0) {
+                _transferNative(_refundRecipient, actualRefund);
+                emit Refund(_token, _refundRecipient, actualRefund);
+            }
 
             uint256 remaining = _nativeBalance();
-            _transferNative(_sweepRecipient, remaining);
-            emit Sweep(_token, _sweepRecipient, remaining);
+            if (remaining > 0) {
+                _transferNative(_sweepRecipient, remaining);
+                emit Sweep(_token, _sweepRecipient, remaining);
+            }
         } else {
             uint256 balance = _erc20Balance(_token);
             _ensureERC20Approval(_token, balance);
 
-            _transferERC20(_token, _refundRecipient, _refundAmount);
-            emit Refund(_token, _refundRecipient, _refundAmount);
+            uint256 actualRefund = _refundAmount > balance ? balance : _refundAmount;
+            if (actualRefund > 0) {
+                _transferERC20(_token, _refundRecipient, actualRefund);
+                emit Refund(_token, _refundRecipient, actualRefund);
+            }
 
             uint256 remaining = _erc20Balance(_token);
-            _transferERC20(_token, _sweepRecipient, remaining);
-            emit Sweep(_token, _sweepRecipient, remaining);
+            if (remaining > 0) {
+                _transferERC20(_token, _sweepRecipient, remaining);
+                emit Sweep(_token, _sweepRecipient, remaining);
+            }
         }
     }
 
@@ -208,6 +241,12 @@ contract TrailsTokenSweeper is IDelegatedExtension {
             (address token, address refundRecipient, uint256 refundAmount, address sweepRecipient) =
                 abi.decode(_data[4:], (address, address, uint256, address));
             refundAndSweep(token, refundRecipient, refundAmount, sweepRecipient);
+            return;
+        }
+
+        if (selector == this.validateAndSweep.selector) {
+            (address token, uint256 minExpected, address recipient) = abi.decode(_data[4:], (address, uint256, address));
+            validateAndSweep(token, minExpected, recipient);
             return;
         }
 
