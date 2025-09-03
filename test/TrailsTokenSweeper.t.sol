@@ -510,47 +510,57 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateAndSweep_native_success() public {
         uint256 amount = 3 ether;
-        vm.deal(address(this), amount);
+        vm.deal(holder, amount);
+
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), amount - 1, recipient);
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, amount);
 
-        TrailsTokenSweeper(holder).validateAndSweep(address(0), amount - 1, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
         assertEq(holder.balance, 0);
         assertEq(recipient.balance, amount);
     }
 
     function test_validateAndSweep_native_revert_when_insufficient() public {
-        vm.deal(address(this), 1 ether);
+        vm.deal(holder, 1 ether);
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), 2 ether, recipient);
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, address(this), 2 ether, 1 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 2 ether, 1 ether)
         );
-        TrailsTokenSweeper(holder).validateAndSweep(address(0), 2 ether, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
         assertEq(holder.balance, 1 ether);
         assertEq(recipient.balance, 0);
     }
 
     function test_validateAndSweep_erc20_success() public {
         uint256 amount = 250 * 1e18;
-        erc20.mint(address(this), amount);
+        erc20.mint(holder, amount);
 
         uint256 recipientBefore = erc20.balanceOf(recipient);
+
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(erc20), amount - 1, recipient);
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
 
-        TrailsTokenSweeper(holder).validateAndSweep(address(erc20), amount - 1, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(recipient) - recipientBefore, amount);
     }
 
     function test_validateAndSweep_erc20_revert_when_insufficient() public {
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(erc20), 1, recipient);
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), address(this), 1, 0)
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), holder, 1, 0)
         );
-        TrailsTokenSweeper(holder).validateAndSweep(address(erc20), 1, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(recipient), 0);
     }
@@ -731,12 +741,15 @@ contract TrailsTokenSweeperTest is Test {
     // ---------------------------------------------------------------------
 
     function test_validateLesserThanAndSweep_native_success() public {
-        vm.deal(address(this), 1 ether);
+        vm.deal(holder, 1 ether);
+
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), 2 ether, recipient);
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
 
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 2 ether, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
         assertEq(holder.balance, 0);
         assertEq(recipient.balance, 1 ether);
@@ -764,12 +777,15 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateLesserThanAndSweep_erc20_success() public {
         uint256 amount = 100 * 1e18;
-        erc20.mint(address(this), amount);
+        erc20.mint(holder, amount);
+
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(erc20), amount + 1, recipient);
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
 
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(erc20), amount + 1, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(recipient), amount);
