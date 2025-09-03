@@ -25,11 +25,16 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     error NativeTransferFailed();
     error NotDelegateCall();
     error InvalidDelegatedSelector(bytes4 selector);
+    error InsufficientNativeBalance(address account, uint256 required, uint256 available);
+    error InsufficientERC20Balance(address token, address account, uint256 required, uint256 available);
+    error ExcessiveNativeBalance(address account, uint256 maxAllowed, uint256 available);
+    error ExcessiveERC20Balance(address token, address account, uint256 maxAllowed, uint256 available);
 
     // -------------------------------------------------------------------------
     // Events
     // -------------------------------------------------------------------------
 
+    event Refund(address indexed token, address indexed recipient, uint256 amount);
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
 
     // -------------------------------------------------------------------------
@@ -60,27 +65,194 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         }
     }
 
+    /**
+     * @notice Ensures `account` has at least `minExpected` balance for `token`.
+     * @dev Use `token == address(0)` to validate native balance. Reverts with
+     *      specific errors on failure and returns the current balance on success.
+     * @param token The token address to check. Use address(0) for native.
+     * @param account The account whose balance to validate.
+     * @param minExpected The minimum required balance.
+     * @return current The current balance of `account` for the given asset.
+     */
+    function validateBalance(address token, address account, uint256 minExpected)
+        public
+        view
+        returns (uint256 current)
+    {
+        if (token == address(0)) {
+            current = account.balance;
+            if (current < minExpected) {
+                revert InsufficientNativeBalance(account, minExpected, current);
+            }
+        } else {
+            current = IERC20(token).balanceOf(account);
+            if (current < minExpected) {
+                revert InsufficientERC20Balance(token, account, minExpected, current);
+            }
+        }
+    }
+
+    /**
+     * @notice Ensures `account` has less than `maxAllowed` balance for `token`.
+     * @dev Use `token == address(0)` to validate native balance. Reverts with
+     *      specific errors on failure and returns the current balance on success.
+     * @param token The token address to check. Use address(0) for native.
+     * @param account The account whose balance to validate.
+     * @param maxAllowed The maximum allowed balance (exclusive).
+     * @return current The current balance of `account` for the given asset.
+     */
+    function validateLesserThanBalance(address token, address account, uint256 maxAllowed)
+        public
+        view
+        returns (uint256 current)
+    {
+        if (token == address(0)) {
+            current = account.balance;
+            if (current >= maxAllowed) {
+                revert ExcessiveNativeBalance(account, maxAllowed, current);
+            }
+        } else {
+            current = IERC20(token).balanceOf(account);
+            if (current >= maxAllowed) {
+                revert ExcessiveERC20Balance(token, account, maxAllowed, current);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Validate and Execute
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice Validates minimum balance then sweeps the entire balance to recipient.
+     * @dev Use address(0) for native token. Runs under delegatecall context.
+     * @param _token The asset to sweep. address(0) for native.
+     * @param _minExpected The minimum required balance before sweeping.
+     * @param _recipient The address to receive the sweep.
+     */
+    function validateAndSweep(address _token, uint256 _minExpected, address _recipient)
+        public
+        payable
+        onlyDelegatecall
+    {
+        // Validate required minimum balance first; will revert if insufficient.
+        validateBalance(_token, address(this), _minExpected);
+
+        // Sweep the balance to the recipient and emit events.
+        sweep(_token, _recipient);
+    }
+
+    /**
+     * @notice Validates maximum balance then sweeps the entire balance to recipient.
+     * @dev Use address(0) for native token. Runs under delegatecall context.
+     * @param _token The asset to sweep. address(0) for native.
+     * @param _maxAllowed The maximum allowed balance before sweeping (exclusive).
+     * @param _recipient The address to receive the sweep.
+     */
+    function validateLesserThanAndSweep(address _token, uint256 _maxAllowed, address _recipient)
+        public
+        payable
+        onlyDelegatecall
+    {
+        // Validate that balance is less than maximum allowed; will revert if excessive.
+        validateLesserThanBalance(_token, address(this), _maxAllowed);
+
+        // Sweep the balance to the recipient and emit events.
+        sweep(_token, _recipient);
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal Helpers
+    // -------------------------------------------------------------------------
+
+    function _ensureERC20Approval(address _token, uint256 _amount) internal {
+        IERC20 erc20 = IERC20(_token);
+        SafeERC20.forceApprove(erc20, SELF, _amount);
+    }
+
+    function _transferNative(address _to, uint256 _amount) internal {
+        (bool success,) = payable(_to).call{value: _amount}("");
+        if (!success) revert NativeTransferFailed();
+    }
+
+    function _transferERC20(address _token, address _to, uint256 _amount) internal {
+        IERC20 erc20 = IERC20(_token);
+        SafeERC20.safeTransfer(erc20, _to, _amount);
+    }
+
+    function _nativeBalance() internal view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function _erc20Balance(address _token) internal view returns (uint256) {
+        return IERC20(_token).balanceOf(address(this));
+    }
+
     // -------------------------------------------------------------------------
     // External Functions
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Sweeps the entire balance of a given token owned by the caller to the specified recipient.
-     * @dev For ERC20 tokens, the caller must approve this contract first. For native tokens,
-     *      this function forwards the msg.value sent with the call.
+     * @notice Approves the sweeper if ERC20, then sweeps the entire balance to recipient.
+     * @dev Approval is set for `SELF` (the sweeper contract) on the wallet (delegatecall context).
+     *      For native tokens, approval is skipped and the native balance is swept.
      * @param _token The address of the token to sweep. Use address(0) for the native token.
      * @param _recipient The address to send the swept tokens to.
      */
     function sweep(address _token, address _recipient) public payable onlyDelegatecall {
         if (_token == address(0)) {
-            uint256 amount = address(this).balance;
-            (bool success,) = payable(_recipient).call{value: amount}("");
-            if (!success) revert NativeTransferFailed();
+            uint256 amount = _nativeBalance();
+            _transferNative(_recipient, amount);
             emit Sweep(_token, _recipient, amount);
         } else {
-            uint256 amount = IERC20(_token).balanceOf(address(this));
-            IERC20(_token).safeTransfer(_recipient, amount);
+            uint256 amount = _erc20Balance(_token);
+            _ensureERC20Approval(_token, amount);
+            _transferERC20(_token, _recipient, amount);
             emit Sweep(_token, _recipient, amount);
+        }
+    }
+
+    /**
+     * @notice Refunds up to `_refundAmount` to `_refundRecipient`, then sweeps any remaining balance to `_sweepRecipient`.
+     * @dev For ERC20 tokens, sets infinite approval to `SELF` in delegatecall context for compatibility, then transfers.
+     * @param _token The token address to operate on. Use address(0) for native.
+     * @param _refundRecipient Address receiving the refund portion.
+     * @param _refundAmount Maximum amount to refund.
+     * @param _sweepRecipient Address receiving the remaining balance.
+     */
+    function refundAndSweep(address _token, address _refundRecipient, uint256 _refundAmount, address _sweepRecipient)
+        public
+        payable
+        onlyDelegatecall
+    {
+        if (_token == address(0)) {
+            uint256 current = _nativeBalance();
+            uint256 actualRefund = _refundAmount > current ? current : _refundAmount;
+            if (actualRefund > 0) {
+                _transferNative(_refundRecipient, actualRefund);
+                emit Refund(_token, _refundRecipient, actualRefund);
+            }
+
+            uint256 remaining = _nativeBalance();
+            if (remaining > 0) {
+                _transferNative(_sweepRecipient, remaining);
+                emit Sweep(_token, _sweepRecipient, remaining);
+            }
+        } else {
+            uint256 balance = _erc20Balance(_token);
+            _ensureERC20Approval(_token, balance);
+
+            uint256 actualRefund = _refundAmount > balance ? balance : _refundAmount;
+            if (actualRefund > 0) {
+                _transferERC20(_token, _refundRecipient, actualRefund);
+                emit Refund(_token, _refundRecipient, actualRefund);
+            }
+
+            uint256 remaining = _erc20Balance(_token);
+            if (remaining > 0) {
+                _transferERC20(_token, _sweepRecipient, remaining);
+                emit Sweep(_token, _sweepRecipient, remaining);
+            }
         }
     }
 
@@ -102,7 +274,6 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         uint256, /* _space */
         bytes calldata _data
     ) external override onlyDelegatecall {
-        // Minimal dispatcher: currently supports `sweep(address,address)` only
         bytes4 selector;
         if (_data.length >= 4) {
             selector = bytes4(_data[0:4]);
@@ -111,6 +282,37 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         if (selector == this.sweep.selector) {
             (address token, address recipient) = abi.decode(_data[4:], (address, address));
             sweep(token, recipient);
+            return;
+        }
+
+        if (selector == this.refundAndSweep.selector) {
+            (address token, address refundRecipient, uint256 refundAmount, address sweepRecipient) =
+                abi.decode(_data[4:], (address, address, uint256, address));
+            refundAndSweep(token, refundRecipient, refundAmount, sweepRecipient);
+            return;
+        }
+
+        if (selector == this.validateAndSweep.selector) {
+            (address token, uint256 minExpected, address recipient) = abi.decode(_data[4:], (address, uint256, address));
+            validateAndSweep(token, minExpected, recipient);
+            return;
+        }
+
+        if (selector == this.validateLesserThanAndSweep.selector) {
+            (address token, uint256 maxAllowed, address recipient) = abi.decode(_data[4:], (address, uint256, address));
+            validateLesserThanAndSweep(token, maxAllowed, recipient);
+            return;
+        }
+
+        if (selector == this.validateBalance.selector) {
+            (address token, address account, uint256 minExpected) = abi.decode(_data[4:], (address, address, uint256));
+            validateBalance(token, account, minExpected);
+            return;
+        }
+
+        if (selector == this.validateLesserThanBalance.selector) {
+            (address token, address account, uint256 maxAllowed) = abi.decode(_data[4:], (address, address, uint256));
+            validateLesserThanBalance(token, account, maxAllowed);
             return;
         }
 
