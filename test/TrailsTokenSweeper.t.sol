@@ -35,7 +35,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_nativeToken_zeroRecipientEmitsAndSweeps() public {
         uint256 amount = 1 ether;
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), address(0), amount);
         TrailsTokenSweeper(holder).sweep(address(0), address(0));
@@ -59,7 +59,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_nativeToken() public {
         uint256 amount = 1 ether;
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
 
         uint256 recipientBalanceBefore = recipient.balance;
 
@@ -74,7 +74,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_erc20Token() public {
         uint256 amount = 100 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
         uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
 
         vm.expectEmit(true, true, false, true);
@@ -91,14 +91,14 @@ contract TrailsTokenSweeperTest is Test {
         uint256 amount2 = 20 * 1e18;
 
         // First sweep
-        erc20.mint(holder, amount1);
+        erc20.mint(address(this), amount1);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount1);
         TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
         assertEq(erc20.balanceOf(holder), 0);
 
         // Second sweep after additional mint (should not revert and should transfer)
-        erc20.mint(holder, amount2);
+        erc20.mint(address(this), amount2);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount2);
         TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
@@ -109,7 +109,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_noBalance() public {
         uint256 recipientNativeBalanceBefore = recipient.balance;
-        vm.deal(holder, 0);
+        vm.deal(address(this), 0);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 0);
         TrailsTokenSweeper(holder).sweep(address(0), recipient);
@@ -126,7 +126,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_revertsOnNativeTransferFailure() public {
         uint256 amount = 1 ether;
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
 
         RevertingReceiver revertingReceiver = new RevertingReceiver();
 
@@ -143,7 +143,7 @@ contract TrailsTokenSweeperTest is Test {
         address sweepRecipient = address(0x102);
 
         uint256 amount = 3 ether;
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
 
         // Expect refund event then sweep event
         vm.expectEmit(true, true, false, true);
@@ -163,7 +163,7 @@ contract TrailsTokenSweeperTest is Test {
         address sweepRecipient = address(0x202);
 
         uint256 amount = 1 ether;
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
 
         vm.expectEmit(true, true, false, true);
         emit Refund(address(0), refundRecipient, amount);
@@ -182,7 +182,7 @@ contract TrailsTokenSweeperTest is Test {
         address refundRecipient = address(0xA01);
         address sweepRecipient = address(0xA02);
 
-        vm.deal(holder, total);
+        vm.deal(address(this), total);
 
         uint256 expectedRefund = refund > total ? total : refund;
         uint256 expectedSweep = total - expectedRefund;
@@ -210,7 +210,7 @@ contract TrailsTokenSweeperTest is Test {
         address refundRecipient = address(0xB01);
         address sweepRecipient = address(0xB02);
 
-        erc20.mint(holder, total);
+        erc20.mint(address(this), total);
 
         uint256 expectedRefund = refund > total ? total : refund;
         uint256 expectedSweep = total - expectedRefund;
@@ -238,7 +238,7 @@ contract TrailsTokenSweeperTest is Test {
         address refundRecipient = address(0xC01);
         address sweepRecipient = address(0xC02);
 
-        vm.deal(holder, total);
+        vm.deal(address(this), total);
 
         uint256 expectedRefund = refund > total ? total : refund;
         uint256 expectedSweep = total - expectedRefund;
@@ -270,7 +270,7 @@ contract TrailsTokenSweeperTest is Test {
         address refundRecipient = address(0xD01);
         address sweepRecipient = address(0xD02);
 
-        erc20.mint(holder, total);
+        erc20.mint(address(this), total);
 
         uint256 expectedRefund = refund > total ? total : refund;
         uint256 expectedSweep = total - expectedRefund;
@@ -301,7 +301,7 @@ contract TrailsTokenSweeperTest is Test {
 
         uint256 amount = 300 * 1e18;
         uint256 refund = 120 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         vm.expectEmit(true, true, false, true);
         emit Refund(address(erc20), refundRecipient, refund);
@@ -320,7 +320,7 @@ contract TrailsTokenSweeperTest is Test {
         address sweepRecipient = address(0x402);
 
         uint256 amount = 100 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         vm.expectEmit(true, true, false, true);
         emit Refund(address(erc20), refundRecipient, amount);
@@ -337,7 +337,7 @@ contract TrailsTokenSweeperTest is Test {
         address sweepRecipient = address(0x502);
 
         uint256 amount = 5 ether;
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.refundAndSweep.selector, address(0), refundRecipient, 2 ether, sweepRecipient
@@ -361,7 +361,7 @@ contract TrailsTokenSweeperTest is Test {
 
         uint256 amount = 500 * 1e18;
         uint256 refund = 125 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.refundAndSweep.selector, address(erc20), refundRecipient, refund, sweepRecipient
@@ -381,7 +381,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function testFuzz_sweep_nativeToken(uint256 amount) public {
         vm.assume(amount > 0 && amount <= 1_000 ether);
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
 
         uint256 recipientBalanceBefore = recipient.balance;
 
@@ -395,7 +395,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function testFuzz_sweep_erc20Token(uint256 amount) public {
         vm.assume(amount > 0 && amount <= 1_000_000_000_000_000_000_000_000);
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
         uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
 
         vm.expectEmit(true, true, false, true);
@@ -408,7 +408,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_handleSequenceDelegateCall_dispatches_to_sweep_native() public {
         uint256 amount = 1 ether;
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
 
         // Build delegated call data for sweep(address,address)
         bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(0), recipient);
@@ -426,7 +426,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_handleSequenceDelegateCall_dispatches_to_sweep_erc20() public {
         uint256 amount = 100 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(erc20), recipient);
 
@@ -446,14 +446,14 @@ contract TrailsTokenSweeperTest is Test {
         bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(erc20), recipient);
 
         // First delegated sweep
-        erc20.mint(holder, amount1);
+        erc20.mint(address(this), amount1);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount1);
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
         assertEq(erc20.balanceOf(holder), 0);
 
         // Second delegated sweep after additional mint
-        erc20.mint(holder, amount2);
+        erc20.mint(address(this), amount2);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount2);
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -477,31 +477,31 @@ contract TrailsTokenSweeperTest is Test {
     // ---------------------------------------------------------------------
 
     function test_validateBalance_native_success() public {
-        vm.deal(holder, 2 ether);
-        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(0), holder, 1 ether);
+        vm.deal(address(this), 2 ether);
+        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(0), 1 ether);
         assertEq(current, 2 ether);
     }
 
     function test_validateBalance_native_revert() public {
-        vm.deal(holder, 0.5 ether);
+        vm.deal(address(this), 0.5 ether);
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 1 ether, 0.5 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, address(this), 1 ether, 0.5 ether)
         );
-        TrailsTokenSweeper(holder).validateBalance(address(0), holder, 1 ether);
+        TrailsTokenSweeper(holder).validateBalance(address(0), 1 ether);
     }
 
     function test_validateBalance_erc20_success() public {
         uint256 amount = 100 * 1e18;
-        erc20.mint(holder, amount);
-        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(erc20), holder, amount - 1);
+        erc20.mint(address(this), amount);
+        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(erc20), amount - 1);
         assertEq(current, amount);
     }
 
     function test_validateBalance_erc20_revert() public {
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), holder, 1, 0)
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), address(this), 1, 0)
         );
-        TrailsTokenSweeper(holder).validateBalance(address(erc20), holder, 1);
+        TrailsTokenSweeper(holder).validateBalance(address(erc20), 1);
     }
 
     // ---------------------------------------------------------------------
@@ -510,7 +510,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateAndSweep_native_success() public {
         uint256 amount = 3 ether;
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, amount);
@@ -522,9 +522,9 @@ contract TrailsTokenSweeperTest is Test {
     }
 
     function test_validateAndSweep_native_revert_when_insufficient() public {
-        vm.deal(holder, 1 ether);
+        vm.deal(address(this), 1 ether);
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 2 ether, 1 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, address(this), 2 ether, 1 ether)
         );
         TrailsTokenSweeper(holder).validateAndSweep(address(0), 2 ether, recipient);
         assertEq(holder.balance, 1 ether);
@@ -533,7 +533,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateAndSweep_erc20_success() public {
         uint256 amount = 250 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         uint256 recipientBefore = erc20.balanceOf(recipient);
 
@@ -548,7 +548,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateAndSweep_erc20_revert_when_insufficient() public {
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), holder, 1, 0)
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), address(this), 1, 0)
         );
         TrailsTokenSweeper(holder).validateAndSweep(address(erc20), 1, recipient);
         assertEq(erc20.balanceOf(holder), 0);
@@ -557,7 +557,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_handleSequenceDelegateCall_dispatches_to_validateAndSweep_native() public {
         uint256 amount = 7 ether;
-        vm.deal(holder, amount);
+        vm.deal(address(this), amount);
 
         bytes memory data =
             abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), amount - 1, recipient);
@@ -572,7 +572,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_handleSequenceDelegateCall_dispatches_to_validateAndSweep_erc20() public {
         uint256 amount = 360 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         bytes memory data =
             abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(erc20), amount - 1, recipient);
@@ -590,69 +590,69 @@ contract TrailsTokenSweeperTest is Test {
     // ---------------------------------------------------------------------
 
     function test_validateLesserThanBalance_native_success() public {
-        vm.deal(holder, 1 ether);
-        uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, 2 ether);
+        vm.deal(address(this), 1 ether);
+        uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 2 ether);
         assertEq(current, 1 ether);
     }
 
     function test_validateLesserThanBalance_native_revert_when_excessive() public {
-        vm.deal(holder, 3 ether);
+        vm.deal(address(this), 3 ether);
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 2 ether, 3 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 3 ether)
         );
-        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, 2 ether);
+        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 2 ether);
     }
 
     function test_validateLesserThanBalance_native_revert_when_equal() public {
-        vm.deal(holder, 2 ether);
+        vm.deal(address(this), 2 ether);
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 2 ether, 2 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 2 ether)
         );
-        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, 2 ether);
+        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 2 ether);
     }
 
     function test_validateLesserThanBalance_erc20_success() public {
         uint256 amount = 100 * 1e18;
-        erc20.mint(holder, amount);
-        uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, amount + 1);
+        erc20.mint(address(this), amount);
+        uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), amount + 1);
         assertEq(current, amount);
     }
 
     function test_validateLesserThanBalance_erc20_revert_when_excessive() public {
         uint256 amount = 150 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), holder, 100 * 1e18, amount
+                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), address(this), 100 * 1e18, amount
             )
         );
-        TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, 100 * 1e18);
+        TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), 100 * 1e18);
     }
 
     function test_validateLesserThanBalance_erc20_revert_when_equal() public {
         uint256 amount = 75 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), holder, amount, amount
+                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), address(this), amount, amount
             )
         );
-        TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, amount);
+        TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), amount);
     }
 
     function testFuzz_validateLesserThanBalance_native(uint256 balance, uint256 maxAllowed) public {
         vm.assume(balance <= 1_000 ether);
         vm.assume(maxAllowed <= 1_000 ether);
 
-        vm.deal(holder, balance);
+        vm.deal(address(this), balance);
 
         if (balance >= maxAllowed) {
             vm.expectRevert(
-                abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, maxAllowed, balance)
+                abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), maxAllowed, balance)
             );
-            TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, maxAllowed);
+            TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), maxAllowed);
         } else {
-            uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, maxAllowed);
+            uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), maxAllowed);
             assertEq(current, balance);
         }
     }
@@ -661,46 +661,46 @@ contract TrailsTokenSweeperTest is Test {
         vm.assume(balance <= 1_000_000_000_000_000_000_000_000);
         vm.assume(maxAllowed <= 1_000_000_000_000_000_000_000_000);
 
-        erc20.mint(holder, balance);
+        erc20.mint(address(this), balance);
 
         if (balance >= maxAllowed) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), holder, maxAllowed, balance
+                    TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), address(this), maxAllowed, balance
                 )
             );
-            TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, maxAllowed);
+            TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), maxAllowed);
         } else {
-            uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, maxAllowed);
+            uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), maxAllowed);
             assertEq(current, balance);
         }
     }
 
     function test_handleSequenceDelegateCall_dispatches_to_validateLesserThanBalance_native() public {
-        vm.deal(holder, 1 ether);
+        vm.deal(address(this), 1 ether);
 
         bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanBalance.selector, address(0), holder, 2 ether);
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanBalance.selector, address(0), 2 ether);
 
         // Should not revert since 1 ether < 2 ether
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
     function test_handleSequenceDelegateCall_dispatches_to_validateLesserThanBalance_native_revert() public {
-        vm.deal(holder, 3 ether);
+        vm.deal(address(this), 3 ether);
 
         bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanBalance.selector, address(0), holder, 2 ether);
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanBalance.selector, address(0), 2 ether);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 2 ether, 3 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 3 ether)
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
     function test_handleSequenceDelegateCall_dispatches_to_validateLesserThanBalance_erc20() public {
         uint256 amount = 50 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.validateLesserThanBalance.selector, address(erc20), holder, 100 * 1e18
@@ -712,7 +712,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_handleSequenceDelegateCall_dispatches_to_validateLesserThanBalance_erc20_revert() public {
         uint256 amount = 200 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.validateLesserThanBalance.selector, address(erc20), holder, 100 * 1e18
@@ -720,7 +720,7 @@ contract TrailsTokenSweeperTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), holder, 100 * 1e18, amount
+                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), address(this), 100 * 1e18, amount
             )
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -731,7 +731,7 @@ contract TrailsTokenSweeperTest is Test {
     // ---------------------------------------------------------------------
 
     function test_validateLesserThanAndSweep_native_success() public {
-        vm.deal(holder, 1 ether);
+        vm.deal(address(this), 1 ether);
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
@@ -743,9 +743,9 @@ contract TrailsTokenSweeperTest is Test {
     }
 
     function test_validateLesserThanAndSweep_native_revert_when_excessive() public {
-        vm.deal(holder, 3 ether);
+        vm.deal(address(this), 3 ether);
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 2 ether, 3 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 3 ether)
         );
         TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 2 ether, recipient);
         assertEq(holder.balance, 3 ether);
@@ -753,9 +753,9 @@ contract TrailsTokenSweeperTest is Test {
     }
 
     function test_validateLesserThanAndSweep_native_revert_when_equal() public {
-        vm.deal(holder, 2 ether);
+        vm.deal(address(this), 2 ether);
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 2 ether, 2 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 2 ether)
         );
         TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 2 ether, recipient);
         assertEq(holder.balance, 2 ether);
@@ -764,7 +764,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateLesserThanAndSweep_erc20_success() public {
         uint256 amount = 100 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
@@ -777,10 +777,10 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateLesserThanAndSweep_erc20_revert_when_excessive() public {
         uint256 amount = 150 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), holder, 100 * 1e18, amount
+                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), address(this), 100 * 1e18, amount
             )
         );
         TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(erc20), 100 * 1e18, recipient);
@@ -790,10 +790,10 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateLesserThanAndSweep_erc20_revert_when_equal() public {
         uint256 amount = 75 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), holder, amount, amount
+                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), address(this), amount, amount
             )
         );
         TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(erc20), amount, recipient);
@@ -802,7 +802,7 @@ contract TrailsTokenSweeperTest is Test {
     }
 
     function test_handleSequenceDelegateCall_dispatches_to_validateLesserThanAndSweep_native() public {
-        vm.deal(holder, 1 ether);
+        vm.deal(address(this), 1 ether);
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), 2 ether, recipient
@@ -817,14 +817,14 @@ contract TrailsTokenSweeperTest is Test {
     }
 
     function test_handleSequenceDelegateCall_dispatches_to_validateLesserThanAndSweep_native_revert() public {
-        vm.deal(holder, 3 ether);
+        vm.deal(address(this), 3 ether);
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), 2 ether, recipient
         );
 
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 2 ether, 3 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 3 ether)
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
         assertEq(holder.balance, 3 ether);
@@ -833,7 +833,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_handleSequenceDelegateCall_dispatches_to_validateLesserThanAndSweep_erc20() public {
         uint256 amount = 50 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(erc20), 100 * 1e18, recipient
@@ -849,7 +849,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_handleSequenceDelegateCall_dispatches_to_validateLesserThanAndSweep_erc20_revert() public {
         uint256 amount = 200 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(erc20), 100 * 1e18, recipient
@@ -857,7 +857,7 @@ contract TrailsTokenSweeperTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), holder, 100 * 1e18, amount
+                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), address(this), 100 * 1e18, amount
             )
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -870,33 +870,33 @@ contract TrailsTokenSweeperTest is Test {
     // ---------------------------------------------------------------------
 
     function test_handleSequenceDelegateCall_dispatches_to_validateBalance_native_success() public {
-        vm.deal(holder, 3 ether);
+        vm.deal(address(this), 3 ether);
 
         bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateBalance.selector, address(0), holder, 2 ether);
+            abi.encodeWithSelector(TrailsTokenSweeper.validateBalance.selector, address(0), 2 ether);
 
         // Should not revert since 3 ether >= 2 ether
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
     function test_handleSequenceDelegateCall_dispatches_to_validateBalance_native_revert() public {
-        vm.deal(holder, 1 ether);
+        vm.deal(address(this), 1 ether);
 
         bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateBalance.selector, address(0), holder, 2 ether);
+            abi.encodeWithSelector(TrailsTokenSweeper.validateBalance.selector, address(0), 2 ether);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 2 ether, 1 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, address(this), 2 ether, 1 ether)
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
     function test_handleSequenceDelegateCall_dispatches_to_validateBalance_erc20_success() public {
         uint256 amount = 150 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateBalance.selector, address(erc20), holder, 100 * 1e18);
+            abi.encodeWithSelector(TrailsTokenSweeper.validateBalance.selector, address(erc20), 100 * 1e18);
 
         // Should not revert since 150 * 1e18 >= 100 * 1e18
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -904,14 +904,14 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_handleSequenceDelegateCall_dispatches_to_validateBalance_erc20_revert() public {
         uint256 amount = 50 * 1e18;
-        erc20.mint(holder, amount);
+        erc20.mint(address(this), amount);
 
         bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateBalance.selector, address(erc20), holder, 100 * 1e18);
+            abi.encodeWithSelector(TrailsTokenSweeper.validateBalance.selector, address(erc20), 100 * 1e18);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), holder, 100 * 1e18, amount
+                TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), address(this), 100 * 1e18, amount
             )
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -923,8 +923,8 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateLesserThanBalance_zero_maxAllowed() public {
         // Test with maxAllowed = 0
-        vm.expectRevert(abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 0, 0));
-        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, 0);
+        vm.expectRevert(abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 0, 0));
+        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 0);
     }
 
     function test_validateLesserThanAndSweep_zero_balance() public {
@@ -940,7 +940,8 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateBalance_zero_minExpected() public {
         // Test with minExpected = 0 (should always pass)
-        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(0), holder, 0);
+        vm.deal(address(this), 0);
+        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(0), 0);
         assertEq(current, 0);
     }
 
@@ -956,36 +957,34 @@ contract TrailsTokenSweeperTest is Test {
     }
 
     function test_validateLesserThanBalance_arbitrary_account() public {
-        address arbitraryAccount = address(0x123);
-        vm.deal(arbitraryAccount, 5 ether);
+        vm.deal(address(this), 5 ether);
 
-        // Test validating balance of an arbitrary account
-        uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), arbitraryAccount, 10 ether);
+        // Test validating balance of msg.sender (test contract)
+        uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 10 ether);
         assertEq(current, 5 ether);
     }
 
     function test_validateLesserThanBalance_arbitrary_account_revert() public {
-        address arbitraryAccount = address(0x456);
-        vm.deal(arbitraryAccount, 15 ether);
+        vm.deal(address(this), 15 ether);
 
-        // Test validating balance of an arbitrary account that exceeds maxAllowed
+        // Test validating balance of msg.sender (test contract) that exceeds maxAllowed
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.ExcessiveNativeBalance.selector, arbitraryAccount, 10 ether, 15 ether
+                TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 10 ether, 15 ether
             )
         );
-        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), arbitraryAccount, 10 ether);
+        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 10 ether);
     }
 
     function test_multiple_validations_same_call() public {
         // This test would require multiple delegate calls in sequence
         // For now, just test that individual validations work as expected
-        vm.deal(holder, 2 ether);
-        erc20.mint(holder, 100 * 1e18);
+        vm.deal(address(this), 2 ether);
+        erc20.mint(address(this), 100 * 1e18);
 
         // Test that both validations pass
-        uint256 nativeBalance = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, 5 ether);
-        uint256 erc20Balance = TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, 200 * 1e18);
+        uint256 nativeBalance = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 5 ether);
+        uint256 erc20Balance = TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), 200 * 1e18);
 
         assertEq(nativeBalance, 2 ether);
         assertEq(erc20Balance, 100 * 1e18);
@@ -993,7 +992,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateLesserThanAndSweep_boundary_values() public {
         // Test with maxAllowed = type(uint256).max
-        vm.deal(holder, 1 ether);
+        vm.deal(address(this), 1 ether);
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
@@ -1006,9 +1005,9 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateLesserThanAndSweep_boundary_values_revert() public {
         // Test with maxAllowed = 0 and balance > 0
-        vm.deal(holder, 1 wei);
+        vm.deal(address(this), 1 wei);
 
-        vm.expectRevert(abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 0, 1 wei));
+        vm.expectRevert(abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 0, 1 wei));
         TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 0, recipient);
     }
 
@@ -1018,7 +1017,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateAndSweep_vs_validateLesserThanAndSweep() public {
         // Setup scenario where validateAndSweep would pass but validateLesserThanAndSweep would fail
-        vm.deal(holder, 3 ether);
+        vm.deal(address(this), 3 ether);
 
         // validateAndSweep should succeed (3 ether >= 2 ether)
         vm.expectEmit(true, true, false, true);
@@ -1027,18 +1026,18 @@ contract TrailsTokenSweeperTest is Test {
         assertEq(holder.balance, 0);
 
         // Reset state
-        vm.deal(holder, 3 ether);
+        vm.deal(address(this), 3 ether);
 
         // validateLesserThanAndSweep should fail (3 ether >= 2 ether)
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 2 ether, 3 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 3 ether)
         );
         TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 2 ether, recipient);
     }
 
     function test_validateAndSweep_vs_validateLesserThanAndSweep_reverse() public {
         // Setup scenario where validateLesserThanAndSweep would pass but validateAndSweep would fail
-        vm.deal(holder, 1 ether);
+        vm.deal(address(this), 1 ether);
 
         // validateLesserThanAndSweep should succeed (1 ether < 2 ether)
         vm.expectEmit(true, true, false, true);
@@ -1047,37 +1046,37 @@ contract TrailsTokenSweeperTest is Test {
         assertEq(holder.balance, 0);
 
         // Reset state
-        vm.deal(holder, 1 ether);
+        vm.deal(address(this), 1 ether);
 
         // validateAndSweep should fail (1 ether < 2 ether)
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 2 ether, 1 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, address(this), 2 ether, 1 ether)
         );
         TrailsTokenSweeper(holder).validateAndSweep(address(0), 2 ether, recipient);
     }
 
     function test_validateBalance_vs_validateLesserThanBalance() public {
-        vm.deal(holder, 2 ether);
+        vm.deal(address(this), 2 ether);
 
         // Both should succeed with the same parameters when balance equals the threshold
-        uint256 balance1 = TrailsTokenSweeper(holder).validateBalance(address(0), holder, 2 ether);
-        uint256 balance2 = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, 3 ether);
+        uint256 balance1 = TrailsTokenSweeper(holder).validateBalance(address(0), 2 ether);
+        uint256 balance2 = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 3 ether);
 
         assertEq(balance1, 2 ether);
         assertEq(balance2, 2 ether);
     }
 
     function test_validateBalance_vs_validateLesserThanBalance_boundary() public {
-        vm.deal(holder, 2 ether);
+        vm.deal(address(this), 2 ether);
 
         // validateBalance should succeed (2 ether >= 2 ether)
-        uint256 balance1 = TrailsTokenSweeper(holder).validateBalance(address(0), holder, 2 ether);
+        uint256 balance1 = TrailsTokenSweeper(holder).validateBalance(address(0), 2 ether);
         assertEq(balance1, 2 ether);
 
         // validateLesserThanBalance should fail (2 ether >= 2 ether)
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, 2 ether, 2 ether)
+            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 2 ether)
         );
-        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, 2 ether);
+        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 2 ether);
     }
 }

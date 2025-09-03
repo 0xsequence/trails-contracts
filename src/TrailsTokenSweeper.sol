@@ -66,55 +66,47 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     }
 
     /**
-     * @notice Ensures `account` has at least `minExpected` balance for `token`.
+     * @notice Ensures `msg.sender` has at least `minExpected` balance for `token`.
      * @dev Use `token == address(0)` to validate native balance. Reverts with
      *      specific errors on failure and returns the current balance on success.
      * @param token The token address to check. Use address(0) for native.
-     * @param account The account whose balance to validate.
      * @param minExpected The minimum required balance.
-     * @return current The current balance of `account` for the given asset.
+     * @return current The current balance of `msg.sender` for the given asset. Assumes the delegatecall context used for this sweeper contract is the same as the context of the account calling this function.
      */
-    function validateBalance(address token, address account, uint256 minExpected)
+    function validateBalance(address token, uint256 minExpected)
         public
         view
         returns (uint256 current)
     {
-        if (token == address(0)) {
-            current = account.balance;
-            if (current < minExpected) {
-                revert InsufficientNativeBalance(account, minExpected, current);
-            }
-        } else {
-            current = IERC20(token).balanceOf(account);
-            if (current < minExpected) {
-                revert InsufficientERC20Balance(token, account, minExpected, current);
+        current = getBalance(token);
+        if (current < minExpected) {
+            if (token == address(0)) {
+                revert InsufficientNativeBalance(msg.sender, minExpected, current);
+            } else {
+                revert InsufficientERC20Balance(token, msg.sender, minExpected, current);
             }
         }
     }
 
     /**
-     * @notice Ensures `account` has less than `maxAllowed` balance for `token`.
+     * @notice Ensures `msg.sender` has less than `maxAllowed` balance for `token`.
      * @dev Use `token == address(0)` to validate native balance. Reverts with
      *      specific errors on failure and returns the current balance on success.
      * @param token The token address to check. Use address(0) for native.
-     * @param account The account whose balance to validate.
      * @param maxAllowed The maximum allowed balance (exclusive).
-     * @return current The current balance of `account` for the given asset.
+     * @return current The current balance of `msg.sender` for the given asset. Assumes the delegatecall context used for this sweeper contract is the same as the context of the account calling this function.
      */
-    function validateLesserThanBalance(address token, address account, uint256 maxAllowed)
+    function validateLesserThanBalance(address token, uint256 maxAllowed)
         public
         view
         returns (uint256 current)
     {
-        if (token == address(0)) {
-            current = account.balance;
-            if (current >= maxAllowed) {
-                revert ExcessiveNativeBalance(account, maxAllowed, current);
-            }
-        } else {
-            current = IERC20(token).balanceOf(account);
-            if (current >= maxAllowed) {
-                revert ExcessiveERC20Balance(token, account, maxAllowed, current);
+        current = getBalance(token);
+        if (current >= maxAllowed) {
+            if (token == address(0)) {
+                revert ExcessiveNativeBalance(msg.sender, maxAllowed, current);
+            } else {
+                revert ExcessiveERC20Balance(token, msg.sender, maxAllowed, current);
             }
         }
     }
@@ -136,7 +128,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         onlyDelegatecall
     {
         // Validate required minimum balance first; will revert if insufficient.
-        validateBalance(_token, address(this), _minExpected);
+        validateBalance(_token, _minExpected);
 
         // Sweep the balance to the recipient and emit events.
         sweep(_token, _recipient);
@@ -155,7 +147,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         onlyDelegatecall
     {
         // Validate that balance is less than maximum allowed; will revert if excessive.
-        validateLesserThanBalance(_token, address(this), _maxAllowed);
+        validateLesserThanBalance(_token, _maxAllowed);
 
         // Sweep the balance to the recipient and emit events.
         sweep(_token, _recipient);
@@ -305,14 +297,14 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         }
 
         if (selector == this.validateBalance.selector) {
-            (address token, address account, uint256 minExpected) = abi.decode(_data[4:], (address, address, uint256));
-            validateBalance(token, account, minExpected);
+            (address token, uint256 minExpected) = abi.decode(_data[4:], (address, uint256));
+            validateBalance(token, minExpected);
             return;
         }
 
         if (selector == this.validateLesserThanBalance.selector) {
-            (address token, address account, uint256 maxAllowed) = abi.decode(_data[4:], (address, address, uint256));
-            validateLesserThanBalance(token, account, maxAllowed);
+            (address token, uint256 maxAllowed) = abi.decode(_data[4:], (address, uint256));
+            validateLesserThanBalance(token, maxAllowed);
             return;
         }
 
