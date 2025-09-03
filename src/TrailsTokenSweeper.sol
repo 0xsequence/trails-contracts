@@ -36,6 +36,8 @@ contract TrailsTokenSweeper is IDelegatedExtension {
 
     event Refund(address indexed token, address indexed recipient, uint256 amount);
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
+    event ValidateBalance(address indexed token, address indexed account, uint256 minExpected, uint256 current);
+    event ValidateLesserThanBalance(address indexed token, address indexed account, uint256 maxAllowed, uint256 current);
 
     // -------------------------------------------------------------------------
     // Constants / Modifiers
@@ -82,6 +84,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
                 revert InsufficientERC20Balance(token, msg.sender, minExpected, current);
             }
         }
+        emit ValidateBalance(token, msg.sender, minExpected, current);
     }
 
     /**
@@ -101,6 +104,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
                 revert ExcessiveERC20Balance(token, msg.sender, maxAllowed, current);
             }
         }
+        emit ValidateLesserThanBalance(token, msg.sender, maxAllowed, current);
     }
 
     // -------------------------------------------------------------------------
