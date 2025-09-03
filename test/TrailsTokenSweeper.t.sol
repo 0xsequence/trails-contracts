@@ -757,21 +757,25 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateLesserThanAndSweep_native_revert_when_excessive() public {
         vm.deal(address(this), 3 ether);
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), 2 ether, recipient);
         vm.expectRevert(
             abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 3 ether)
         );
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 2 ether, recipient);
-        assertEq(holder.balance, 3 ether);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        assertEq(address(this).balance, 3 ether);
         assertEq(recipient.balance, 0);
     }
 
     function test_validateLesserThanAndSweep_native_revert_when_equal() public {
         vm.deal(address(this), 2 ether);
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), 2 ether, recipient);
         vm.expectRevert(
             abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 2 ether)
         );
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 2 ether, recipient);
-        assertEq(holder.balance, 2 ether);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        assertEq(address(this).balance, 2 ether);
         assertEq(recipient.balance, 0);
     }
 
@@ -794,26 +798,30 @@ contract TrailsTokenSweeperTest is Test {
     function test_validateLesserThanAndSweep_erc20_revert_when_excessive() public {
         uint256 amount = 150 * 1e18;
         erc20.mint(address(this), amount);
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(erc20), 100 * 1e18, recipient);
         vm.expectRevert(
             abi.encodeWithSelector(
                 TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), address(this), 100 * 1e18, amount
             )
         );
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(erc20), 100 * 1e18, recipient);
-        assertEq(erc20.balanceOf(holder), amount);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        assertEq(erc20.balanceOf(address(this)), amount);
         assertEq(erc20.balanceOf(recipient), 0);
     }
 
     function test_validateLesserThanAndSweep_erc20_revert_when_equal() public {
         uint256 amount = 75 * 1e18;
         erc20.mint(address(this), amount);
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(erc20), amount, recipient);
         vm.expectRevert(
             abi.encodeWithSelector(
                 TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), address(this), amount, amount
             )
         );
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(erc20), amount, recipient);
-        assertEq(erc20.balanceOf(holder), amount);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        assertEq(erc20.balanceOf(address(this)), amount);
         assertEq(erc20.balanceOf(recipient), 0);
     }
 
@@ -939,18 +947,22 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateLesserThanBalance_zero_maxAllowed() public {
         // Test with maxAllowed = 0
-        vm.expectRevert(abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 0, 0));
+        vm.deal(address(this), 1 wei);
+        vm.expectRevert(abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 0, 1 wei));
         TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), 0);
     }
 
     function test_validateLesserThanAndSweep_zero_balance() public {
         // Test sweeping when balance is 0 and maxAllowed is 1
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), 1, recipient);
+
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 0);
 
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 1, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
-        assertEq(holder.balance, 0);
+        assertEq(address(this).balance, 0);
         assertEq(recipient.balance, 0);
     }
 
@@ -963,12 +975,15 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateAndSweep_zero_balance() public {
         // Test sweeping when balance is 0 and minExpected is 0
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), 0, recipient);
+
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 0);
 
-        TrailsTokenSweeper(holder).validateAndSweep(address(0), 0, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
-        assertEq(holder.balance, 0);
+        assertEq(address(this).balance, 0);
         assertEq(recipient.balance, 0);
     }
 
@@ -1010,12 +1025,15 @@ contract TrailsTokenSweeperTest is Test {
         // Test with maxAllowed = type(uint256).max
         vm.deal(address(this), 1 ether);
 
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), type(uint256).max, recipient);
+
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
 
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), type(uint256).max, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
-        assertEq(holder.balance, 0);
+        assertEq(address(this).balance, 0);
         assertEq(recipient.balance, 1 ether);
     }
 
@@ -1023,8 +1041,11 @@ contract TrailsTokenSweeperTest is Test {
         // Test with maxAllowed = 0 and balance > 0
         vm.deal(address(this), 1 wei);
 
+        bytes memory data =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), 0, recipient);
+
         vm.expectRevert(abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 0, 1 wei));
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 0, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
     // ---------------------------------------------------------------------
@@ -1036,19 +1057,23 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(address(this), 3 ether);
 
         // validateAndSweep should succeed (3 ether >= 2 ether)
+        bytes memory data1 =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), 2 ether, recipient);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 3 ether);
-        TrailsTokenSweeper(holder).validateAndSweep(address(0), 2 ether, recipient);
-        assertEq(holder.balance, 0);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data1);
+        assertEq(address(this).balance, 0);
 
         // Reset state
         vm.deal(address(this), 3 ether);
 
         // validateLesserThanAndSweep should fail (3 ether >= 2 ether)
+        bytes memory data2 =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), 2 ether, recipient);
         vm.expectRevert(
             abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, address(this), 2 ether, 3 ether)
         );
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 2 ether, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data2);
     }
 
     function test_validateAndSweep_vs_validateLesserThanAndSweep_reverse() public {
@@ -1056,19 +1081,23 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(address(this), 1 ether);
 
         // validateLesserThanAndSweep should succeed (1 ether < 2 ether)
+        bytes memory data1 =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(0), 2 ether, recipient);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
-        TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 2 ether, recipient);
-        assertEq(holder.balance, 0);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data1);
+        assertEq(address(this).balance, 0);
 
         // Reset state
         vm.deal(address(this), 1 ether);
 
         // validateAndSweep should fail (1 ether < 2 ether)
+        bytes memory data2 =
+            abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), 2 ether, recipient);
         vm.expectRevert(
             abi.encodeWithSelector(TrailsTokenSweeper.InsufficientNativeBalance.selector, address(this), 2 ether, 1 ether)
         );
-        TrailsTokenSweeper(holder).validateAndSweep(address(0), 2 ether, recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data2);
     }
 
     function test_validateBalance_vs_validateLesserThanBalance() public {
