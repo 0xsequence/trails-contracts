@@ -46,45 +46,39 @@ contract TrailsMulticall3Router {
      * @param data The data to execute.
      * @return returnResults The result of the execution. (Expects the underlying data returned to be an array of IMulticall3.Result)
      */
-    function execute(bytes calldata data)
-        public
-        payable
-        returns (IMulticall3.Result[] memory returnResults)
-    {
+    function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
         (bool success, bytes memory returnData) = multicall3.delegatecall(data);
         require(success, "TrailsMulticall3Router: call failed");
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
-    	/**
-	 * @notice Pull ERC20 from msg.sender, then delegatecall into Multicall3.
-	 * @dev Requires prior approval to this router for at least 'amount'.
-	 *      Reverts if transferFrom or the delegatecall fails. Returns IMulticall3.Result[].
-	 */
-	function pullAndExecute(address token, uint256 amount, bytes calldata data)
-		public
-		payable
-		returns (IMulticall3.Result[] memory returnResults)
-	{
-        if (token != address(0)) {  
-			_safeTransferFrom(token, msg.sender, address(this), amount);
-		}
+    /**
+     * @notice Pull ERC20 from msg.sender, then delegatecall into Multicall3.
+     * @dev Requires prior approval to this router for at least 'amount'.
+     *      Reverts if transferFrom or the delegatecall fails. Returns IMulticall3.Result[].
+     */
+    function pullAndExecute(address token, uint256 amount, bytes calldata data)
+        public
+        payable
+        returns (IMulticall3.Result[] memory returnResults)
+    {
+        if (token != address(0)) {
+            _safeTransferFrom(token, msg.sender, address(this), amount);
+        }
 
-		(bool success, bytes memory returnData) = multicall3.delegatecall(data);
-		require(success, "TrailsMulticall3Router: pullAndExecute failed");
-		return abi.decode(returnData, (IMulticall3.Result[]));
-	}
+        (bool success, bytes memory returnData) = multicall3.delegatecall(data);
+        require(success, "TrailsMulticall3Router: pullAndExecute failed");
+        return abi.decode(returnData, (IMulticall3.Result[]));
+    }
 
     // -------------------------------------------------------------------------
     // Internal Functions
     // -------------------------------------------------------------------------
 
-	function _safeTransferFrom(address token, address from, address to, uint256 amount) internal {
-		(bool ok, bytes memory res) = token.call(
-			abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, amount)
-		);
-		require(ok && (res.length == 0 || abi.decode(res, (bool))), "TrailsMulticall3Router: transferFrom failed");
-	}
+    function _safeTransferFrom(address token, address from, address to, uint256 amount) internal {
+        (bool ok, bytes memory res) = token.call(abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, amount));
+        require(ok && (res.length == 0 || abi.decode(res, (bool))), "TrailsMulticall3Router: transferFrom failed");
+    }
 
     // -------------------------------------------------------------------------
     // Receive ETH
