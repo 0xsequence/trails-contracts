@@ -73,11 +73,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      * @param minExpected The minimum required balance.
      * @return current The current balance of `msg.sender` for the given asset. Assumes the delegatecall context used for this sweeper contract is the same as the context of the account calling this function.
      */
-    function validateBalance(address token, uint256 minExpected)
-        public
-        view
-        returns (uint256 current)
-    {
+    function validateBalance(address token, uint256 minExpected) public view returns (uint256 current) {
         current = getBalance(token);
         if (current < minExpected) {
             if (token == address(0)) {
@@ -96,11 +92,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      * @param maxAllowed The maximum allowed balance (exclusive).
      * @return current The current balance of `msg.sender` for the given asset. Assumes the delegatecall context used for this sweeper contract is the same as the context of the account calling this function.
      */
-    function validateLesserThanBalance(address token, uint256 maxAllowed)
-        public
-        view
-        returns (uint256 current)
-    {
+    function validateLesserThanBalance(address token, uint256 maxAllowed) public view returns (uint256 current) {
         current = getBalance(token);
         if (current >= maxAllowed) {
             if (token == address(0)) {
