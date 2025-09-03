@@ -35,10 +35,11 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_nativeToken_zeroRecipientEmitsAndSweeps() public {
         uint256 amount = 1 ether;
-        vm.deal(address(this), amount);
+        vm.deal(holder, amount);
+        bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(0), address(0));
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), address(0), amount);
-        TrailsTokenSweeper(holder).sweep(address(0), address(0));
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
         assertEq(holder.balance, 0);
     }
@@ -59,13 +60,15 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_nativeToken() public {
         uint256 amount = 1 ether;
-        vm.deal(address(this), amount);
+        vm.deal(holder, amount);
 
         uint256 recipientBalanceBefore = recipient.balance;
 
+        bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(0), recipient);
+
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, amount);
-        TrailsTokenSweeper(holder).sweep(address(0), recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
         uint256 recipientBalanceAfter = recipient.balance;
 
         assertEq(holder.balance, 0);
@@ -74,12 +77,14 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_erc20Token() public {
         uint256 amount = 100 * 1e18;
-        erc20.mint(address(this), amount);
+        erc20.mint(holder, amount);
         uint256 recipientBalanceBefore = erc20.balanceOf(recipient);
+
+        bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(erc20), recipient);
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
-        TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
         uint256 recipientBalanceAfter = erc20.balanceOf(recipient);
 
         assertEq(erc20.balanceOf(holder), 0);
@@ -90,18 +95,20 @@ contract TrailsTokenSweeperTest is Test {
         uint256 amount1 = 50 * 1e18;
         uint256 amount2 = 20 * 1e18;
 
+        bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(erc20), recipient);
+
         // First sweep
-        erc20.mint(address(this), amount1);
+        erc20.mint(holder, amount1);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount1);
-        TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
         assertEq(erc20.balanceOf(holder), 0);
 
         // Second sweep after additional mint (should not revert and should transfer)
-        erc20.mint(address(this), amount2);
+        erc20.mint(holder, amount2);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount2);
-        TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(recipient), amount1 + amount2);
@@ -109,29 +116,35 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_sweep_noBalance() public {
         uint256 recipientNativeBalanceBefore = recipient.balance;
-        vm.deal(address(this), 0);
+        vm.deal(holder, 0);
+        bytes memory dataNative = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(0), recipient);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 0);
-        TrailsTokenSweeper(holder).sweep(address(0), recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, dataNative);
         uint256 recipientNativeBalanceAfter = recipient.balance;
         assertEq(recipientNativeBalanceAfter, recipientNativeBalanceBefore);
 
         uint256 recipientErc20BalanceBefore = erc20.balanceOf(recipient);
+        bytes memory dataERC20 = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(erc20), recipient);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, 0);
-        TrailsTokenSweeper(holder).sweep(address(erc20), recipient);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, dataERC20);
         uint256 recipientErc20BalanceAfter = erc20.balanceOf(recipient);
         assertEq(recipientErc20BalanceAfter, recipientErc20BalanceBefore);
     }
 
     function test_sweep_revertsOnNativeTransferFailure() public {
         uint256 amount = 1 ether;
-        vm.deal(address(this), amount);
+        vm.deal(holder, amount);
 
         RevertingReceiver revertingReceiver = new RevertingReceiver();
 
+        bytes memory data = abi.encodeWithSelector(
+            TrailsTokenSweeper.sweep.selector, address(0), address(revertingReceiver)
+        );
+
         vm.expectRevert(TrailsTokenSweeper.NativeTransferFailed.selector);
-        TrailsTokenSweeper(holder).sweep(address(0), address(revertingReceiver));
+        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
         // Balance remains in sweeper
         vm.prank(holder);
@@ -486,7 +499,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(address(this), 0.5 ether);
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.InsufficientNativeBalance.selector, address(this), 1 ether, 0.5 ether
+                TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 1 ether, 0.5 ether
             )
         );
         TrailsTokenSweeper(holder).validateBalance(address(0), 1 ether);
@@ -502,7 +515,7 @@ contract TrailsTokenSweeperTest is Test {
     function test_validateBalance_erc20_revert() public {
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), address(this), 1, 0
+                TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), holder, 1, 0
             )
         );
         TrailsTokenSweeper(holder).validateBalance(address(erc20), 1);
@@ -559,10 +572,11 @@ contract TrailsTokenSweeperTest is Test {
     }
 
     function test_validateAndSweep_erc20_revert_when_insufficient() public {
+        // Ensure holder has 0 ERC20 balance
         bytes memory data =
             abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(erc20), 1, recipient);
         vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), holder, 1, 0)
+            abi.encodeWithSelector(TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), address(this), 1, 0)
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
         assertEq(erc20.balanceOf(holder), 0);
@@ -925,7 +939,7 @@ contract TrailsTokenSweeperTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.InsufficientNativeBalance.selector, address(this), 2 ether, 1 ether
+                TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 2 ether, 1 ether
             )
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -951,7 +965,7 @@ contract TrailsTokenSweeperTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), address(this), 100 * 1e18, amount
+                TrailsTokenSweeper.InsufficientERC20Balance.selector, address(erc20), holder, 100 * 1e18, amount
             )
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -993,6 +1007,7 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateAndSweep_zero_balance() public {
         // Test sweeping when balance is 0 and minExpected is 0
+        vm.deal(address(this), 0); // Ensure balance is 0
         bytes memory data =
             abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), 0, recipient);
 
@@ -1119,7 +1134,7 @@ contract TrailsTokenSweeperTest is Test {
             abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), 2 ether, recipient);
         vm.expectRevert(
             abi.encodeWithSelector(
-                TrailsTokenSweeper.InsufficientNativeBalance.selector, address(this), 2 ether, 1 ether
+                TrailsTokenSweeper.InsufficientNativeBalance.selector, holder, 2 ether, 1 ether
             )
         );
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data2);
