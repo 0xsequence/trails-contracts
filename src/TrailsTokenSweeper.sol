@@ -61,50 +61,50 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      */
     function getBalance(address _token) public view returns (uint256) {
         if (_token == address(0)) {
-            return msg.sender.balance;
+            return address(this).balance;
         } else {
-            return IERC20(_token).balanceOf(msg.sender);
+            return IERC20(_token).balanceOf(address(this));
         }
     }
 
     /**
-     * @notice Ensures `msg.sender` has at least `minExpected` balance for `token`.
+     * @notice Ensures `address(this)` has at least `minExpected` balance for `token`.
      * @dev Use `token == address(0)` to validate native balance. Reverts with
      *      specific errors on failure and returns the current balance on success.
      * @param token The token address to check. Use address(0) for native.
      * @param minExpected The minimum required balance.
-     * @return current The current balance of `msg.sender` for the given asset. Assumes the delegatecall context used for this sweeper contract is the same as the context of the account calling this function.
+     * @return current The current balance of `address(this)` for the given asset. Assumes the delegatecall context used for this sweeper contract is the same as the context of the account calling this function.
      */
     function validateBalance(address token, uint256 minExpected) public returns (uint256 current) {
         current = getBalance(token);
         if (current < minExpected) {
             if (token == address(0)) {
-                revert InsufficientNativeBalance(msg.sender, minExpected, current);
+                revert InsufficientNativeBalance(address(this), minExpected, current);
             } else {
-                revert InsufficientERC20Balance(token, msg.sender, minExpected, current);
+                revert InsufficientERC20Balance(token, address(this), minExpected, current);
             }
         }
-        emit ValidateBalance(token, msg.sender, minExpected, current);
+        emit ValidateBalance(token, address(this), minExpected, current);
     }
 
     /**
-     * @notice Ensures `msg.sender` has less than `maxAllowed` balance for `token`.
+     * @notice Ensures `address(this)` has less than `maxAllowed` balance for `token`.
      * @dev Use `token == address(0)` to validate native balance. Reverts with
      *      specific errors on failure and returns the current balance on success.
      * @param token The token address to check. Use address(0) for native.
      * @param maxAllowed The maximum allowed balance (exclusive).
-     * @return current The current balance of `msg.sender` for the given asset. Assumes the delegatecall context used for this sweeper contract is the same as the context of the account calling this function.
+     * @return current The current balance of `address(this)` for the given asset. Assumes the delegatecall context used for this sweeper contract is the same as the context of the account calling this function.
      */
     function validateLesserThanBalance(address token, uint256 maxAllowed) public returns (uint256 current) {
         current = getBalance(token);
         if (current >= maxAllowed) {
             if (token == address(0)) {
-                revert ExcessiveNativeBalance(msg.sender, maxAllowed, current);
+                revert ExcessiveNativeBalance(address(this), maxAllowed, current);
             } else {
-                revert ExcessiveERC20Balance(token, msg.sender, maxAllowed, current);
+                revert ExcessiveERC20Balance(token, address(this), maxAllowed, current);
             }
         }
-        emit ValidateLesserThanBalance(token, msg.sender, maxAllowed, current);
+        emit ValidateLesserThanBalance(token, address(this), maxAllowed, current);
     }
 
     // -------------------------------------------------------------------------
