@@ -24,7 +24,9 @@ contract TrailsTokenSweeperTest is Test {
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
     event Refund(address indexed token, address indexed recipient, uint256 amount);
     event ValidateBalance(address indexed token, address indexed account, uint256 minExpected, uint256 current);
-    event ValidateLesserThanBalance(address indexed token, address indexed account, uint256 maxAllowed, uint256 current);
+    event ValidateLesserThanBalance(
+        address indexed token, address indexed account, uint256 maxAllowed, uint256 current
+    );
 
     function setUp() public {
         holder = payable(address(0xbabe));
