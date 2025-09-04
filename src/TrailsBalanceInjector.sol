@@ -65,15 +65,7 @@ contract TrailsBalanceInjector {
 
         // Make the actual call
         (bool success, bytes memory result) = target.call(data);
-        emit BalanceInjectorCall(
-            token,
-            target,
-            placeholder,
-            callerBalance,
-            amountOffset,
-            success,
-            result
-        );
+        emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
 
         require(success, string(result));
     }

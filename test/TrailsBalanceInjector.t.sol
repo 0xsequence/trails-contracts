@@ -64,23 +64,13 @@ contract TrailsBalanceInjectorTest is Test {
         token.approve(address(balanceInjector), tokenBalance);
 
         // Encode calldata with placeholder
-        bytes memory callData = abi.encodeWithSignature(
-            "deposit(uint256,address)",
-            PLACEHOLDER,
-            address(0x123)
-        );
+        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
 
         // Calculate offset (4 bytes for function selector + 0 bytes for first param)
         uint256 amountOffset = 4;
 
         // Call sweepAndCall
-        balanceInjector.sweepAndCall(
-            address(token),
-            address(target),
-            callData,
-            amountOffset,
-            PLACEHOLDER
-        );
+        balanceInjector.sweepAndCall(address(token), address(target), callData, amountOffset, PLACEHOLDER);
 
         // Verify target received the correct amount
         assertEq(target.lastAmount(), tokenBalance);
@@ -95,20 +85,10 @@ contract TrailsBalanceInjectorTest is Test {
 
     function testRevertWhenNoTokens() public {
         // Don't mint any tokens to the caller
-        bytes memory callData = abi.encodeWithSignature(
-            "deposit(uint256,address)",
-            PLACEHOLDER,
-            address(0x123)
-        );
+        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.expectRevert("No tokens to sweep");
-        balanceInjector.sweepAndCall(
-            address(token),
-            address(target),
-            callData,
-            4,
-            PLACEHOLDER
-        );
+        balanceInjector.sweepAndCall(address(token), address(target), callData, 4, PLACEHOLDER);
     }
 
     function testRevertWhenPlaceholderMismatch() public {
@@ -116,22 +96,12 @@ contract TrailsBalanceInjectorTest is Test {
         token.mint(address(this), tokenBalance);
         token.approve(address(balanceInjector), tokenBalance);
 
-        bytes memory callData = abi.encodeWithSignature(
-            "deposit(uint256,address)",
-            PLACEHOLDER,
-            address(0x123)
-        );
+        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
 
         bytes32 wrongPlaceholder = 0x1111111111111111111111111111111111111111111111111111111111111111;
 
         vm.expectRevert("Placeholder mismatch");
-        balanceInjector.sweepAndCall(
-            address(token),
-            address(target),
-            callData,
-            4,
-            wrongPlaceholder
-        );
+        balanceInjector.sweepAndCall(address(token), address(target), callData, 4, wrongPlaceholder);
     }
 
     function testRevertWhenTargetFails() public {
@@ -140,19 +110,9 @@ contract TrailsBalanceInjectorTest is Test {
         token.approve(address(balanceInjector), tokenBalance);
         target.setShouldRevert(true);
 
-        bytes memory callData = abi.encodeWithSignature(
-            "deposit(uint256,address)",
-            PLACEHOLDER,
-            address(0x123)
-        );
+        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.expectRevert("Target reverted");
-        balanceInjector.sweepAndCall(
-            address(token),
-            address(target),
-            callData,
-            4,
-            PLACEHOLDER
-        );
+        balanceInjector.sweepAndCall(address(token), address(target), callData, 4, PLACEHOLDER);
     }
 }
