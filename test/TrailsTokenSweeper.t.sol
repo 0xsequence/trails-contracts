@@ -23,6 +23,10 @@ contract TrailsTokenSweeperTest is Test {
     // Redeclare event for expectEmit
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
     event Refund(address indexed token, address indexed recipient, uint256 amount);
+    event ValidateBalance(address indexed token, address indexed account, uint256 minExpected, uint256 current);
+    event ValidateLesserThanBalance(
+        address indexed token, address indexed account, uint256 maxAllowed, uint256 current
+    );
 
     function setUp() public {
         holder = payable(address(0xbabe));
@@ -482,6 +486,14 @@ contract TrailsTokenSweeperTest is Test {
         assertEq(current, 2 ether);
     }
 
+    function test_validateBalance_native_emitsEvent() public {
+        vm.deal(holder, 3 ether);
+        vm.expectEmit(true, true, false, true);
+        emit ValidateBalance(address(0), holder, 2 ether, 3 ether);
+        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(0), holder, 2 ether);
+        assertEq(current, 3 ether);
+    }
+
     function test_validateBalance_native_revert() public {
         vm.deal(holder, 0.5 ether);
         vm.expectRevert(
@@ -494,6 +506,15 @@ contract TrailsTokenSweeperTest is Test {
         uint256 amount = 100 * 1e18;
         erc20.mint(holder, amount);
         uint256 current = TrailsTokenSweeper(holder).validateBalance(address(erc20), holder, amount - 1);
+        assertEq(current, amount);
+    }
+
+    function test_validateBalance_erc20_emitsEvent() public {
+        uint256 amount = 200 * 1e18;
+        erc20.mint(holder, amount);
+        vm.expectEmit(true, true, false, true);
+        emit ValidateBalance(address(erc20), holder, 150 * 1e18, amount);
+        uint256 current = TrailsTokenSweeper(holder).validateBalance(address(erc20), holder, 150 * 1e18);
         assertEq(current, amount);
     }
 
@@ -595,6 +616,14 @@ contract TrailsTokenSweeperTest is Test {
         assertEq(current, 1 ether);
     }
 
+    function test_validateLesserThanBalance_native_emitsEvent() public {
+        vm.deal(holder, 1 ether);
+        vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(0), holder, 2 ether, 1 ether);
+        uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, 2 ether);
+        assertEq(current, 1 ether);
+    }
+
     function test_validateLesserThanBalance_native_revert_when_excessive() public {
         vm.deal(holder, 3 ether);
         vm.expectRevert(
@@ -615,6 +644,15 @@ contract TrailsTokenSweeperTest is Test {
         uint256 amount = 100 * 1e18;
         erc20.mint(holder, amount);
         uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, amount + 1);
+        assertEq(current, amount);
+    }
+
+    function test_validateLesserThanBalance_erc20_emitsEvent() public {
+        uint256 amount = 75 * 1e18;
+        erc20.mint(holder, amount);
+        vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(erc20), holder, 100 * 1e18, amount);
+        uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, 100 * 1e18);
         assertEq(current, amount);
     }
 
