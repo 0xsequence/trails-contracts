@@ -23,6 +23,19 @@ contract TrailsTokenSweeperTest is Test {
     // Redeclare event for expectEmit
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
     event Refund(address indexed token, address indexed recipient, uint256 amount);
+    event RefundAndSweep(
+        address indexed token,
+        address indexed refundRecipient,
+        uint256 refundAmount,
+        address indexed sweepRecipient,
+        uint256 actualRefund,
+        uint256 remaining
+    );
+    event ValidateBalance(address indexed token, address indexed account, uint256 minExpected, uint256 current);
+    event ValidateLesserThanBalance(
+        address indexed token, address indexed account, uint256 maxAllowed, uint256 current
+    );
+    event ActualRefund(address indexed token, address indexed recipient, uint256 expected, uint256 actual);
 
     function setUp() public {
         holder = payable(address(0xbabe));
@@ -145,11 +158,13 @@ contract TrailsTokenSweeperTest is Test {
         uint256 amount = 3 ether;
         vm.deal(holder, amount);
 
-        // Expect refund event then sweep event
+        // Expect refund event then sweep event, then summary event
         vm.expectEmit(true, true, false, true);
         emit Refund(address(0), refundRecipient, 1 ether);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), sweepRecipient, 2 ether);
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(0), refundRecipient, 1 ether, sweepRecipient, 1 ether, 2 ether);
 
         TrailsTokenSweeper(holder).refundAndSweep(address(0), refundRecipient, 1 ether, sweepRecipient);
 
@@ -166,7 +181,11 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(holder, amount);
 
         vm.expectEmit(true, true, false, true);
+        emit ActualRefund(address(0), refundRecipient, 5 ether, amount);
+        vm.expectEmit(true, true, false, true);
         emit Refund(address(0), refundRecipient, amount);
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(0), refundRecipient, 5 ether, sweepRecipient, amount, 0);
 
         TrailsTokenSweeper(holder).refundAndSweep(address(0), refundRecipient, 5 ether, sweepRecipient);
 
@@ -187,6 +206,10 @@ contract TrailsTokenSweeperTest is Test {
         uint256 expectedRefund = refund > total ? total : refund;
         uint256 expectedSweep = total - expectedRefund;
 
+        if (expectedRefund != refund) {
+            vm.expectEmit(true, true, false, true);
+            emit ActualRefund(address(0), refundRecipient, refund, expectedRefund);
+        }
         if (expectedRefund > 0) {
             vm.expectEmit(true, true, false, true);
             emit Refund(address(0), refundRecipient, expectedRefund);
@@ -195,6 +218,8 @@ contract TrailsTokenSweeperTest is Test {
             vm.expectEmit(true, true, false, true);
             emit Sweep(address(0), sweepRecipient, expectedSweep);
         }
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(0), refundRecipient, refund, sweepRecipient, expectedRefund, expectedSweep);
 
         TrailsTokenSweeper(holder).refundAndSweep(address(0), refundRecipient, refund, sweepRecipient);
 
@@ -215,6 +240,10 @@ contract TrailsTokenSweeperTest is Test {
         uint256 expectedRefund = refund > total ? total : refund;
         uint256 expectedSweep = total - expectedRefund;
 
+        if (expectedRefund != refund) {
+            vm.expectEmit(true, true, false, true);
+            emit ActualRefund(address(erc20), refundRecipient, refund, expectedRefund);
+        }
         if (expectedRefund > 0) {
             vm.expectEmit(true, true, false, true);
             emit Refund(address(erc20), refundRecipient, expectedRefund);
@@ -223,6 +252,8 @@ contract TrailsTokenSweeperTest is Test {
             vm.expectEmit(true, true, false, true);
             emit Sweep(address(erc20), sweepRecipient, expectedSweep);
         }
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient, expectedRefund, expectedSweep);
 
         TrailsTokenSweeper(holder).refundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient);
 
@@ -247,6 +278,10 @@ contract TrailsTokenSweeperTest is Test {
             TrailsTokenSweeper.refundAndSweep.selector, address(0), refundRecipient, refund, sweepRecipient
         );
 
+        if (expectedRefund != refund) {
+            vm.expectEmit(true, true, false, true);
+            emit ActualRefund(address(0), refundRecipient, refund, expectedRefund);
+        }
         if (expectedRefund > 0) {
             vm.expectEmit(true, true, false, true);
             emit Refund(address(0), refundRecipient, expectedRefund);
@@ -255,6 +290,8 @@ contract TrailsTokenSweeperTest is Test {
             vm.expectEmit(true, true, false, true);
             emit Sweep(address(0), sweepRecipient, expectedSweep);
         }
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(0), refundRecipient, refund, sweepRecipient, expectedRefund, expectedSweep);
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
@@ -279,6 +316,10 @@ contract TrailsTokenSweeperTest is Test {
             TrailsTokenSweeper.refundAndSweep.selector, address(erc20), refundRecipient, refund, sweepRecipient
         );
 
+        if (expectedRefund != refund) {
+            vm.expectEmit(true, true, false, true);
+            emit ActualRefund(address(erc20), refundRecipient, refund, expectedRefund);
+        }
         if (expectedRefund > 0) {
             vm.expectEmit(true, true, false, true);
             emit Refund(address(erc20), refundRecipient, expectedRefund);
@@ -287,6 +328,8 @@ contract TrailsTokenSweeperTest is Test {
             vm.expectEmit(true, true, false, true);
             emit Sweep(address(erc20), sweepRecipient, expectedSweep);
         }
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient, expectedRefund, expectedSweep);
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
@@ -307,6 +350,8 @@ contract TrailsTokenSweeperTest is Test {
         emit Refund(address(erc20), refundRecipient, refund);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), sweepRecipient, amount - refund);
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient, refund, amount - refund);
 
         TrailsTokenSweeper(holder).refundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient);
 
@@ -323,7 +368,11 @@ contract TrailsTokenSweeperTest is Test {
         erc20.mint(holder, amount);
 
         vm.expectEmit(true, true, false, true);
+        emit ActualRefund(address(erc20), refundRecipient, 500 * 1e18, amount);
+        vm.expectEmit(true, true, false, true);
         emit Refund(address(erc20), refundRecipient, amount);
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(erc20), refundRecipient, 500 * 1e18, sweepRecipient, amount, 0);
 
         TrailsTokenSweeper(holder).refundAndSweep(address(erc20), refundRecipient, 500 * 1e18, sweepRecipient);
 
@@ -347,6 +396,8 @@ contract TrailsTokenSweeperTest is Test {
         emit Refund(address(0), refundRecipient, 2 ether);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), sweepRecipient, 3 ether);
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(0), refundRecipient, 2 ether, sweepRecipient, 2 ether, 3 ether);
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
@@ -371,6 +422,8 @@ contract TrailsTokenSweeperTest is Test {
         emit Refund(address(erc20), refundRecipient, refund);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), sweepRecipient, amount - refund);
+        vm.expectEmit(true, true, false, true);
+        emit RefundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient, refund, amount - refund);
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
 
@@ -513,6 +566,8 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(holder, amount);
 
         vm.expectEmit(true, true, false, true);
+        emit ValidateBalance(address(0), holder, amount - 1, amount);
+        vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, amount);
 
         TrailsTokenSweeper(holder).validateAndSweep(address(0), amount - 1, recipient);
@@ -537,6 +592,8 @@ contract TrailsTokenSweeperTest is Test {
 
         uint256 recipientBefore = erc20.balanceOf(recipient);
 
+        vm.expectEmit(true, true, false, true);
+        emit ValidateBalance(address(erc20), holder, amount - 1, amount);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
 
@@ -563,6 +620,8 @@ contract TrailsTokenSweeperTest is Test {
             abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(0), amount - 1, recipient);
 
         vm.expectEmit(true, true, false, true);
+        emit ValidateBalance(address(0), holder, amount - 1, amount);
+        vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, amount);
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -577,6 +636,8 @@ contract TrailsTokenSweeperTest is Test {
         bytes memory data =
             abi.encodeWithSelector(TrailsTokenSweeper.validateAndSweep.selector, address(erc20), amount - 1, recipient);
 
+        vm.expectEmit(true, true, false, true);
+        emit ValidateBalance(address(erc20), holder, amount - 1, amount);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
 
@@ -734,6 +795,8 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(holder, 1 ether);
 
         vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(0), holder, 2 ether, 1 ether);
+        vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
 
         TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 2 ether, recipient);
@@ -766,6 +829,8 @@ contract TrailsTokenSweeperTest is Test {
         uint256 amount = 100 * 1e18;
         erc20.mint(holder, amount);
 
+        vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(erc20), holder, amount + 1, amount);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
 
@@ -809,6 +874,8 @@ contract TrailsTokenSweeperTest is Test {
         );
 
         vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(0), holder, 2 ether, 1 ether);
+        vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -839,6 +906,8 @@ contract TrailsTokenSweeperTest is Test {
             TrailsTokenSweeper.validateLesserThanAndSweep.selector, address(erc20), 100 * 1e18, recipient
         );
 
+        vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(erc20), holder, 100 * 1e18, amount);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
 
@@ -930,6 +999,8 @@ contract TrailsTokenSweeperTest is Test {
     function test_validateLesserThanAndSweep_zero_balance() public {
         // Test sweeping when balance is 0 and maxAllowed is 1
         vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(0), holder, 1, 0);
+        vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 0);
 
         TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(0), 1, recipient);
@@ -995,6 +1066,8 @@ contract TrailsTokenSweeperTest is Test {
         // Test with maxAllowed = type(uint256).max
         vm.deal(holder, 1 ether);
 
+        vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(0), holder, type(uint256).max, 1 ether);
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
 
