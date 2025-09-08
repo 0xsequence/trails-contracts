@@ -535,6 +535,13 @@ contract TrailsTokenSweeperTest is Test {
         assertEq(current, 2 ether);
     }
 
+    function test_validateBalance_native_emits_event() public {
+        vm.deal(holder, 2 ether);
+        vm.expectEmit(true, true, false, true);
+        emit ValidateBalance(address(0), holder, 1 ether, 2 ether);
+        TrailsTokenSweeper(holder).validateBalance(address(0), holder, 1 ether);
+    }
+
     function test_validateBalance_native_revert() public {
         vm.deal(holder, 0.5 ether);
         vm.expectRevert(
@@ -548,6 +555,14 @@ contract TrailsTokenSweeperTest is Test {
         erc20.mint(holder, amount);
         uint256 current = TrailsTokenSweeper(holder).validateBalance(address(erc20), holder, amount - 1);
         assertEq(current, amount);
+    }
+
+    function test_validateBalance_erc20_emits_event() public {
+        uint256 amount = 100 * 1e18;
+        erc20.mint(holder, amount);
+        vm.expectEmit(true, true, false, true);
+        emit ValidateBalance(address(erc20), holder, amount - 1, amount);
+        TrailsTokenSweeper(holder).validateBalance(address(erc20), holder, amount - 1);
     }
 
     function test_validateBalance_erc20_revert() public {
@@ -656,6 +671,13 @@ contract TrailsTokenSweeperTest is Test {
         assertEq(current, 1 ether);
     }
 
+    function test_validateLesserThanBalance_native_emits_event() public {
+        vm.deal(holder, 1 ether);
+        vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(0), holder, 2 ether, 1 ether);
+        TrailsTokenSweeper(holder).validateLesserThanBalance(address(0), holder, 2 ether);
+    }
+
     function test_validateLesserThanBalance_native_revert_when_excessive() public {
         vm.deal(holder, 3 ether);
         vm.expectRevert(
@@ -677,6 +699,14 @@ contract TrailsTokenSweeperTest is Test {
         erc20.mint(holder, amount);
         uint256 current = TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, amount + 1);
         assertEq(current, amount);
+    }
+
+    function test_validateLesserThanBalance_erc20_emits_event() public {
+        uint256 amount = 100 * 1e18;
+        erc20.mint(holder, amount);
+        vm.expectEmit(true, true, false, true);
+        emit ValidateLesserThanBalance(address(erc20), holder, amount + 1, amount);
+        TrailsTokenSweeper(holder).validateLesserThanBalance(address(erc20), holder, amount + 1);
     }
 
     function test_validateLesserThanBalance_erc20_revert_when_excessive() public {
@@ -864,6 +894,36 @@ contract TrailsTokenSweeperTest is Test {
         TrailsTokenSweeper(holder).validateLesserThanAndSweep(address(erc20), amount, recipient);
         assertEq(erc20.balanceOf(holder), amount);
         assertEq(erc20.balanceOf(recipient), 0);
+    }
+
+    // ---------------------------------------------------------------------
+    // NotDelegateCall reverts on direct calls
+    // ---------------------------------------------------------------------
+
+    function test_direct_sweep_reverts_not_delegatecall() public {
+        vm.expectRevert(TrailsTokenSweeper.NotDelegateCall.selector);
+        sweeper.sweep(address(0), recipient);
+    }
+
+    function test_direct_refundAndSweep_reverts_not_delegatecall() public {
+        vm.expectRevert(TrailsTokenSweeper.NotDelegateCall.selector);
+        sweeper.refundAndSweep(address(0), address(0xBEEF), 1 ether, recipient);
+    }
+
+    function test_direct_validateAndSweep_reverts_not_delegatecall() public {
+        vm.expectRevert(TrailsTokenSweeper.NotDelegateCall.selector);
+        sweeper.validateAndSweep(address(0), 0, recipient);
+    }
+
+    function test_direct_validateLesserThanAndSweep_reverts_not_delegatecall() public {
+        vm.expectRevert(TrailsTokenSweeper.NotDelegateCall.selector);
+        sweeper.validateLesserThanAndSweep(address(0), type(uint256).max, recipient);
+    }
+
+    function test_direct_handleSequenceDelegateCall_reverts_not_delegatecall() public {
+        bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(0), recipient);
+        vm.expectRevert(TrailsTokenSweeper.NotDelegateCall.selector);
+        IDelegatedExtension(address(sweeper)).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
     function test_handleSequenceDelegateCall_dispatches_to_validateLesserThanAndSweep_native() public {

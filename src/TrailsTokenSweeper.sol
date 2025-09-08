@@ -90,16 +90,16 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     function validateBalance(address token, address account, uint256 minExpected) public returns (uint256 current) {
         if (token == address(0)) {
             current = account.balance;
+            emit ValidateBalance(token, account, minExpected, current);
             if (current < minExpected) {
                 revert InsufficientNativeBalance(account, minExpected, current);
             }
-            emit ValidateBalance(token, account, minExpected, current);
         } else {
             current = IERC20(token).balanceOf(account);
+            emit ValidateBalance(token, account, minExpected, current);
             if (current < minExpected) {
                 revert InsufficientERC20Balance(token, account, minExpected, current);
             }
-            emit ValidateBalance(token, account, minExpected, current);
         }
     }
 
@@ -118,16 +118,16 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     {
         if (token == address(0)) {
             current = account.balance;
+            emit ValidateLesserThanBalance(token, account, maxAllowed, current);
             if (current >= maxAllowed) {
                 revert ExcessiveNativeBalance(account, maxAllowed, current);
             }
-            emit ValidateLesserThanBalance(token, account, maxAllowed, current);
         } else {
             current = IERC20(token).balanceOf(account);
+            emit ValidateLesserThanBalance(token, account, maxAllowed, current);
             if (current >= maxAllowed) {
                 revert ExcessiveERC20Balance(token, account, maxAllowed, current);
             }
-            emit ValidateLesserThanBalance(token, account, maxAllowed, current);
         }
     }
 
