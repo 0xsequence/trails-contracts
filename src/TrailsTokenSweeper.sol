@@ -36,7 +36,11 @@ contract TrailsTokenSweeper is IDelegatedExtension {
 
     event Refund(address indexed token, address indexed recipient, uint256 amount);
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
-
+    event RefundAndSweep(address indexed token, address indexed refundRecipient, uint256 refundAmount, address indexed sweepRecipient, uint256 actualRefund, uint256 remaining);
+    event ValidateBalance(address indexed token, address indexed account, uint256 minExpected, uint256 current);
+    event ValidateLesserThanBalance(address indexed token, address indexed account, uint256 maxAllowed, uint256 current);
+    event ActualRefund(address indexed token, address indexed recipient, uint256 expected, uint256 actual);
+    
     // -------------------------------------------------------------------------
     // Constants / Modifiers
     // -------------------------------------------------------------------------
@@ -76,7 +80,6 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      */
     function validateBalance(address token, address account, uint256 minExpected)
         public
-        view
         returns (uint256 current)
     {
         if (token == address(0)) {
@@ -84,11 +87,13 @@ contract TrailsTokenSweeper is IDelegatedExtension {
             if (current < minExpected) {
                 revert InsufficientNativeBalance(account, minExpected, current);
             }
+            emit ValidateBalance(token, account, minExpected, current);
         } else {
             current = IERC20(token).balanceOf(account);
             if (current < minExpected) {
                 revert InsufficientERC20Balance(token, account, minExpected, current);
             }
+            emit ValidateBalance(token, account, minExpected, current);
         }
     }
 
@@ -103,7 +108,6 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      */
     function validateLesserThanBalance(address token, address account, uint256 maxAllowed)
         public
-        view
         returns (uint256 current)
     {
         if (token == address(0)) {
@@ -111,11 +115,13 @@ contract TrailsTokenSweeper is IDelegatedExtension {
             if (current >= maxAllowed) {
                 revert ExcessiveNativeBalance(account, maxAllowed, current);
             }
+            emit ValidateLesserThanBalance(token, account, maxAllowed, current);
         } else {
             current = IERC20(token).balanceOf(account);
             if (current >= maxAllowed) {
                 revert ExcessiveERC20Balance(token, account, maxAllowed, current);
             }
+            emit ValidateLesserThanBalance(token, account, maxAllowed, current);
         }
     }
 
@@ -227,7 +233,11 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     {
         if (_token == address(0)) {
             uint256 current = _nativeBalance();
+
             uint256 actualRefund = _refundAmount > current ? current : _refundAmount;
+            if (actualRefund != _refundAmount) {
+                emit ActualRefund(_token, _refundRecipient, _refundAmount, actualRefund);
+            }
             if (actualRefund > 0) {
                 _transferNative(_refundRecipient, actualRefund);
                 emit Refund(_token, _refundRecipient, actualRefund);
@@ -238,11 +248,15 @@ contract TrailsTokenSweeper is IDelegatedExtension {
                 _transferNative(_sweepRecipient, remaining);
                 emit Sweep(_token, _sweepRecipient, remaining);
             }
+            emit RefundAndSweep(_token, _refundRecipient, _refundAmount, _sweepRecipient, actualRefund, remaining);
         } else {
             uint256 balance = _erc20Balance(_token);
             _ensureERC20Approval(_token, balance);
 
             uint256 actualRefund = _refundAmount > balance ? balance : _refundAmount;
+            if (actualRefund != _refundAmount) {
+                emit ActualRefund(_token, _refundRecipient, _refundAmount, actualRefund);
+            }
             if (actualRefund > 0) {
                 _transferERC20(_token, _refundRecipient, actualRefund);
                 emit Refund(_token, _refundRecipient, actualRefund);
@@ -253,6 +267,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
                 _transferERC20(_token, _sweepRecipient, remaining);
                 emit Sweep(_token, _sweepRecipient, remaining);
             }
+            emit RefundAndSweep(_token, _refundRecipient, _refundAmount, _sweepRecipient, actualRefund, remaining);
         }
     }
 
