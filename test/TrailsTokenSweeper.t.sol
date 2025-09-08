@@ -32,7 +32,9 @@ contract TrailsTokenSweeperTest is Test {
         uint256 remaining
     );
     event ValidateBalance(address indexed token, address indexed account, uint256 minExpected, uint256 current);
-    event ValidateLesserThanBalance(address indexed token, address indexed account, uint256 maxAllowed, uint256 current);
+    event ValidateLesserThanBalance(
+        address indexed token, address indexed account, uint256 maxAllowed, uint256 current
+    );
     event ActualRefund(address indexed token, address indexed recipient, uint256 expected, uint256 actual);
 
     function setUp() public {

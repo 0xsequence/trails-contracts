@@ -36,11 +36,20 @@ contract TrailsTokenSweeper is IDelegatedExtension {
 
     event Refund(address indexed token, address indexed recipient, uint256 amount);
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
-    event RefundAndSweep(address indexed token, address indexed refundRecipient, uint256 refundAmount, address indexed sweepRecipient, uint256 actualRefund, uint256 remaining);
+    event RefundAndSweep(
+        address indexed token,
+        address indexed refundRecipient,
+        uint256 refundAmount,
+        address indexed sweepRecipient,
+        uint256 actualRefund,
+        uint256 remaining
+    );
     event ValidateBalance(address indexed token, address indexed account, uint256 minExpected, uint256 current);
-    event ValidateLesserThanBalance(address indexed token, address indexed account, uint256 maxAllowed, uint256 current);
+    event ValidateLesserThanBalance(
+        address indexed token, address indexed account, uint256 maxAllowed, uint256 current
+    );
     event ActualRefund(address indexed token, address indexed recipient, uint256 expected, uint256 actual);
-    
+
     // -------------------------------------------------------------------------
     // Constants / Modifiers
     // -------------------------------------------------------------------------
@@ -78,10 +87,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      * @param minExpected The minimum required balance.
      * @return current The current balance of `account` for the given asset.
      */
-    function validateBalance(address token, address account, uint256 minExpected)
-        public
-        returns (uint256 current)
-    {
+    function validateBalance(address token, address account, uint256 minExpected) public returns (uint256 current) {
         if (token == address(0)) {
             current = account.balance;
             if (current < minExpected) {
