@@ -196,7 +196,7 @@ contract TrailsMulticall3RouterTest is Test {
         assertEq(address(multicallWrapper).balance, depositAmount);
     }
 
-    function test_Multicall3Address_IsCorrect() public {
+    function test_Multicall3Address_IsCorrect() public view {
         assertEq(multicallWrapper.multicall3(), 0xcA11bde05977b3631167028862bE2a173976CA11);
     }
 }
