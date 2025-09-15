@@ -101,7 +101,7 @@ contract TrailsMulticall3RouterTest is Test {
         // The test passes if no revert occurred, which means both calls were successful
     }
 
-    function test_PullAndExecute_WithValidToken_ShouldTransferAndExecute() public {
+    function test_pullAmountAndExecute_WithValidToken_ShouldTransferAndExecute() public {
         uint256 transferAmount = 100e18;
 
         // Approve the router to spend tokens
@@ -115,14 +115,14 @@ contract TrailsMulticall3RouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
-        multicallWrapper.pullAndExecute(address(mockToken), transferAmount, callData);
+        multicallWrapper.pullAmountAndExecute(address(mockToken), transferAmount, callData);
 
         // Check that tokens were transferred to the router
         assertEq(mockToken.balanceOf(address(multicallWrapper)), transferAmount);
         assertEq(mockToken.balanceOf(user), 1000e18 - transferAmount);
     }
 
-    function test_PullAndExecute_WithZeroAddress_ShouldSkipTransfer() public {
+    function test_pullAmountAndExecute_WithZeroAddress_ShouldSkipTransfer() public {
         Call3[] memory calls = new Call3[](1);
         calls[0] =
             Call3({target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")});
@@ -130,14 +130,14 @@ contract TrailsMulticall3RouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
-        multicallWrapper.pullAndExecute(address(0), 1 ether, callData);
+        multicallWrapper.pullAmountAndExecute(address(0), 1 ether, callData);
 
         // Check that no tokens were transferred (since address(0) was used)
         assertEq(mockToken.balanceOf(address(multicallWrapper)), 0);
         assertEq(mockToken.balanceOf(user), 1000e18);
     }
 
-    function test_PullAndExecute_WithZeroAmount_ShouldSkipTransfer() public {
+    function test_pullAmountAndExecute_WithZeroAmount_ShouldSkipTransfer() public {
         Call3[] memory calls = new Call3[](1);
         calls[0] =
             Call3({target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")});
@@ -145,14 +145,14 @@ contract TrailsMulticall3RouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
-        multicallWrapper.pullAndExecute(address(mockToken), 0, callData);
+        multicallWrapper.pullAmountAndExecute(address(mockToken), 0, callData);
 
         // Check that no tokens were transferred (since amount was 0)
         assertEq(mockToken.balanceOf(address(multicallWrapper)), 0);
         assertEq(mockToken.balanceOf(user), 1000e18);
     }
 
-    function test_RevertWhen_PullAndExecute_InsufficientAllowance() public {
+    function test_RevertWhen_pullAmountAndExecute_InsufficientAllowance() public {
         uint256 transferAmount = 100e18;
 
         Call3[] memory calls = new Call3[](1);
@@ -163,10 +163,10 @@ contract TrailsMulticall3RouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert("TrailsMulticall3Router: transferFrom failed");
-        multicallWrapper.pullAndExecute(address(mockToken), transferAmount, callData);
+        multicallWrapper.pullAmountAndExecute(address(mockToken), transferAmount, callData);
     }
 
-    function test_RevertWhen_PullAndExecute_TransferFromFails() public {
+    function test_RevertWhen_pullAmountAndExecute_TransferFromFails() public {
         uint256 transferAmount = 100e18;
 
         // Set the failing token to fail on transferFrom
@@ -183,7 +183,7 @@ contract TrailsMulticall3RouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert("TrailsMulticall3Router: transferFrom failed");
-        multicallWrapper.pullAndExecute(address(failingToken), transferAmount, callData);
+        multicallWrapper.pullAmountAndExecute(address(failingToken), transferAmount, callData);
     }
 
     function test_ReceiveETH_ShouldAcceptETH() public {

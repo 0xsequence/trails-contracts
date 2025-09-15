@@ -19,6 +19,7 @@ interface IMulticall3 {
 
 interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
 }
 
 /**
@@ -57,7 +58,27 @@ contract TrailsMulticall3Router {
      * @dev Requires prior approval to this router for at least 'amount'.
      *      Reverts if transferFrom or the delegatecall fails. Returns IMulticall3.Result[].
      */
-    function pullAndExecute(address token, uint256 amount, bytes calldata data)
+    function pullAndExecute(address token, bytes calldata data)
+        public
+        payable
+        returns (IMulticall3.Result[] memory returnResults)
+    {
+        if (token != address(0)) {
+            uint256 amount = IERC20(token).balanceOf(msg.sender);
+            _safeTransferFrom(token, msg.sender, address(this), amount);
+        }
+
+        (bool success, bytes memory returnData) = multicall3.delegatecall(data);
+        require(success, "TrailsMulticall3Router: pullAndExecute failed");
+        return abi.decode(returnData, (IMulticall3.Result[]));
+    }
+
+    /**
+     * @notice Pull ERC20 from msg.sender, then delegatecall into Multicall3.
+     * @dev Requires prior approval to this router for at least 'amount'.
+     *      Reverts if transferFrom or the delegatecall fails. Returns IMulticall3.Result[].
+     */
+    function pullAmountAndExecute(address token, uint256 amount, bytes calldata data)
         public
         payable
         returns (IMulticall3.Result[] memory returnResults)
