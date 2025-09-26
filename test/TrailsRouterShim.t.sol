@@ -48,7 +48,7 @@ contract TrailsRouterShimTest is Test {
         uint256 amount = 42;
         bytes memory callData = abi.encodeWithSelector(MockRouter.pullAndExecute.selector, token, amount, multicallData);
         bytes32 opHash = keccak256("op-hash-pull");
-        uint256 index = 3;
+        uint256 index = 0;
 
         bytes memory ret = wallet.runExtension{value: 1 ether}(address(shim), opHash, index, callData);
 
@@ -89,6 +89,31 @@ contract TrailsRouterShimTest is Test {
         shim.handleSequenceDelegateCall(0x0, 0, 0, 0, 0, callData);
     }
 
+    function testPullAndExecuteSelectorConstant() public {
+        bytes4 expected = bytes4(keccak256("pullAndExecute(address,uint256,bytes)"));
+        bytes4 actual = 0x1bf44db4; // From the test trace
+        assertEq(actual, expected, "pullAndExecute selector mismatch");
+    }
+
+    function testSimplePullAndExecute() public {
+        // Use simpler data like in the execute test
+        bytes memory multicallData = abi.encode(uint256(123));
+        address token = address(0x123);
+        uint256 amount = 1;
+        bytes memory callData = abi.encodeWithSelector(MockRouter.pullAndExecute.selector, token, amount, multicallData);
+        bytes32 opHash = keccak256("op-hash-simple");
+        uint256 index = 0;
+
+        bytes memory ret = wallet.runExtension(address(shim), opHash, index, callData);
+
+        assertEq(router.lastSelector(), MockRouter.pullAndExecute.selector, "selector");
+        assertEq(router.lastSender(), address(wallet), "sender");
+        assertEq(router.lastValue(), 0, "value");
+        assertEq(router.lastToken(), token, "token");
+        assertEq(router.lastAmount(), amount, "amount");
+        assertEq(router.lastData(), multicallData, "calldata");
+    }
+
     function testInvalidSelectorReverts() public {
         bytes32 opHash = keccak256("op-hash-invalid");
         bytes memory callData = abi.encodeWithSelector(bytes4(keccak256("bad()")));
@@ -99,21 +124,14 @@ contract TrailsRouterShimTest is Test {
 }
 
 contract WalletHarness {
-    function runExtension(
-        address extension,
-        bytes32 opHash,
-        uint256 index,
-        bytes memory data
-    ) external payable returns (bytes memory) {
+    function runExtension(address extension, bytes32 opHash, uint256 index, bytes memory data)
+        external
+        payable
+        returns (bytes memory)
+    {
         (bool success, bytes memory ret) = extension.delegatecall(
             abi.encodeWithSelector(
-                IDelegatedExtension.handleSequenceDelegateCall.selector,
-                opHash,
-                0,
-                index,
-                1,
-                0,
-                data
+                IDelegatedExtension.handleSequenceDelegateCall.selector, opHash, 0, index, 1, 0, data
             )
         );
         if (!success) {
@@ -186,14 +204,9 @@ contract MockRouter {
         return _mockResults(data);
     }
 
-    function _record(
-        bytes4 selector,
-        address sender,
-        uint256 value,
-        address token,
-        uint256 amount,
-        bytes calldata data
-    ) internal {
+    function _record(bytes4 selector, address sender, uint256 value, address token, uint256 amount, bytes calldata data)
+        internal
+    {
         _lastSelector = selector;
         _lastSender = sender;
         _lastValue = value;

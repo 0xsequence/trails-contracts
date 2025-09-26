@@ -62,17 +62,13 @@ contract TrailsRouterShim is IDelegatedExtension {
     ) external override onlyDelegatecall {
         if (data.length < 4) revert InvalidSelector(0x00000000);
 
-        bytes memory routerCalldata = data;
-        bytes4 selector;
-        assembly {
-            selector := shr(224, mload(add(routerCalldata, 32)))
-        }
+        bytes4 selector = bytes4(data[0:4]);
 
         if (selector != EXECUTE_SELECTOR && selector != PULL_AND_EXECUTE_SELECTOR) {
             revert InvalidSelector(selector);
         }
 
-        bytes memory routerReturn = _forwardToRouter(routerCalldata);
+        bytes memory routerReturn = _forwardToRouter(data);
 
         Storage.writeBytes32(_successSlot(opHash, index), ROUTER_SUCCESS_VALUE);
 
@@ -85,9 +81,11 @@ contract TrailsRouterShim is IDelegatedExtension {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    function _forwardToRouter(bytes memory forwardData) internal returns (bytes memory) {
+    function _forwardToRouter(bytes calldata forwardData) internal returns (bytes memory) {
         (bool success, bytes memory ret) = router.call{value: msg.value}(forwardData);
-        if (!success) revert RouterCallFailed(ret);
+        if (!success) {
+            revert RouterCallFailed(ret);
+        }
         return ret;
     }
 
