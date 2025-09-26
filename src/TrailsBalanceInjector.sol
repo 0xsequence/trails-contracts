@@ -21,7 +21,7 @@ contract TrailsBalanceInjector {
     /**
      * @notice Sweeps entire token balance of `token` and calls `target` with `callData`,
      *         replacing a 32-byte placeholder at `amountOffset` with the balance.
-     * @param token The ERC-20 token to sweep.
+     * @param token The ERC-20 token to sweep, or address(0) for ETH.
      * @param target The address to call with modified calldata.
      * @param callData The original calldata (must include a 32-byte placeholder).
      * @param amountOffset The byte offset in calldata where the placeholder is located.
@@ -33,13 +33,22 @@ contract TrailsBalanceInjector {
         bytes calldata callData,
         uint256 amountOffset,
         bytes32 placeholder
-    ) external {
-        uint256 callerBalance = IERC20(token).balanceOf(msg.sender);
-        require(callerBalance > 0, "No tokens to sweep");
-
-        // Transfer all tokens from caller to this contract
-        bool transferred = IERC20(token).transferFrom(msg.sender, address(this), callerBalance);
-        require(transferred, "TransferFrom failed");
+    ) external payable {
+        uint256 callerBalance;
+        
+        if (token == address(0)) {
+            // Handle ETH
+            callerBalance = msg.value;
+            require(callerBalance > 0, "No ETH sent");
+        } else {
+            // Handle ERC20
+            callerBalance = IERC20(token).balanceOf(msg.sender);
+            require(callerBalance > 0, "No tokens to sweep");
+            
+            // Transfer all tokens from caller to this contract
+            bool transferred = IERC20(token).transferFrom(msg.sender, address(this), callerBalance);
+            require(transferred, "TransferFrom failed");
+        }
 
         // Copy calldata into memory
         bytes memory data = callData;
@@ -59,14 +68,20 @@ contract TrailsBalanceInjector {
             mstore(add(add(data, 32), amountOffset), callerBalance)
         }
 
-        // Approve target to spend tokens
-        bool approved = IERC20(token).approve(target, callerBalance);
-        require(approved, "Token approve failed");
+        if (token == address(0)) {
+            // Make the call with ETH
+            (bool success, bytes memory result) = target.call{value: callerBalance}(data);
+            emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
+            require(success, string(result));
+        } else {
+            // Approve target to spend tokens
+            bool approved = IERC20(token).approve(target, callerBalance);
+            require(approved, "Token approve failed");
 
-        // Make the actual call
-        (bool success, bytes memory result) = target.call(data);
-        emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
-
-        require(success, string(result));
+            // Make the call without ETH
+            (bool success, bytes memory result) = target.call(data);
+            emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
+            require(success, string(result));
+        }
     }
 }
