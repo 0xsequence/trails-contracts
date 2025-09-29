@@ -50,6 +50,8 @@ contract TrailsRouterShimTest is Test {
         bytes32 opHash = keccak256("op-hash-pull");
         uint256 index = 0;
 
+        vm.deal(address(wallet), 2 ether);
+
         bytes memory ret = wallet.runExtension{value: 1 ether}(address(shim), opHash, index, callData);
 
         assertEq(router.lastSelector(), MockRouter.pullAndExecute.selector, "selector");

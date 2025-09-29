@@ -6,15 +6,10 @@ import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
 
 /// @title TrailsRouterShim
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
-contract TrailsRouterShim is IDelegatedExtension {
+contract TrailsRouterShim {
     // -------------------------------------------------------------------------
     // Constants
     // -------------------------------------------------------------------------
-
-    /// @notice Selector for TrailsMulticall3Router.execute(bytes)
-    bytes4 internal constant EXECUTE_SELECTOR = bytes4(keccak256("execute(bytes)"));
-    /// @notice Selector for TrailsMulticall3Router.pullAndExecute(address,uint256,bytes)
-    bytes4 internal constant PULL_AND_EXECUTE_SELECTOR = bytes4(keccak256("pullAndExecute(address,uint256,bytes)"));
 
     /// @notice Namespace for marking successful router execution in wallet storage
     bytes32 public constant ROUTER_SENTINEL_NAMESPACE = keccak256("org.sequence.trails.router.sentinel");
@@ -59,16 +54,12 @@ contract TrailsRouterShim is IDelegatedExtension {
         uint256, // numCalls (unused)
         uint256, // space (unused)
         bytes calldata data
-    ) external override onlyDelegatecall {
+    ) external payable onlyDelegatecall {
         if (data.length < 4) revert InvalidSelector(0x00000000);
 
-        bytes4 selector = bytes4(data[0:4]);
+        bytes memory forwardData = data;
 
-        if (selector != EXECUTE_SELECTOR && selector != PULL_AND_EXECUTE_SELECTOR) {
-            revert InvalidSelector(selector);
-        }
-
-        bytes memory routerReturn = _forwardToRouter(data);
+        bytes memory routerReturn = _forwardToRouter(forwardData);
 
         Storage.writeBytes32(_successSlot(opHash, index), ROUTER_SUCCESS_VALUE);
 
@@ -81,7 +72,7 @@ contract TrailsRouterShim is IDelegatedExtension {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    function _forwardToRouter(bytes calldata forwardData) internal returns (bytes memory) {
+    function _forwardToRouter(bytes memory forwardData) internal returns (bytes memory) {
         (bool success, bytes memory ret) = router.call{value: msg.value}(forwardData);
         if (!success) {
             revert RouterCallFailed(ret);
