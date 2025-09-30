@@ -3,19 +3,11 @@ pragma solidity ^0.8.27;
 
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
+import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 
 /// @title TrailsRouterShim
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
 contract TrailsRouterShim {
-    // -------------------------------------------------------------------------
-    // Constants
-    // -------------------------------------------------------------------------
-
-    /// @notice Namespace for marking successful router execution in wallet storage
-    bytes32 public constant ROUTER_SENTINEL_NAMESPACE = keccak256("org.sequence.trails.router.sentinel");
-    /// @notice Sentinel value written to storage upon router success
-    bytes32 public constant ROUTER_SUCCESS_VALUE = bytes32(uint256(1));
-
     // -------------------------------------------------------------------------
     // Immutable variables
     // -------------------------------------------------------------------------
@@ -57,11 +49,9 @@ contract TrailsRouterShim {
     ) external payable onlyDelegatecall {
         if (data.length < 4) revert InvalidSelector(0x00000000);
 
-        bytes memory forwardData = data;
+        bytes memory routerReturn = _forwardToRouter(data);
 
-        bytes memory routerReturn = _forwardToRouter(forwardData);
-
-        Storage.writeBytes32(_successSlot(opHash, index), ROUTER_SUCCESS_VALUE);
+        Storage.writeBytes32(TrailsSentinelLib.successSlot(opHash, index), TrailsSentinelLib.SUCCESS_VALUE);
 
         assembly {
             return(add(routerReturn, 32), mload(routerReturn))
@@ -72,16 +62,12 @@ contract TrailsRouterShim {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    function _forwardToRouter(bytes memory forwardData) internal returns (bytes memory) {
+    function _forwardToRouter(bytes calldata forwardData) internal returns (bytes memory) {
         (bool success, bytes memory ret) = router.call{value: msg.value}(forwardData);
         if (!success) {
             revert RouterCallFailed(ret);
         }
         return ret;
-    }
-
-    function _successSlot(bytes32 opHash, uint256 index) internal pure returns (bytes32) {
-        return keccak256(abi.encode(ROUTER_SENTINEL_NAMESPACE, opHash, index));
     }
 
     // -------------------------------------------------------------------------
