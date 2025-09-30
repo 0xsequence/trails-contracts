@@ -5,6 +5,8 @@ pragma solidity ^0.8.24;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
+import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
+import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 
 /**
  * @title TrailsTokenSweeper
@@ -29,6 +31,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     error InsufficientERC20Balance(address token, address account, uint256 required, uint256 available);
     error ExcessiveNativeBalance(address account, uint256 maxAllowed, uint256 available);
     error ExcessiveERC20Balance(address token, address account, uint256 maxAllowed, uint256 available);
+    error SuccessSentinelNotSet();
 
     // -------------------------------------------------------------------------
     // Events
@@ -277,6 +280,18 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         }
     }
 
+    function validateOpHashAndSweep(bytes32 opHash, uint256 index, address token, uint256 maxAllowed, address recipient)
+        public
+        payable
+        onlyDelegatecall
+    {
+        bytes32 slot = TrailsSentinelLib.successSlot(opHash, index);
+        if (Storage.readBytes32(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
+            revert SuccessSentinelNotSet();
+        }
+        validateLesserThanAndSweep(token, maxAllowed, recipient);
+    }
+
     // -------------------------------------------------------------------------
     // Sequence Delegated Extension Entry Point
     // -------------------------------------------------------------------------
@@ -334,6 +349,13 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         if (selector == this.validateLesserThanBalance.selector) {
             (address token, address account, uint256 maxAllowed) = abi.decode(_data[4:], (address, address, uint256));
             validateLesserThanBalance(token, account, maxAllowed);
+            return;
+        }
+
+        if (selector == this.validateOpHashAndSweep.selector) {
+            (bytes32 opHash, uint256 index, address token, uint256 maxAllowed, address recipient) =
+                abi.decode(_data[4:], (bytes32, uint256, address, uint256, address));
+            validateOpHashAndSweep(opHash, index, token, maxAllowed, recipient);
             return;
         }
 
