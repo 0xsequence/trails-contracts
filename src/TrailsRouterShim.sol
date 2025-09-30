@@ -42,7 +42,7 @@ contract TrailsRouterShim {
     function handleSequenceDelegateCall(
         bytes32 opHash,
         uint256, // startingGas (unused)
-        uint256 index,
+        uint256, // index (unused)
         uint256, // numCalls (unused)
         uint256, // space (unused)
         bytes calldata data
@@ -51,7 +51,7 @@ contract TrailsRouterShim {
 
         bytes memory routerReturn = _forwardToRouter(data);
 
-        Storage.writeBytes32(TrailsSentinelLib.successSlot(opHash, index), TrailsSentinelLib.SUCCESS_VALUE);
+        Storage.writeBytes32(TrailsSentinelLib.successSlot(opHash), TrailsSentinelLib.SUCCESS_VALUE);
 
         assembly {
             return(add(routerReturn, 32), mload(routerReturn))

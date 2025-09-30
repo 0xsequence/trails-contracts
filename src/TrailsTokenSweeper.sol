@@ -285,7 +285,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         payable
         onlyDelegatecall
     {
-        bytes32 slot = TrailsSentinelLib.successSlot(opHash, index);
+        bytes32 slot = TrailsSentinelLib.successSlot(opHash);
         if (Storage.readBytes32(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
             revert SuccessSentinelNotSet();
         }

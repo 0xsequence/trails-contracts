@@ -1223,7 +1223,7 @@ contract TrailsTokenSweeperTest is Test {
         uint256 maxAllowed = 2 ether;
         vm.deal(holder, 1 ether); // balance < maxAllowed
 
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash, index));
+        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
         vm.store(holder, slot, TEST_SUCCESS_VALUE);
 
         bytes memory data = abi.encodeWithSelector(
@@ -1252,7 +1252,7 @@ contract TrailsTokenSweeperTest is Test {
         uint256 maxAllowed = 200 * 1e18;
         erc20.mint(holder, amount); // balance < maxAllowed
 
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash, index));
+        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
         vm.store(holder, slot, TEST_SUCCESS_VALUE);
 
         bytes memory data = abi.encodeWithSelector(
@@ -1281,7 +1281,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.deal(holder, 1 ether);
 
         // Slot not set (default 0)
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash, index));
+        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.validateOpHashAndSweep.selector, opHash, index, address(0), maxAllowed, recipient
@@ -1307,7 +1307,7 @@ contract TrailsTokenSweeperTest is Test {
         erc20.mint(holder, amount);
 
         // Slot not set
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash, index));
+        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
 
         bytes memory data = abi.encodeWithSelector(
             TrailsTokenSweeper.validateOpHashAndSweep.selector, opHash, index, address(erc20), maxAllowed, recipient
@@ -1331,7 +1331,7 @@ contract TrailsTokenSweeperTest is Test {
         uint256 maxAllowed = 1 ether;
         vm.deal(holder, 2 ether); // balance > maxAllowed
 
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash, index));
+        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
         vm.store(holder, slot, TEST_SUCCESS_VALUE);
 
         bytes memory data = abi.encodeWithSelector(
@@ -1355,7 +1355,7 @@ contract TrailsTokenSweeperTest is Test {
         uint256 maxAllowed = 100 * 1e18;
         erc20.mint(holder, amount); // balance > maxAllowed
 
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash, index));
+        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
         vm.store(holder, slot, TEST_SUCCESS_VALUE);
 
         bytes memory data = abi.encodeWithSelector(

@@ -37,7 +37,7 @@ contract TrailsRouterShimTest is Test {
         assertTrue(decoded[0].success, "result success");
         assertEq(decoded[0].returnData, multicallData, "result data");
 
-        bytes32 slot = keccak256(abi.encode(SENTINEL_NAMESPACE, opHash, index));
+        bytes32 slot = keccak256(abi.encode(SENTINEL_NAMESPACE, opHash));
         bytes32 stored = vm.load(address(wallet), slot);
         assertEq(stored, SENTINEL_VALUE, "sentinel not set");
     }
@@ -65,7 +65,7 @@ contract TrailsRouterShimTest is Test {
         assertEq(decoded.length, 1, "result length");
         assertTrue(decoded[0].success, "result success");
 
-        bytes32 slot = keccak256(abi.encode(SENTINEL_NAMESPACE, opHash, index));
+        bytes32 slot = keccak256(abi.encode(SENTINEL_NAMESPACE, opHash));
         bytes32 stored = vm.load(address(wallet), slot);
         assertEq(stored, SENTINEL_VALUE, "sentinel not set");
     }
@@ -74,13 +74,13 @@ contract TrailsRouterShimTest is Test {
         router.setNextRevert(bytes("router failed"));
 
         bytes32 opHash = keccak256("op-hash-fail");
-        uint256 index = 1;
+        uint256 index = 0;
         bytes memory callData = abi.encodeWithSelector(MockRouter.execute.selector, bytes("payload"));
 
         vm.expectRevert(abi.encodeWithSelector(TrailsRouterShim.RouterCallFailed.selector, bytes("router failed")));
         wallet.runExtension(address(shim), opHash, index, callData);
 
-        bytes32 slot = keccak256(abi.encode(SENTINEL_NAMESPACE, opHash, index));
+        bytes32 slot = keccak256(abi.encode(SENTINEL_NAMESPACE, opHash));
         bytes32 stored = vm.load(address(wallet), slot);
         assertEq(stored, bytes32(0), "sentinel should remain unset");
     }
