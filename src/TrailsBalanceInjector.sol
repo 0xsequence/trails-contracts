@@ -123,24 +123,15 @@ contract TrailsBalanceInjector is IDelegatedExtension {
         uint256 callerBalance;
         
         if (token == address(0)) {
-            // Handle ETH
-            // When delegatecalled by intent wallet, address(this).balance is the wallet's balance
-            // When called normally, use msg.value
-            if (msg.value > 0) {
-                callerBalance = msg.value;
-            } else {
-                // Delegatecall pattern: read the caller's (wallet's) balance
-                callerBalance = address(this).balance;
-                require(callerBalance > 0, "No ETH available");
-            }
+            // Always use address(this).balance, regardless of call type.
+            // The contract must have ETH available before calling this function.
+            callerBalance = address(this).balance;
+            require(callerBalance > 0, "No ETH available in contract");
         } else {
             // Handle ERC20
             // When delegatecalled, address(this) is the wallet's address, so we read its token balance
             callerBalance = IERC20(token).balanceOf(address(this));
             require(callerBalance > 0, "No tokens to sweep");
-            
-            // Note: No transferFrom needed when delegatecalled - we're already in the wallet's context
-            // The tokens are already in address(this) (the wallet)
         }
 
         // Execute the call with the balance
