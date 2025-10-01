@@ -84,12 +84,7 @@ contract MockWallet {
         bytes32 placeholder
     ) external payable returns (bool success, bytes memory result) {
         bytes memory data = abi.encodeWithSignature(
-            "injectAndCall(address,address,bytes,uint256,bytes32)",
-            token,
-            target,
-            callData,
-            amountOffset,
-            placeholder
+            "injectAndCall(address,address,bytes,uint256,bytes32)", token, target, callData, amountOffset, placeholder
         );
         return balanceInjector.delegatecall(data);
     }
@@ -159,7 +154,7 @@ contract TrailsBalanceInjectorTest is Test {
         assertEq(token.balanceOf(address(this)), 0);
         assertEq(token.balanceOf(address(target)), tokenBalance);
         assertEq(token.balanceOf(address(balanceInjector)), 0);
-        
+
         // Verify allowance was consumed after transferFrom
         assertEq(token.allowance(address(balanceInjector), address(target)), 0);
     }
@@ -209,7 +204,9 @@ contract TrailsBalanceInjectorTest is Test {
         uint256 amountOffset = 4;
 
         // Call injectSweepAndCall with ETH (token = address(0))
-        balanceInjector.injectSweepAndCall{value: ethAmount}(address(0), address(targetETH), callData, amountOffset, PLACEHOLDER);
+        balanceInjector.injectSweepAndCall{value: ethAmount}(
+            address(0), address(targetETH), callData, amountOffset, PLACEHOLDER
+        );
 
         // Verify target received the correct amount in the function parameter
         assertEq(targetETH.lastAmount(), ethAmount);
@@ -236,7 +233,9 @@ contract TrailsBalanceInjectorTest is Test {
         bytes32 wrongPlaceholder = 0x1111111111111111111111111111111111111111111111111111111111111111;
 
         vm.expectRevert("Placeholder mismatch");
-        balanceInjector.injectSweepAndCall{value: ethAmount}(address(0), address(targetETH), callData, 4, wrongPlaceholder);
+        balanceInjector.injectSweepAndCall{value: ethAmount}(
+            address(0), address(targetETH), callData, 4, wrongPlaceholder
+        );
     }
 
     function testRevertWhenETHTargetFails() public {
@@ -265,7 +264,7 @@ contract TrailsBalanceInjectorTest is Test {
 
     function testMixedETHAndERC20Operations() public {
         // Test that both ETH and ERC20 operations work independently
-        
+
         // First, test ERC20
         uint256 tokenBalance = 500e18;
         token.mint(address(this), tokenBalance);
@@ -278,7 +277,9 @@ contract TrailsBalanceInjectorTest is Test {
         // Then, test ETH
         uint256 ethAmount = 1.5 ether;
         bytes memory ethCallData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
-        balanceInjector.injectSweepAndCall{value: ethAmount}(address(0), address(targetETH), ethCallData, 4, PLACEHOLDER);
+        balanceInjector.injectSweepAndCall{value: ethAmount}(
+            address(0), address(targetETH), ethCallData, 4, PLACEHOLDER
+        );
         assertEq(targetETH.lastAmount(), ethAmount);
         assertEq(targetETH.receivedETH(), ethAmount);
     }
@@ -290,7 +291,7 @@ contract TrailsBalanceInjectorTest is Test {
 
     function testDelegateCallWithETH() public {
         MockWallet wallet = new MockWallet();
-        
+
         // Fund the wallet with ETH
         uint256 ethAmount = 2 ether;
         vm.deal(address(wallet), ethAmount);
@@ -300,7 +301,7 @@ contract TrailsBalanceInjectorTest is Test {
 
         // Delegatecall BalanceInjector from wallet
         // When delegatecalled, BalanceInjector will read address(this).balance (wallet's balance)
-        (bool success, ) = wallet.delegateCallBalanceInjector(
+        (bool success,) = wallet.delegateCallBalanceInjector(
             address(balanceInjector),
             address(0), // ETH
             address(targetETH),
@@ -317,7 +318,7 @@ contract TrailsBalanceInjectorTest is Test {
 
     function testDelegateCallWithERC20() public {
         MockWallet wallet = new MockWallet();
-        
+
         // Mint tokens directly to the wallet
         uint256 tokenBalance = 1000e18;
         token.mint(address(wallet), tokenBalance);
@@ -327,7 +328,7 @@ contract TrailsBalanceInjectorTest is Test {
 
         // Delegatecall BalanceInjector from wallet
         // When delegatecalled, BalanceInjector will read IERC20(token).balanceOf(address(this)) (wallet's balance)
-        (bool success, ) = wallet.delegateCallBalanceInjector(
+        (bool success,) = wallet.delegateCallBalanceInjector(
             address(balanceInjector),
             address(token),
             address(target),
@@ -343,7 +344,7 @@ contract TrailsBalanceInjectorTest is Test {
 
     function testHandleSequenceDelegateCall() public {
         MockWallet wallet = new MockWallet();
-        
+
         // Fund the wallet with ETH
         uint256 ethAmount = 1.5 ether;
         vm.deal(address(wallet), ethAmount);
@@ -360,7 +361,7 @@ contract TrailsBalanceInjectorTest is Test {
         );
 
         // Call handleSequenceDelegateCall (simulates Sequence wallet behavior)
-        (bool success, ) = wallet.handleSequenceDelegateCall(
+        (bool success,) = wallet.handleSequenceDelegateCall(
             address(balanceInjector),
             bytes32(uint256(1)), // opHash
             1000000, // startingGas
@@ -377,7 +378,7 @@ contract TrailsBalanceInjectorTest is Test {
 
     function testHandleSequenceDelegateCallWithERC20() public {
         MockWallet wallet = new MockWallet();
-        
+
         // Mint tokens to wallet
         uint256 tokenBalance = 500e18;
         token.mint(address(wallet), tokenBalance);
@@ -394,7 +395,7 @@ contract TrailsBalanceInjectorTest is Test {
         );
 
         // Call handleSequenceDelegateCall
-        (bool success, ) = wallet.handleSequenceDelegateCall(
+        (bool success,) = wallet.handleSequenceDelegateCall(
             address(balanceInjector),
             bytes32(uint256(1)), // opHash
             1000000, // startingGas
@@ -412,7 +413,7 @@ contract TrailsBalanceInjectorTest is Test {
     function testSkipPlaceholderReplacementWithZeroOffsetAndPlaceholder() public {
         // Test that when offset=0 and placeholder=0, replacement is skipped
         uint256 ethAmount = 1 ether;
-        
+
         // Calldata without placeholder (direct amount)
         bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", ethAmount, address(0x123));
 
@@ -435,21 +436,12 @@ contract TrailsBalanceInjectorTest is Test {
         vm.deal(address(wallet), 1 ether);
 
         // Encode wrong function (not injectAndCall)
-        bytes memory wrongCallData = abi.encodeWithSignature(
-            "wrongFunction(address,address)",
-            address(0),
-            address(targetETH)
-        );
+        bytes memory wrongCallData =
+            abi.encodeWithSignature("wrongFunction(address,address)", address(0), address(targetETH));
 
         // Should revert with "Invalid selector"
         (bool success, bytes memory result) = wallet.handleSequenceDelegateCall(
-            address(balanceInjector),
-            bytes32(uint256(1)),
-            1000000,
-            0,
-            1,
-            0,
-            wrongCallData
+            address(balanceInjector), bytes32(uint256(1)), 1000000, 0, 1, 0, wrongCallData
         );
 
         assertFalse(success, "Should fail with invalid selector");
@@ -464,13 +456,8 @@ contract TrailsBalanceInjectorTest is Test {
 
         bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
 
-        (bool success, ) = wallet.delegateCallBalanceInjector(
-            address(balanceInjector),
-            address(0),
-            address(targetETH),
-            callData,
-            4,
-            PLACEHOLDER
+        (bool success,) = wallet.delegateCallBalanceInjector(
+            address(balanceInjector), address(0), address(targetETH), callData, 4, PLACEHOLDER
         );
 
         assertFalse(success, "Should fail when wallet has no ETH");
@@ -482,13 +469,8 @@ contract TrailsBalanceInjectorTest is Test {
 
         bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
 
-        (bool success, ) = wallet.delegateCallBalanceInjector(
-            address(balanceInjector),
-            address(token),
-            address(target),
-            callData,
-            4,
-            PLACEHOLDER
+        (bool success,) = wallet.delegateCallBalanceInjector(
+            address(balanceInjector), address(token), address(target), callData, 4, PLACEHOLDER
         );
 
         assertFalse(success, "Should fail when wallet has no tokens");

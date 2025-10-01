@@ -35,22 +35,22 @@ contract TrailsBalanceInjector is IDelegatedExtension {
      * Reference: https://github.com/0xsequence/wallet-contracts-v3/blob/6fe1cef932fadd69096623c1556d468f309f71e8/src/modules/interfaces/IDelegatedExtension.sol#L16
      */
     function handleSequenceDelegateCall(
-        bytes32 /* _opHash */,
-        uint256 /* _startingGas */,
-        uint256 /* _callIndex */,
-        uint256 /* _numCalls */,
-        uint256 /* _space */,
+        bytes32, /* _opHash */
+        uint256, /* _startingGas */
+        uint256, /* _callIndex */
+        uint256, /* _numCalls */
+        uint256, /* _space */
         bytes calldata _data
     ) external override {
         // Decode the inner injectAndCall call
         require(_data.length >= 4, "Invalid calldata");
         bytes4 selector = bytes4(_data[:4]);
         require(selector == this.injectAndCall.selector, "Invalid selector");
-        
+
         // Decode parameters: (address token, address target, bytes calldata callData, uint256 amountOffset, bytes32 placeholder)
-        (address token, address target, bytes memory callData, uint256 amountOffset, bytes32 placeholder) = 
+        (address token, address target, bytes memory callData, uint256 amountOffset, bytes32 placeholder) =
             abi.decode(_data[4:], (address, address, bytes, uint256, bytes32));
-        
+
         // Call injectAndCall internally
         _injectAndCall(token, target, callData, amountOffset, placeholder);
     }
@@ -72,7 +72,7 @@ contract TrailsBalanceInjector is IDelegatedExtension {
         bytes32 placeholder
     ) external payable {
         uint256 callerBalance;
-        
+
         if (token == address(0)) {
             // Handle ETH - use msg.value
             callerBalance = msg.value;
@@ -81,7 +81,7 @@ contract TrailsBalanceInjector is IDelegatedExtension {
             // Handle ERC20 - transfer from msg.sender
             callerBalance = IERC20(token).balanceOf(msg.sender);
             require(callerBalance > 0, "No tokens to sweep");
-            
+
             // Transfer all tokens from caller to this contract
             bool transferred = IERC20(token).transferFrom(msg.sender, address(this), callerBalance);
             require(transferred, "TransferFrom failed");
@@ -121,7 +121,7 @@ contract TrailsBalanceInjector is IDelegatedExtension {
         bytes32 placeholder
     ) internal {
         uint256 callerBalance;
-        
+
         if (token == address(0)) {
             // Always use address(this).balance, regardless of call type.
             // The contract must have ETH available before calling this function.
@@ -160,7 +160,7 @@ contract TrailsBalanceInjector is IDelegatedExtension {
 
         // If amountOffset and placeholder are both zero, skip replacement logic
         bool shouldReplace = (amountOffset != 0 || placeholder != bytes32(0));
-        
+
         if (shouldReplace) {
             // Safety check: avoid overflow
             require(data.length >= amountOffset + 32, "amountOffset out of bounds");
