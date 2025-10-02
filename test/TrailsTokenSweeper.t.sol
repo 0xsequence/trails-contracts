@@ -1219,23 +1219,19 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateOpHashAndSweep_native_success() public {
         bytes32 opHash = keccak256("test-op-hash");
-        uint256 index = 0;
-        uint256 maxAllowed = 2 ether;
-        vm.deal(holder, 1 ether); // balance < maxAllowed
+        vm.deal(holder, 1 ether);
 
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
         vm.store(holder, slot, TEST_SUCCESS_VALUE);
 
         bytes memory data = abi.encodeWithSelector(
-            TrailsTokenSweeper.validateOpHashAndSweep.selector, opHash, index, address(0), maxAllowed, recipient
+            TrailsTokenSweeper.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient
         );
 
         vm.expectEmit(true, true, false, true);
-        emit ValidateLesserThanBalance(address(0), holder, maxAllowed, 1 ether);
-        vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
 
-        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
 
         assertEq(holder.balance, 0);
         assertEq(recipient.balance, 1 ether);
@@ -1247,24 +1243,20 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateOpHashAndSweep_erc20_success() public {
         bytes32 opHash = keccak256("test-op-hash-erc20");
-        uint256 index = 0;
         uint256 amount = 100 * 1e18;
-        uint256 maxAllowed = 200 * 1e18;
-        erc20.mint(holder, amount); // balance < maxAllowed
+        erc20.mint(holder, amount);
 
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
         vm.store(holder, slot, TEST_SUCCESS_VALUE);
 
         bytes memory data = abi.encodeWithSelector(
-            TrailsTokenSweeper.validateOpHashAndSweep.selector, opHash, index, address(erc20), maxAllowed, recipient
+            TrailsTokenSweeper.validateOpHashAndSweep.selector, bytes32(0), address(erc20), recipient
         );
 
         vm.expectEmit(true, true, false, true);
-        emit ValidateLesserThanBalance(address(erc20), holder, maxAllowed, amount);
-        vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
 
-        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(recipient), amount);
@@ -1276,15 +1268,13 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateOpHashAndSweep_revert_when_sentinel_not_set_native() public {
         bytes32 opHash = keccak256("test-op-fail");
-        uint256 index = 0;
-        uint256 maxAllowed = 2 ether;
         vm.deal(holder, 1 ether);
 
         // Slot not set (default 0)
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
 
         bytes memory data = abi.encodeWithSelector(
-            TrailsTokenSweeper.validateOpHashAndSweep.selector, opHash, index, address(0), maxAllowed, recipient
+            TrailsTokenSweeper.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient
         );
 
         vm.expectRevert(TrailsTokenSweeper.SuccessSentinelNotSet.selector);
@@ -1301,16 +1291,14 @@ contract TrailsTokenSweeperTest is Test {
 
     function test_validateOpHashAndSweep_revert_when_sentinel_not_set_erc20() public {
         bytes32 opHash = keccak256("test-op-fail-erc20");
-        uint256 index = 0;
         uint256 amount = 100 * 1e18;
-        uint256 maxAllowed = 200 * 1e18;
         erc20.mint(holder, amount);
 
         // Slot not set
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
 
         bytes memory data = abi.encodeWithSelector(
-            TrailsTokenSweeper.validateOpHashAndSweep.selector, opHash, index, address(erc20), maxAllowed, recipient
+            TrailsTokenSweeper.validateOpHashAndSweep.selector, bytes32(0), address(erc20), recipient
         );
 
         vm.expectRevert(TrailsTokenSweeper.SuccessSentinelNotSet.selector);
@@ -1323,54 +1311,5 @@ contract TrailsTokenSweeperTest is Test {
         // Slot still not set
         bytes32 stored = vm.load(holder, slot);
         assertEq(stored, bytes32(0));
-    }
-
-    function test_validateOpHashAndSweep_revert_excessive_balance_after_sentinel_check_native() public {
-        bytes32 opHash = keccak256("test-op-excessive");
-        uint256 index = 0;
-        uint256 maxAllowed = 1 ether;
-        vm.deal(holder, 2 ether); // balance > maxAllowed
-
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
-        vm.store(holder, slot, TEST_SUCCESS_VALUE);
-
-        bytes memory data = abi.encodeWithSelector(
-            TrailsTokenSweeper.validateOpHashAndSweep.selector, opHash, index, address(0), maxAllowed, recipient
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(TrailsTokenSweeper.ExcessiveNativeBalance.selector, holder, maxAllowed, 2 ether)
-        );
-        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
-
-        // No sweep happened
-        assertEq(holder.balance, 2 ether);
-        assertEq(recipient.balance, 0);
-    }
-
-    function test_validateOpHashAndSweep_revert_excessive_balance_after_sentinel_check_erc20() public {
-        bytes32 opHash = keccak256("test-op-excessive-erc20");
-        uint256 index = 0;
-        uint256 amount = 200 * 1e18;
-        uint256 maxAllowed = 100 * 1e18;
-        erc20.mint(holder, amount); // balance > maxAllowed
-
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
-        vm.store(holder, slot, TEST_SUCCESS_VALUE);
-
-        bytes memory data = abi.encodeWithSelector(
-            TrailsTokenSweeper.validateOpHashAndSweep.selector, opHash, index, address(erc20), maxAllowed, recipient
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TrailsTokenSweeper.ExcessiveERC20Balance.selector, address(erc20), holder, maxAllowed, amount
-            )
-        );
-        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
-
-        // No sweep happened
-        assertEq(erc20.balanceOf(holder), amount);
-        assertEq(erc20.balanceOf(recipient), 0);
     }
 }

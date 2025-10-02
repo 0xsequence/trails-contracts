@@ -280,7 +280,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         }
     }
 
-    function validateOpHashAndSweep(bytes32 opHash, uint256 index, address token, uint256 maxAllowed, address recipient)
+    function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient)
         public
         payable
         onlyDelegatecall
@@ -289,7 +289,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         if (Storage.readBytes32(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
             revert SuccessSentinelNotSet();
         }
-        validateLesserThanAndSweep(token, maxAllowed, recipient);
+        sweep(_token, _recipient);
     }
 
     // -------------------------------------------------------------------------
@@ -303,7 +303,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      *      Execution context is that of the wallet (delegatecall), which is required for sweeping.
      */
     function handleSequenceDelegateCall(
-        bytes32, /* _opHash */
+        bytes32 _opHash, /* _opHash */
         uint256, /* _startingGas */
         uint256, /* _index */
         uint256, /* _numCalls */
@@ -353,9 +353,9 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         }
 
         if (selector == this.validateOpHashAndSweep.selector) {
-            (bytes32 opHash, uint256 index, address token, uint256 maxAllowed, address recipient) =
-                abi.decode(_data[4:], (bytes32, uint256, address, uint256, address));
-            validateOpHashAndSweep(opHash, index, token, maxAllowed, recipient);
+            (bytes32 _placeholder, address token, address recipient) =
+                abi.decode(_data[4:], (bytes32, address, address));
+            validateOpHashAndSweep(_opHash, token, recipient);
             return;
         }
 
