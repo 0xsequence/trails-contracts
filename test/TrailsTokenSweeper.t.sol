@@ -1231,7 +1231,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
 
-        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
 
         assertEq(holder.balance, 0);
         assertEq(recipient.balance, 1 ether);
@@ -1256,7 +1256,7 @@ contract TrailsTokenSweeperTest is Test {
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
 
-        IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(recipient), amount);
