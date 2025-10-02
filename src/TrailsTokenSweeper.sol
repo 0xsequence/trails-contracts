@@ -303,7 +303,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
      *      Execution context is that of the wallet (delegatecall), which is required for sweeping.
      */
     function handleSequenceDelegateCall(
-        _opHash bytes32, /* _opHash */
+        bytes32 _opHash, /* _opHash */
         uint256, /* _startingGas */
         uint256, /* _index */
         uint256, /* _numCalls */
