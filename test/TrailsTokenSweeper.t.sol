@@ -1224,8 +1224,9 @@ contract TrailsTokenSweeperTest is Test {
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
         vm.store(holder, slot, TEST_SUCCESS_VALUE);
 
-        bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateOpHashAndSweep.selector, address(0), recipient);
+        bytes memory data = abi.encodeWithSelector(
+            TrailsTokenSweeper.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient
+        );
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
@@ -1248,8 +1249,9 @@ contract TrailsTokenSweeperTest is Test {
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
         vm.store(holder, slot, TEST_SUCCESS_VALUE);
 
-        bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateOpHashAndSweep.selector, address(erc20), recipient);
+        bytes memory data = abi.encodeWithSelector(
+            TrailsTokenSweeper.validateOpHashAndSweep.selector, bytes32(0), address(erc20), recipient
+        );
 
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(erc20), recipient, amount);
@@ -1271,8 +1273,9 @@ contract TrailsTokenSweeperTest is Test {
         // Slot not set (default 0)
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
 
-        bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateOpHashAndSweep.selector, address(0), recipient);
+        bytes memory data = abi.encodeWithSelector(
+            TrailsTokenSweeper.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient
+        );
 
         vm.expectRevert(TrailsTokenSweeper.SuccessSentinelNotSet.selector);
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
@@ -1294,8 +1297,9 @@ contract TrailsTokenSweeperTest is Test {
         // Slot not set
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
 
-        bytes memory data =
-            abi.encodeWithSelector(TrailsTokenSweeper.validateOpHashAndSweep.selector, address(erc20), recipient);
+        bytes memory data = abi.encodeWithSelector(
+            TrailsTokenSweeper.validateOpHashAndSweep.selector, bytes32(0), address(erc20), recipient
+        );
 
         vm.expectRevert(TrailsTokenSweeper.SuccessSentinelNotSet.selector);
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
