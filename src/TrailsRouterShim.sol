@@ -29,6 +29,16 @@ interface IMulticall3 {
     function aggregate3Value(Call3Value[] calldata calls) external payable returns (Result[] memory returnData);
 }
 
+// Minimal router interfaces for selector detection
+interface ITrailsRouterExec {
+    function execute(bytes calldata data) external payable returns (IMulticall3.Result[] memory returnResults);
+
+    function pullAndExecute(address token, bytes calldata data)
+        external
+        payable
+        returns (IMulticall3.Result[] memory returnResults);
+}
+
 /// @title TrailsRouterShim
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
 contract TrailsRouterShim {
@@ -55,6 +65,7 @@ contract TrailsRouterShim {
     // -------------------------------------------------------------------------
 
     event RouterCallSentinelSet(bytes32 opHash, bytes32 slot);
+    event RouterCallValue(uint256 value);
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -79,7 +90,8 @@ contract TrailsRouterShim {
     ) external payable onlyDelegatecall {
         if (data.length < 4) revert InvalidSelector(0x00000000);
 
-        bytes memory routerReturn = _forwardToRouter(data, msg.value);
+        (bytes memory inner, uint256 callValue) = abi.decode(data, (bytes, uint256));
+        bytes memory routerReturn = _forwardToRouter(inner, callValue);
 
         bytes32 slot = TrailsSentinelLib.successSlot(opHash);
         emit RouterCallSentinelSet(opHash, slot);
@@ -95,22 +107,7 @@ contract TrailsRouterShim {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    function _forwardToRouter(bytes calldata forwardData, uint256 msgValue) internal returns (bytes memory) {
-        bytes4 selector = bytes4(forwardData[:4]);
-        uint256 callValue;
-        if (selector == IMulticall3.aggregate3Value.selector) {
-            // Decode the calldata after the 4-byte selector to get Call3Value[] and sum values
-            IMulticall3.Call3Value[] memory calls = abi.decode(forwardData[4:], (IMulticall3.Call3Value[]));
-            uint256 total = 0;
-            for (uint256 i = 0; i < calls.length; i++) {
-                total += calls[i].value;
-            }
-            callValue = total;
-        } else {
-            // For non-aggregate3Value calls, forward the original msg.value
-            callValue = msgValue;
-        }
-
+    function _forwardToRouter(bytes memory forwardData, uint256 callValue) internal returns (bytes memory) {
         (bool success, bytes memory ret) = ROUTER.call{value: callValue}(forwardData);
         if (!success) {
             revert RouterCallFailed(ret);
