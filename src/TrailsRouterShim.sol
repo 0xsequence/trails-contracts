@@ -4,31 +4,6 @@ pragma solidity ^0.8.27;
 import {Storage} from "../lib/wallet-contracts-v3/src/modules/Storage.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 
-// Local interface definitions to avoid import issues
-interface IMulticall3 {
-    struct Call3 {
-        address target;
-        bool allowFailure;
-        bytes callData;
-    }
-
-    struct Call3Value {
-        address target;
-        bool allowFailure;
-        uint256 value;
-        bytes callData;
-    }
-
-    struct Result {
-        bool success;
-        bytes returnData;
-    }
-
-    function aggregate3(Call3[] calldata calls) external payable returns (Result[] memory returnData);
-
-    function aggregate3Value(Call3Value[] calldata calls) external payable returns (Result[] memory returnData);
-}
-
 /// @title TrailsRouterShim
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
 contract TrailsRouterShim {
@@ -45,7 +20,6 @@ contract TrailsRouterShim {
     // Errors
     // -------------------------------------------------------------------------
 
-    error InvalidSelector(bytes4 selector);
     error NotDelegateCall();
     error RouterCallFailed(bytes data);
     error ZeroRouterAddress();
@@ -71,8 +45,6 @@ contract TrailsRouterShim {
         uint256, // space (unused)
         bytes calldata data
     ) external payable onlyDelegatecall {
-        if (data.length < 4) revert InvalidSelector(0x00000000);
-
         (bytes memory inner, uint256 callValue) = abi.decode(data, (bytes, uint256));
         bytes memory routerReturn = _forwardToRouter(inner, callValue);
 
