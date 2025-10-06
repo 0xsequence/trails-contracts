@@ -264,7 +264,7 @@ contract TrailsBalanceInjectorTest is Test {
 
     function testMixedETHAndERC20Operations() public {
         // Test that both ETH and ERC20 operations work independently
-        
+
         // First, test ERC20
         uint256 tokenBalance = 500e18;
         token.mint(address(this), tokenBalance);

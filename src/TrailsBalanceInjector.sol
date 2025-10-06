@@ -72,7 +72,7 @@ contract TrailsBalanceInjector is IDelegatedExtension {
         bytes32 placeholder
     ) external payable {
         uint256 callerBalance;
-        
+
         if (token == address(0)) {
             // Handle ETH - use msg.value
             callerBalance = msg.value;
@@ -81,7 +81,7 @@ contract TrailsBalanceInjector is IDelegatedExtension {
             // Handle ERC20 - transfer from msg.sender
             callerBalance = IERC20(token).balanceOf(msg.sender);
             require(callerBalance > 0, "No tokens to sweep");
-            
+
             // Transfer all tokens from caller to this contract
             bool transferred = IERC20(token).transferFrom(msg.sender, address(this), callerBalance);
             require(transferred, "TransferFrom failed");
