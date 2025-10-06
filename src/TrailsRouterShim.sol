@@ -29,16 +29,6 @@ interface IMulticall3 {
     function aggregate3Value(Call3Value[] calldata calls) external payable returns (Result[] memory returnData);
 }
 
-// Minimal router interfaces for selector detection
-interface ITrailsRouterExec {
-    function execute(bytes calldata data) external payable returns (IMulticall3.Result[] memory returnResults);
-
-    function pullAndExecute(address token, bytes calldata data)
-        external
-        payable
-        returns (IMulticall3.Result[] memory returnResults);
-}
-
 /// @title TrailsRouterShim
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
 contract TrailsRouterShim {
@@ -59,13 +49,6 @@ contract TrailsRouterShim {
     error NotDelegateCall();
     error RouterCallFailed(bytes data);
     error ZeroRouterAddress();
-
-    // -------------------------------------------------------------------------
-    // Events
-    // -------------------------------------------------------------------------
-
-    event RouterCallSentinelSet(bytes32 opHash, bytes32 slot);
-    event RouterCallValue(uint256 value);
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -94,8 +77,6 @@ contract TrailsRouterShim {
         bytes memory routerReturn = _forwardToRouter(inner, callValue);
 
         bytes32 slot = TrailsSentinelLib.successSlot(opHash);
-        emit RouterCallSentinelSet(opHash, slot);
-
         Storage.writeBytes32(slot, TrailsSentinelLib.SUCCESS_VALUE);
 
         assembly {
