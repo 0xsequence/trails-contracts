@@ -52,6 +52,8 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         address indexed token, address indexed account, uint256 maxAllowed, uint256 current
     );
     event ActualRefund(address indexed token, address indexed recipient, uint256 expected, uint256 actual);
+    event RouterCallSentinelSuccess(bytes32 opHash, bytes32 slot);
+    event RouterCallSentinelFailure(bytes32 opHash, bytes32 slot);
 
     // -------------------------------------------------------------------------
     // Constants / Modifiers
@@ -287,8 +289,10 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     {
         bytes32 slot = TrailsSentinelLib.successSlot(opHash);
         if (Storage.readBytes32(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
+            emit RouterCallSentinelFailure(opHash, slot);
             revert SuccessSentinelNotSet();
         }
+        emit RouterCallSentinelSuccess(opHash, slot);
         sweep(_token, _recipient);
     }
 

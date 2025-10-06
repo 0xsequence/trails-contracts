@@ -3,7 +3,8 @@ pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
 import {TrailsRouterShim} from "../src/TrailsRouterShim.sol";
-import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
+import {IDelegatedExtension} from "../lib/wallet-contracts-v3/src/modules/interfaces/IDelegatedExtension.sol";
+import {IMulticall3} from "../lib/forge-std/src/interfaces/IMulticall3.sol";
 
 contract TrailsRouterShimTest is Test {
     bytes32 internal constant SENTINEL_NAMESPACE = keccak256("org.sequence.trails.router.sentinel");
@@ -91,7 +92,7 @@ contract TrailsRouterShimTest is Test {
         shim.handleSequenceDelegateCall(0x0, 0, 0, 0, 0, callData);
     }
 
-    function testPullAndExecuteSelectorConstant() public {
+    function testPullAndExecuteSelectorConstant() public pure {
         bytes4 expected = bytes4(keccak256("pullAndExecute(address,uint256,bytes)"));
         bytes4 actual = 0x1bf44db4; // From the test trace
         assertEq(actual, expected, "pullAndExecute selector mismatch");
@@ -106,7 +107,7 @@ contract TrailsRouterShimTest is Test {
         bytes32 opHash = keccak256("op-hash-simple");
         uint256 index = 0;
 
-        bytes memory ret = wallet.runExtension(address(shim), opHash, index, callData);
+        wallet.runExtension(address(shim), opHash, index, callData);
 
         assertEq(router.lastSelector(), MockRouter.pullAndExecute.selector, "selector");
         assertEq(router.lastSender(), address(wallet), "sender");
@@ -122,6 +123,43 @@ contract TrailsRouterShimTest is Test {
 
         vm.expectRevert();
         wallet.runExtension(address(shim), opHash, 0, callData);
+    }
+
+    function testAggregate3ValueDecodingAndValueForwarding() public {
+        // Build two Call3Value entries with different values
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](2);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(router),
+            allowFailure: false,
+            value: 0.4 ether,
+            callData: abi.encodeWithSelector(MockRouter.execute.selector, bytes("a"))
+        });
+        calls[1] = IMulticall3.Call3Value({
+            target: address(router),
+            allowFailure: true,
+            value: 0.6 ether,
+            callData: abi.encodeWithSelector(MockRouter.execute.selector, bytes("b"))
+        });
+
+        // Encode calldata with aggregate3Value selector + args
+        bytes memory aggData = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+
+        // Route through the wallet harness so delegatecall context is correct
+        bytes32 opHash = keccak256("op-hash-agg3v");
+        uint256 index = 0;
+
+        // Fund wallet to be safe; shim computes value from calls, not msg.value
+        vm.deal(address(wallet), 2 ether);
+
+        bytes memory ret = wallet.runExtension(address(shim), opHash, index, aggData);
+
+        // Router should have received exactly the sum of values
+        assertEq(router.lastValue(), 1 ether, "aggregate3Value total not forwarded");
+
+        // Return shape should still be valid
+        MockRouter.Result[] memory decoded = abi.decode(ret, (MockRouter.Result[]));
+        assertEq(decoded.length, 1, "result length");
+        assertTrue(decoded[0].success, "result success");
     }
 }
 
@@ -204,6 +242,13 @@ contract MockRouter {
         _record(this.pullAndExecute.selector, msg.sender, msg.value, token, amount, data);
         _maybeRevert();
         return _mockResults(data);
+    }
+
+    // Minimal handler to support aggregate3Value in tests
+    function aggregate3Value(IMulticall3.Call3Value[] calldata /*calls*/ ) external payable returns (Result[] memory) {
+        _record(this.aggregate3Value.selector, msg.sender, msg.value, address(0), 0, bytes("agg3v"));
+        _maybeRevert();
+        return _mockResults(bytes("agg3v"));
     }
 
     function _record(bytes4 selector, address sender, uint256 value, address token, uint256 amount, bytes calldata data)
