@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
-import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
+import {Storage} from "../lib/wallet-contracts-v3/src/modules/Storage.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 
 /// @title TrailsRouterShim
@@ -13,7 +12,7 @@ contract TrailsRouterShim {
     // -------------------------------------------------------------------------
 
     /// @notice Address of the deployed TrailsMulticall3Router to forward calls to
-    address public immutable router;
+    address public immutable ROUTER;
     /// @dev Cached address of this contract to detect delegatecall context
     address private immutable SELF = address(this);
 
@@ -21,7 +20,6 @@ contract TrailsRouterShim {
     // Errors
     // -------------------------------------------------------------------------
 
-    error InvalidSelector(bytes4 selector);
     error NotDelegateCall();
     error RouterCallFailed(bytes data);
     error ZeroRouterAddress();
@@ -32,7 +30,7 @@ contract TrailsRouterShim {
 
     constructor(address router_) {
         if (router_ == address(0)) revert ZeroRouterAddress();
-        router = router_;
+        ROUTER = router_;
     }
 
     // -------------------------------------------------------------------------
@@ -47,11 +45,11 @@ contract TrailsRouterShim {
         uint256, // space (unused)
         bytes calldata data
     ) external payable onlyDelegatecall {
-        if (data.length < 4) revert InvalidSelector(0x00000000);
+        (bytes memory inner, uint256 callValue) = abi.decode(data, (bytes, uint256));
+        bytes memory routerReturn = _forwardToRouter(inner, callValue);
 
-        bytes memory routerReturn = _forwardToRouter(data);
-
-        Storage.writeBytes32(TrailsSentinelLib.successSlot(opHash), TrailsSentinelLib.SUCCESS_VALUE);
+        bytes32 slot = TrailsSentinelLib.successSlot(opHash);
+        Storage.writeBytes32(slot, TrailsSentinelLib.SUCCESS_VALUE);
 
         assembly {
             return(add(routerReturn, 32), mload(routerReturn))
@@ -62,8 +60,8 @@ contract TrailsRouterShim {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    function _forwardToRouter(bytes calldata forwardData) internal returns (bytes memory) {
-        (bool success, bytes memory ret) = router.call{value: msg.value}(forwardData);
+    function _forwardToRouter(bytes memory forwardData, uint256 callValue) internal returns (bytes memory) {
+        (bool success, bytes memory ret) = ROUTER.call{value: callValue}(forwardData);
         if (!success) {
             revert RouterCallFailed(ret);
         }
