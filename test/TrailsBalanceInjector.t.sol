@@ -41,7 +41,7 @@ contract MockTarget {
         shouldRevert = _shouldRevert;
     }
 
-    function deposit(uint256 amount, address /*receiver*/) external {
+    function deposit(uint256 amount, address /*receiver*/ ) external {
         if (shouldRevert) revert("Target reverted");
         lastAmount = amount;
         // Pull tokens from msg.sender (simulating real DeFi protocols like Aave)
@@ -60,7 +60,7 @@ contract MockTargetETH {
         shouldRevert = _shouldRevert;
     }
 
-    function depositETH(uint256 amount, address /*receiver*/) external payable {
+    function depositETH(uint256 amount, address /*receiver*/ ) external payable {
         if (shouldRevert) revert("Target reverted");
         lastAmount = amount;
         receivedETH = msg.value;

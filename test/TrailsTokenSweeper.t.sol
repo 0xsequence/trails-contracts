@@ -506,15 +506,9 @@ contract TrailsTokenSweeperTest is Test {
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
-
-
-
-
-
     // ---------------------------------------------------------------------
     // validateLesserThanAndSweep
     // ---------------------------------------------------------------------
-
 
     // ---------------------------------------------------------------------
     // NotDelegateCall reverts on direct calls
@@ -530,23 +524,19 @@ contract TrailsTokenSweeperTest is Test {
         sweeper.refundAndSweep(address(0), address(0xBEEF), 1 ether, recipient);
     }
 
-
     function test_direct_handleSequenceDelegateCall_reverts_not_delegatecall() public {
         bytes memory data = abi.encodeWithSelector(TrailsTokenSweeper.sweep.selector, address(0), recipient);
         vm.expectRevert(TrailsTokenSweeper.NotDelegateCall.selector);
         IDelegatedExtension(address(sweeper)).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
-
     // ---------------------------------------------------------------------
     // validateBalance delegate call dispatch
     // ---------------------------------------------------------------------
 
-
     // ---------------------------------------------------------------------
     // Edge cases and integration tests
     // ---------------------------------------------------------------------
-
 
     bytes32 constant TEST_NAMESPACE = keccak256("org.sequence.trails.router.sentinel");
     bytes32 constant TEST_SUCCESS_VALUE = bytes32(uint256(1));
