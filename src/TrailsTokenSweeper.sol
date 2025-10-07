@@ -213,7 +213,7 @@ contract TrailsTokenSweeper is IDelegatedExtension {
         }
 
         if (selector == this.validateOpHashAndSweep.selector) {
-            (bytes32 _placeholder, address token, address recipient) =
+            (, address token, address recipient) =
                 abi.decode(_data[4:], (bytes32, address, address));
             validateOpHashAndSweep(_opHash, token, recipient);
             return;
