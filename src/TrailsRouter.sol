@@ -110,7 +110,7 @@ contract TrailsRouter is IDelegatedExtension {
         returns (IMulticall3.Result[] memory returnResults)
     {
         if (token != address(0)) {
-            uint256 amount = _erc20BalanceOf(token, msg.sender);
+            uint256 amount = _getBalance(token, msg.sender);
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
@@ -163,7 +163,7 @@ contract TrailsRouter is IDelegatedExtension {
             callerBalance = msg.value;
             require(callerBalance > 0, "No ETH sent");
         } else {
-            callerBalance = _erc20BalanceOf(token, msg.sender);
+            callerBalance = _getBalance(token, msg.sender);
             require(callerBalance > 0, "No tokens to sweep");
             _safeTransferFrom(token, msg.sender, address(this), callerBalance);
         }
@@ -195,15 +195,8 @@ contract TrailsRouter is IDelegatedExtension {
         uint256 amountOffset,
         bytes32 placeholder
     ) internal {
-        uint256 callerBalance;
-
-        if (token == address(0)) {
-            callerBalance = _nativeBalance();
-            require(callerBalance > 0, "No ETH available in contract");
-        } else {
-            callerBalance = _erc20Balance(token);
-            require(callerBalance > 0, "No tokens to sweep");
-        }
+        uint256 callerBalance = _getSelfBalance(token);
+        require(callerBalance > 0, token == address(0) ? "No ETH available in contract" : "No tokens to sweep");
 
         _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
     }
@@ -257,14 +250,14 @@ contract TrailsRouter is IDelegatedExtension {
     /// @param _token The address of the token to sweep. Use address(0) for the native token.
     /// @param _recipient The address to send the swept tokens to.
     function sweep(address _token, address _recipient) public payable onlyDelegatecall {
-        if (_token == address(0)) {
-            uint256 amount = _nativeBalance();
-            _transferNative(_recipient, amount);
-            emit Sweep(_token, _recipient, amount);
-        } else {
-            uint256 amount = _erc20Balance(_token);
-            _ensureERC20Approval(_token, amount);
-            _transferERC20(_token, _recipient, amount);
+        uint256 amount = _getSelfBalance(_token);
+        if (amount > 0) {
+            if (_token == address(0)) {
+                _transferNative(_recipient, amount);
+            } else {
+                _ensureERC20Approval(_token, amount);
+                _transferERC20(_token, _recipient, amount);
+            }
             emit Sweep(_token, _recipient, amount);
         }
     }
@@ -280,44 +273,36 @@ contract TrailsRouter is IDelegatedExtension {
         payable
         onlyDelegatecall
     {
-        if (_token == address(0)) {
-            uint256 current = _nativeBalance();
-
-            uint256 actualRefund = _refundAmount > current ? current : _refundAmount;
-            if (actualRefund != _refundAmount) {
-                emit ActualRefund(_token, _refundRecipient, _refundAmount, actualRefund);
-            }
-            if (actualRefund > 0) {
-                _transferNative(_refundRecipient, actualRefund);
-                emit Refund(_token, _refundRecipient, actualRefund);
-            }
-
-            uint256 remaining = _nativeBalance();
-            if (remaining > 0) {
-                _transferNative(_sweepRecipient, remaining);
-                emit Sweep(_token, _sweepRecipient, remaining);
-            }
-            emit RefundAndSweep(_token, _refundRecipient, _refundAmount, _sweepRecipient, actualRefund, remaining);
-        } else {
-            uint256 balance = _erc20Balance(_token);
-            _ensureERC20Approval(_token, balance);
-
-            uint256 actualRefund = _refundAmount > balance ? balance : _refundAmount;
-            if (actualRefund != _refundAmount) {
-                emit ActualRefund(_token, _refundRecipient, _refundAmount, actualRefund);
-            }
-            if (actualRefund > 0) {
-                _transferERC20(_token, _refundRecipient, actualRefund);
-                emit Refund(_token, _refundRecipient, actualRefund);
-            }
-
-            uint256 remaining = _erc20Balance(_token);
-            if (remaining > 0) {
-                _transferERC20(_token, _sweepRecipient, remaining);
-                emit Sweep(_token, _sweepRecipient, remaining);
-            }
-            emit RefundAndSweep(_token, _refundRecipient, _refundAmount, _sweepRecipient, actualRefund, remaining);
+        uint256 current = _getSelfBalance(_token);
+        
+        // For ERC20, approve for the full current balance since we'll transfer all of it
+        if (_token != address(0)) {
+            _ensureERC20Approval(_token, current);
         }
+
+        uint256 actualRefund = _refundAmount > current ? current : _refundAmount;
+        if (actualRefund != _refundAmount) {
+            emit ActualRefund(_token, _refundRecipient, _refundAmount, actualRefund);
+        }
+        if (actualRefund > 0) {
+            if (_token == address(0)) {
+                _transferNative(_refundRecipient, actualRefund);
+            } else {
+                _transferERC20(_token, _refundRecipient, actualRefund);
+            }
+            emit Refund(_token, _refundRecipient, actualRefund);
+        }
+
+        uint256 remaining = _getSelfBalance(_token);
+        if (remaining > 0) {
+            if (_token == address(0)) {
+                _transferNative(_sweepRecipient, remaining);
+            } else {
+                _transferERC20(_token, _sweepRecipient, remaining);
+            }
+            emit Sweep(_token, _sweepRecipient, remaining);
+        }
+        emit RefundAndSweep(_token, _refundRecipient, _refundAmount, _sweepRecipient, actualRefund, remaining);
     }
 
     /// @notice Validates that the success sentinel for an opHash is set, then sweeps tokens.
@@ -412,6 +397,24 @@ contract TrailsRouter is IDelegatedExtension {
         SafeERC20.safeTransfer(erc20, _to, _amount);
     }
 
+    /// @notice Get balance of token for a specific account
+    /// @param token The token address (address(0) for native ETH)
+    /// @param account The account to check balance for
+    /// @return The balance of the token for the account
+    function _getBalance(address token, address account) internal view returns (uint256) {
+        return token == address(0) 
+            ? account.balance 
+            : IERC20(token).balanceOf(account);
+    }
+
+    /// @notice Get balance of token for this contract
+    /// @param token The token address (address(0) for native ETH)
+    /// @return The balance of the token for this contract
+    function _getSelfBalance(address token) internal view returns (uint256) {
+        return _getBalance(token, address(this));
+    }
+
+    // Legacy functions for backward compatibility
     function _nativeBalance() internal view returns (uint256) {
         return address(this).balance;
     }
