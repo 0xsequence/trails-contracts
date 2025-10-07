@@ -86,25 +86,21 @@ contract TrailsRouter is IDelegatedExtension {
     // Multicall3 Router Functions
     // -------------------------------------------------------------------------
 
-    /**
-     * @notice Aggregates multiple calls in a single transaction.
-     * @dev Delegates to Multicall3 to preserve msg.sender context.
-     * @param data The data to execute.
-     * @return returnResults The result of the execution.
-     */
+    /// @notice Aggregates multiple calls in a single transaction.
+    /// @dev Delegates to Multicall3 to preserve msg.sender context.
+    /// @param data The data to execute.
+    /// @return returnResults The result of the execution.
     function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
         (bool success, bytes memory returnData) = multicall3.delegatecall(data);
         require(success, "TrailsRouter: call failed");
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
-    /**
-     * @notice Pull ERC20 from msg.sender, then delegatecall into Multicall3.
-     * @dev Requires prior approval to this router.
-     * @param token The ERC20 token to pull, or address(0) for ETH.
-     * @param data The calldata for Multicall3.
-     * @return returnResults The result of the execution.
-     */
+    /// @notice Pull ERC20 from msg.sender, then delegatecall into Multicall3.
+    /// @dev Requires prior approval to this router.
+    /// @param token The ERC20 token to pull, or address(0) for ETH.
+    /// @param data The calldata for Multicall3.
+    /// @return returnResults The result of the execution.
     function pullAndExecute(address token, bytes calldata data)
         public
         payable
@@ -120,14 +116,12 @@ contract TrailsRouter is IDelegatedExtension {
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
-    /**
-     * @notice Pull specific amount of ERC20 from msg.sender, then delegatecall into Multicall3.
-     * @dev Requires prior approval to this router.
-     * @param token The ERC20 token to pull, or address(0) for ETH.
-     * @param amount The amount to pull.
-     * @param data The calldata for Multicall3.
-     * @return returnResults The result of the execution.
-     */
+    /// @notice Pull specific amount of ERC20 from msg.sender, then delegatecall into Multicall3.
+    /// @dev Requires prior approval to this router.
+    /// @param token The ERC20 token to pull, or address(0) for ETH.
+    /// @param amount The amount to pull.
+    /// @param data The calldata for Multicall3.
+    /// @return returnResults The result of the execution.
     function pullAmountAndExecute(address token, uint256 amount, bytes calldata data)
         public
         payable
@@ -146,15 +140,13 @@ contract TrailsRouter is IDelegatedExtension {
     // Balance Injection Functions
     // -------------------------------------------------------------------------
 
-    /**
-     * @notice Sweeps tokens from msg.sender and calls target with modified calldata.
-     * @dev For regular calls (not delegatecall). Transfers tokens from msg.sender to this contract first.
-     * @param token The ERC-20 token to sweep, or address(0) for ETH.
-     * @param target The address to call with modified calldata.
-     * @param callData The original calldata (must include a 32-byte placeholder).
-     * @param amountOffset The byte offset in calldata where the placeholder is located.
-     * @param placeholder The 32-byte placeholder that will be replaced with balance.
-     */
+    /// @notice Sweeps tokens from msg.sender and calls target with modified calldata.
+    /// @dev For regular calls (not delegatecall). Transfers tokens from msg.sender to this contract first.
+    /// @param token The ERC-20 token to sweep, or address(0) for ETH.
+    /// @param target The address to call with modified calldata.
+    /// @param callData The original calldata (must include a 32-byte placeholder).
+    /// @param amountOffset The byte offset in calldata where the placeholder is located.
+    /// @param placeholder The 32-byte placeholder that will be replaced with balance.
     function injectSweepAndCall(
         address token,
         address target,
@@ -176,15 +168,13 @@ contract TrailsRouter is IDelegatedExtension {
         _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
     }
 
-    /**
-     * @notice Injects balance and calls target (for delegatecall context).
-     * @dev For delegatecalls from Sequence wallets. Reads balance from address(this).
-     * @param token The ERC-20 token to sweep, or address(0) for ETH.
-     * @param target The address to call with modified calldata.
-     * @param callData The original calldata (must include a 32-byte placeholder).
-     * @param amountOffset The byte offset in calldata where the placeholder is located.
-     * @param placeholder The 32-byte placeholder that will be replaced with balance.
-     */
+    /// @notice Injects balance and calls target (for delegatecall context).
+    /// @dev For delegatecalls from Sequence wallets. Reads balance from address(this).
+    /// @param token The ERC-20 token to sweep, or address(0) for ETH.
+    /// @param target The address to call with modified calldata.
+    /// @param callData The original calldata (must include a 32-byte placeholder).
+    /// @param amountOffset The byte offset in calldata where the placeholder is located.
+    /// @param placeholder The 32-byte placeholder that will be replaced with balance.
     function injectAndCall(
         address token,
         address target,
@@ -259,12 +249,10 @@ contract TrailsRouter is IDelegatedExtension {
     // Token Sweeper Functions
     // -------------------------------------------------------------------------
 
-    /**
-     * @notice Approves the sweeper if ERC20, then sweeps the entire balance to recipient.
-     * @dev For delegatecall context. Approval is set for `SELF` on the wallet.
-     * @param _token The address of the token to sweep. Use address(0) for the native token.
-     * @param _recipient The address to send the swept tokens to.
-     */
+    /// @notice Approves the sweeper if ERC20, then sweeps the entire balance to recipient.
+    /// @dev For delegatecall context. Approval is set for `SELF` on the wallet.
+    /// @param _token The address of the token to sweep. Use address(0) for the native token.
+    /// @param _recipient The address to send the swept tokens to.
     function sweep(address _token, address _recipient) public payable onlyDelegatecall {
         if (_token == address(0)) {
             uint256 amount = _nativeBalance();
@@ -278,14 +266,12 @@ contract TrailsRouter is IDelegatedExtension {
         }
     }
 
-    /**
-     * @notice Refunds up to `_refundAmount` to `_refundRecipient`, then sweeps any remaining balance to `_sweepRecipient`.
-     * @dev For delegatecall context.
-     * @param _token The token address to operate on. Use address(0) for native.
-     * @param _refundRecipient Address receiving the refund portion.
-     * @param _refundAmount Maximum amount to refund.
-     * @param _sweepRecipient Address receiving the remaining balance.
-     */
+    /// @notice Refunds up to `_refundAmount` to `_refundRecipient`, then sweeps any remaining balance to `_sweepRecipient`.
+    /// @dev For delegatecall context.
+    /// @param _token The token address to operate on. Use address(0) for native.
+    /// @param _refundRecipient Address receiving the refund portion.
+    /// @param _refundAmount Maximum amount to refund.
+    /// @param _sweepRecipient Address receiving the remaining balance.
     function refundAndSweep(address _token, address _refundRecipient, uint256 _refundAmount, address _sweepRecipient)
         public
         payable
@@ -331,13 +317,11 @@ contract TrailsRouter is IDelegatedExtension {
         }
     }
 
-    /**
-     * @notice Validates that the success sentinel for an opHash is set, then sweeps tokens.
-     * @dev For delegatecall context. Used to ensure prior operation succeeded.
-     * @param opHash The operation hash to validate.
-     * @param _token The token to sweep.
-     * @param _recipient The recipient of the sweep.
-     */
+    /// @notice Validates that the success sentinel for an opHash is set, then sweeps tokens.
+    /// @dev For delegatecall context. Used to ensure prior operation succeeded.
+    /// @param opHash The operation hash to validate.
+    /// @param _token The token to sweep.
+    /// @param _recipient The recipient of the sweep.
     function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient)
         public
         payable
@@ -354,11 +338,9 @@ contract TrailsRouter is IDelegatedExtension {
     // Sequence Delegated Extension Entry Point
     // -------------------------------------------------------------------------
 
-    /**
-     * @notice Entry point for Sequence delegatecall routing.
-     * @dev The wallet module delegatecalls this function with the original call data in `_data`.
-     *      We decode the selector and dispatch to the corresponding function in this contract.
-     */
+    /// @notice Entry point for Sequence delegatecall routing.
+    /// @dev The wallet module delegatecalls this function with the original call data in `_data`.
+    ///      We decode the selector and dispatch to the corresponding function in this contract.
     function handleSequenceDelegateCall(
         bytes32 _opHash,
         uint256, /* _startingGas */
