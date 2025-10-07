@@ -6,6 +6,10 @@ import "../src/TrailsIntentEntrypoint.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
+// -----------------------------------------------------------------------------
+// Mock Contracts and Utilities
+// -----------------------------------------------------------------------------
+
 // Mock ERC20 token with permit functionality for testing
 contract MockERC20Permit is ERC20, ERC20Permit {
     constructor() ERC20("Mock Token", "MTK") ERC20Permit("Mock Token") {
@@ -13,11 +17,23 @@ contract MockERC20Permit is ERC20, ERC20Permit {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Test Contract
+// -----------------------------------------------------------------------------
+
 contract TrailsIntentEntrypointTest is Test {
+    // -------------------------------------------------------------------------
+    // Test State Variables
+    // -------------------------------------------------------------------------
+
     TrailsIntentEntrypoint public entrypoint;
     MockERC20Permit public token;
     uint256 public userPrivateKey = 0x123456789;
     address public user;
+
+    // -------------------------------------------------------------------------
+    // Setup and Tests
+    // -------------------------------------------------------------------------
 
     function setUp() public {
         entrypoint = new TrailsIntentEntrypoint();
@@ -30,6 +46,9 @@ contract TrailsIntentEntrypointTest is Test {
         token.transfer(user, 1000 * 10 ** token.decimals());
     }
 
+    // -------------------------------------------------------------------------
+    // Tests
+    // -------------------------------------------------------------------------
     function testConstructor() public view {
         // Simple constructor test - just verify the contract was deployed
         assertTrue(address(entrypoint) != address(0));

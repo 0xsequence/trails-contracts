@@ -10,6 +10,10 @@ import {MockMulticall3} from "test/mocks/MockMulticall3.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 
+// -----------------------------------------------------------------------------
+// Helper Contracts and Structs
+// -----------------------------------------------------------------------------
+
 // Struct definitions to match the contract's IMulticall3 interface
 struct Call3 {
     address target;
@@ -21,6 +25,10 @@ struct Result {
     bool success;
     bytes returnData;
 }
+
+// -----------------------------------------------------------------------------
+// Mock Contracts
+// -----------------------------------------------------------------------------
 
 // A malicious token for testing transferFrom failures
 contract FailingToken is MockERC20 {
@@ -87,9 +95,6 @@ contract MockTargetETH {
     receive() external payable {}
 }
 
-/**
- * @dev Mock wallet that delegatecalls TrailsRouter
- */
 contract MockWallet {
     function delegateCallBalanceInjector(
         address router,
@@ -129,7 +134,15 @@ contract MockWallet {
     receive() external payable {}
 }
 
+// -----------------------------------------------------------------------------
+// Test Contract
+// -----------------------------------------------------------------------------
+
 contract TrailsRouterTest is Test {
+    // -------------------------------------------------------------------------
+    // Test State Variables
+    // -------------------------------------------------------------------------
+
     TrailsRouter internal router;
     MockSenderGetter internal getter;
     MockERC20 internal mockToken;
@@ -145,6 +158,10 @@ contract TrailsRouterTest is Test {
     bytes32 constant PLACEHOLDER = 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef;
     bytes32 constant TEST_NAMESPACE = keccak256("org.sequence.trails.router.sentinel");
     bytes32 constant TEST_SUCCESS_VALUE = bytes32(uint256(1));
+
+    // -------------------------------------------------------------------------
+    // Events and Errors
+    // -------------------------------------------------------------------------
 
     // Events
     event Sweep(address indexed token, address indexed recipient, uint256 amount);
@@ -167,6 +184,10 @@ contract TrailsRouterTest is Test {
         bool success,
         bytes result
     );
+
+    // -------------------------------------------------------------------------
+    // Setup
+    // -------------------------------------------------------------------------
 
     function setUp() public {
         // Deploy mock multicall3 at the expected address
@@ -195,9 +216,9 @@ contract TrailsRouterTest is Test {
         failingToken.mint(user, 1000e18);
     }
 
-    // =========================================================================
+    // -------------------------------------------------------------------------
     // Multicall3 Router Tests
-    // =========================================================================
+    // -------------------------------------------------------------------------
 
     function test_Execute_FromEOA_ShouldPreserveEOAAsSender() public {
         address eoa = makeAddr("eoa");
@@ -274,7 +295,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
-        vm.expectRevert("TrailsRouter: transferFrom failed");
+        vm.expectRevert(); // SafeERC20 will revert with ERC20InsufficientAllowance
         router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
     }
 
@@ -311,9 +332,9 @@ contract TrailsRouterTest is Test {
         assertEq(router.multicall3(), 0xcA11bde05977b3631167028862bE2a173976CA11);
     }
 
-    // =========================================================================
+    // -------------------------------------------------------------------------
     // Balance Injection Tests
-    // =========================================================================
+    // -------------------------------------------------------------------------
 
     function testInjectSweepAndCall() public {
         MockERC20 testToken = new MockERC20("Test", "TST", 18);
@@ -361,9 +382,9 @@ contract TrailsRouterTest is Test {
         assertEq(address(wallet).balance, 0, "Wallet should be swept empty");
     }
 
-    // =========================================================================
+    // -------------------------------------------------------------------------
     // Token Sweeper Tests
-    // =========================================================================
+    // -------------------------------------------------------------------------
 
     function test_sweep_nativeToken() public {
         uint256 amount = 1 ether;

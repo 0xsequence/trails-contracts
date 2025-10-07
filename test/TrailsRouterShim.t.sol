@@ -6,6 +6,10 @@ import {Vm} from "forge-std/Vm.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
 
+// -----------------------------------------------------------------------------
+// Interfaces
+// -----------------------------------------------------------------------------
+
 /// @dev Minimal interface for delegated entrypoint used by tests
 interface IDelegatedExtension {
     function handleSequenceDelegateCall(
@@ -17,6 +21,10 @@ interface IDelegatedExtension {
         bytes calldata data
     ) external payable;
 }
+
+// -----------------------------------------------------------------------------
+// Mock Contracts
+// -----------------------------------------------------------------------------
 
 /// @dev Mock router that emits events and supports receiving value
 contract MockRouter is Test {
@@ -40,13 +48,22 @@ contract RevertingRouter {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Test Contract
+// -----------------------------------------------------------------------------
 contract TrailsRouterShimTest is Test {
+    // -------------------------------------------------------------------------
+    // Test State Variables
+    // -------------------------------------------------------------------------
     TrailsRouterShim internal shimImpl;
     MockRouter internal router;
 
     // address that will host the shim code to simulate delegatecall context
     address payable internal holder;
 
+    // -------------------------------------------------------------------------
+    // Setup and Tests
+    // -------------------------------------------------------------------------
     function setUp() public {
         router = new MockRouter();
         shimImpl = new TrailsRouterShim(address(router));
@@ -55,6 +72,9 @@ contract TrailsRouterShimTest is Test {
         vm.etch(holder, address(shimImpl).code);
     }
 
+    // -------------------------------------------------------------------------
+    // Test Functions
+    // -------------------------------------------------------------------------
     function test_constructor_revert_zeroRouter() public {
         vm.expectRevert(TrailsRouterShim.ZeroRouterAddress.selector);
         new TrailsRouterShim(address(0));

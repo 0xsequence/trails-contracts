@@ -5,6 +5,7 @@ import {Storage} from "../lib/wallet-contracts-v3/src/modules/Storage.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 
 /// @title TrailsRouterShim
+/// @author Shun Kakinoki
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
 contract TrailsRouterShim {
     // -------------------------------------------------------------------------

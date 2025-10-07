@@ -6,6 +6,9 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+/// @title TrailsIntentEntrypoint
+/// @author Miguel Mota
+/// @notice A contract to facilitate deposits to intent addresses with off-chain signed intents.
 contract TrailsIntentEntrypoint is ReentrancyGuard {
     using ECDSA for bytes32;
 

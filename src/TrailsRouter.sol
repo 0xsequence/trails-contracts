@@ -7,9 +7,9 @@ import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDeleg
 import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 
-// -------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Interfaces
-// -------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 interface IMulticall3 {
     struct Call3 {
@@ -26,12 +26,9 @@ interface IMulticall3 {
     function aggregate3(Call3[] calldata calls) external payable returns (Result[] memory returnData);
 }
 
-/**
- * @title TrailsRouter
- * @author Shun Kakinoki
- * @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
- * @dev Combines functionality from TrailsMulticall3Router, TrailsBalanceInjector, and TrailsTokenSweeper
- */
+/// @title TrailsRouter
+/// @author Miguel Mota, Shun Kakinoki
+/// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
 contract TrailsRouter is IDelegatedExtension {
     using SafeERC20 for IERC20;
 
@@ -114,7 +111,7 @@ contract TrailsRouter is IDelegatedExtension {
         returns (IMulticall3.Result[] memory returnResults)
     {
         if (token != address(0)) {
-            uint256 amount = IERC20(token).balanceOf(msg.sender);
+            uint256 amount = _erc20BalanceOf(token, msg.sender);
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
@@ -171,13 +168,12 @@ contract TrailsRouter is IDelegatedExtension {
             callerBalance = msg.value;
             require(callerBalance > 0, "No ETH sent");
         } else {
-            callerBalance = IERC20(token).balanceOf(msg.sender);
+            callerBalance = _erc20BalanceOf(token, msg.sender);
             require(callerBalance > 0, "No tokens to sweep");
-            bool transferred = IERC20(token).transferFrom(msg.sender, address(this), callerBalance);
-            require(transferred, "TransferFrom failed");
+            _safeTransferFrom(token, msg.sender, address(this), callerBalance);
         }
 
-        _executeCall(token, target, callData, amountOffset, placeholder, callerBalance);
+        _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
     }
 
     /**
@@ -209,17 +205,17 @@ contract TrailsRouter is IDelegatedExtension {
         uint256 callerBalance;
 
         if (token == address(0)) {
-            callerBalance = address(this).balance;
+            callerBalance = _nativeBalance();
             require(callerBalance > 0, "No ETH available in contract");
         } else {
-            callerBalance = IERC20(token).balanceOf(address(this));
+            callerBalance = _erc20Balance(token);
             require(callerBalance > 0, "No tokens to sweep");
         }
 
-        _executeCall(token, target, callData, amountOffset, placeholder, callerBalance);
+        _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
     }
 
-    function _executeCall(
+    function _injectAndExecuteCall(
         address token,
         address target,
         bytes memory callData,
@@ -227,33 +223,33 @@ contract TrailsRouter is IDelegatedExtension {
         bytes32 placeholder,
         uint256 callerBalance
     ) internal {
-        bytes memory data = callData;
-
+        // Replace placeholder with actual balance if needed
         bool shouldReplace = (amountOffset != 0 || placeholder != bytes32(0));
 
         if (shouldReplace) {
-            require(data.length >= amountOffset + 32, "amountOffset out of bounds");
+            require(callData.length >= amountOffset + 32, "amountOffset out of bounds");
 
             bytes32 found;
             assembly {
-                found := mload(add(add(data, 32), amountOffset))
+                found := mload(add(add(callData, 32), amountOffset))
             }
             require(found == placeholder, "Placeholder mismatch");
 
             assembly {
-                mstore(add(add(data, 32), amountOffset), callerBalance)
+                mstore(add(add(callData, 32), amountOffset), callerBalance)
             }
         }
 
+        // Execute call based on token type
         if (token == address(0)) {
-            (bool success, bytes memory result) = target.call{value: callerBalance}(data);
+            (bool success, bytes memory result) = target.call{value: callerBalance}(callData);
             emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
             require(success, string(result));
         } else {
-            bool approved = IERC20(token).approve(target, callerBalance);
-            require(approved, "Token approve failed");
+            IERC20 erc20 = IERC20(token);
+            SafeERC20.forceApprove(erc20, target, callerBalance);
 
-            (bool success, bytes memory result) = target.call(data);
+            (bool success, bytes memory result) = target.call(callData);
             emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
             require(success, string(result));
         }
@@ -412,8 +408,8 @@ contract TrailsRouter is IDelegatedExtension {
     // -------------------------------------------------------------------------
 
     function _safeTransferFrom(address token, address from, address to, uint256 amount) internal {
-        (bool ok, bytes memory res) = token.call(abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, amount));
-        require(ok && (res.length == 0 || abi.decode(res, (bool))), "TrailsRouter: transferFrom failed");
+        IERC20 erc20 = IERC20(token);
+        SafeERC20.safeTransferFrom(erc20, from, to, amount);
     }
 
     function _ensureERC20Approval(address _token, uint256 _amount) internal {
@@ -437,6 +433,10 @@ contract TrailsRouter is IDelegatedExtension {
 
     function _erc20Balance(address _token) internal view returns (uint256) {
         return IERC20(_token).balanceOf(address(this));
+    }
+
+    function _erc20BalanceOf(address _token, address _account) internal view returns (uint256) {
+        return IERC20(_token).balanceOf(_account);
     }
 
     // -------------------------------------------------------------------------
