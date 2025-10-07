@@ -27,10 +27,6 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     error NativeTransferFailed();
     error NotDelegateCall();
     error InvalidDelegatedSelector(bytes4 selector);
-    error InsufficientNativeBalance(address account, uint256 required, uint256 available);
-    error InsufficientERC20Balance(address token, address account, uint256 required, uint256 available);
-    error ExcessiveNativeBalance(address account, uint256 maxAllowed, uint256 available);
-    error ExcessiveERC20Balance(address token, address account, uint256 maxAllowed, uint256 available);
     error SuccessSentinelNotSet();
 
     // -------------------------------------------------------------------------
@@ -62,118 +58,6 @@ contract TrailsTokenSweeper is IDelegatedExtension {
     modifier onlyDelegatecall() {
         if (address(this) == SELF) revert NotDelegateCall();
         _;
-    }
-
-    // -------------------------------------------------------------------------
-    // View Functions
-    // -------------------------------------------------------------------------
-
-    /**
-     * @notice Gets the balance of a given token.
-     * @param _token The address of the token. Use address(0) for the native token.
-     * @return The balance of the token.
-     */
-    function getBalance(address _token) public view returns (uint256) {
-        if (_token == address(0)) {
-            return msg.sender.balance;
-        } else {
-            return IERC20(_token).balanceOf(msg.sender);
-        }
-    }
-
-    /**
-     * @notice Ensures `account` has at least `minExpected` balance for `token`.
-     * @dev Use `token == address(0)` to validate native balance. Reverts with
-     *      specific errors on failure and returns the current balance on success.
-     * @param token The token address to check. Use address(0) for native.
-     * @param account The account whose balance to validate.
-     * @param minExpected The minimum required balance.
-     * @return current The current balance of `account` for the given asset.
-     */
-    function validateBalance(address token, address account, uint256 minExpected) public returns (uint256 current) {
-        if (token == address(0)) {
-            current = account.balance;
-            emit ValidateBalance(token, account, minExpected, current);
-            if (current < minExpected) {
-                revert InsufficientNativeBalance(account, minExpected, current);
-            }
-        } else {
-            current = IERC20(token).balanceOf(account);
-            emit ValidateBalance(token, account, minExpected, current);
-            if (current < minExpected) {
-                revert InsufficientERC20Balance(token, account, minExpected, current);
-            }
-        }
-    }
-
-    /**
-     * @notice Ensures `account` has less than `maxAllowed` balance for `token`.
-     * @dev Use `token == address(0)` to validate native balance. Reverts with
-     *      specific errors on failure and returns the current balance on success.
-     * @param token The token address to check. Use address(0) for native.
-     * @param account The account whose balance to validate.
-     * @param maxAllowed The maximum allowed balance (exclusive).
-     * @return current The current balance of `account` for the given asset.
-     */
-    function validateLesserThanBalance(address token, address account, uint256 maxAllowed)
-        public
-        returns (uint256 current)
-    {
-        if (token == address(0)) {
-            current = account.balance;
-            emit ValidateLesserThanBalance(token, account, maxAllowed, current);
-            if (current >= maxAllowed) {
-                revert ExcessiveNativeBalance(account, maxAllowed, current);
-            }
-        } else {
-            current = IERC20(token).balanceOf(account);
-            emit ValidateLesserThanBalance(token, account, maxAllowed, current);
-            if (current >= maxAllowed) {
-                revert ExcessiveERC20Balance(token, account, maxAllowed, current);
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Validate and Execute
-    // -------------------------------------------------------------------------
-
-    /**
-     * @notice Validates minimum balance then sweeps the entire balance to recipient.
-     * @dev Use address(0) for native token. Runs under delegatecall context.
-     * @param _token The asset to sweep. address(0) for native.
-     * @param _minExpected The minimum required balance before sweeping.
-     * @param _recipient The address to receive the sweep.
-     */
-    function validateAndSweep(address _token, uint256 _minExpected, address _recipient)
-        public
-        payable
-        onlyDelegatecall
-    {
-        // Validate required minimum balance first; will revert if insufficient.
-        validateBalance(_token, address(this), _minExpected);
-
-        // Sweep the balance to the recipient and emit events.
-        sweep(_token, _recipient);
-    }
-
-    /**
-     * @notice Validates maximum balance then sweeps the entire balance to recipient.
-     * @dev Use address(0) for native token. Runs under delegatecall context.
-     * @param _token The asset to sweep. address(0) for native.
-     * @param _maxAllowed The maximum allowed balance before sweeping (exclusive).
-     * @param _recipient The address to receive the sweep.
-     */
-    function validateLesserThanAndSweep(address _token, uint256 _maxAllowed, address _recipient)
-        public
-        payable
-        onlyDelegatecall
-    {
-        // Validate that balance is less than maximum allowed; will revert if excessive.
-        validateLesserThanBalance(_token, address(this), _maxAllowed);
-
-        // Sweep the balance to the recipient and emit events.
-        sweep(_token, _recipient);
     }
 
     // -------------------------------------------------------------------------
@@ -325,30 +209,6 @@ contract TrailsTokenSweeper is IDelegatedExtension {
             (address token, address refundRecipient, uint256 refundAmount, address sweepRecipient) =
                 abi.decode(_data[4:], (address, address, uint256, address));
             refundAndSweep(token, refundRecipient, refundAmount, sweepRecipient);
-            return;
-        }
-
-        if (selector == this.validateAndSweep.selector) {
-            (address token, uint256 minExpected, address recipient) = abi.decode(_data[4:], (address, uint256, address));
-            validateAndSweep(token, minExpected, recipient);
-            return;
-        }
-
-        if (selector == this.validateLesserThanAndSweep.selector) {
-            (address token, uint256 maxAllowed, address recipient) = abi.decode(_data[4:], (address, uint256, address));
-            validateLesserThanAndSweep(token, maxAllowed, recipient);
-            return;
-        }
-
-        if (selector == this.validateBalance.selector) {
-            (address token, address account, uint256 minExpected) = abi.decode(_data[4:], (address, address, uint256));
-            validateBalance(token, account, minExpected);
-            return;
-        }
-
-        if (selector == this.validateLesserThanBalance.selector) {
-            (address token, address account, uint256 maxAllowed) = abi.decode(_data[4:], (address, address, uint256));
-            validateLesserThanBalance(token, account, maxAllowed);
             return;
         }
 
