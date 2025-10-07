@@ -9,9 +9,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract TrailsIntentEntrypoint is ReentrancyGuard {
     using ECDSA for bytes32;
 
-    bytes32 public constant INTENT_TYPEHASH = keccak256(
-        "Intent(address user,address token,uint256 amount,address intentAddress,uint256 deadline)"
-    );
+    bytes32 public constant INTENT_TYPEHASH =
+        keccak256("Intent(address user,address token,uint256 amount,address intentAddress,uint256 deadline)");
     string public constant VERSION = "1";
 
     bytes32 public immutable DOMAIN_SEPARATOR;
@@ -39,8 +38,12 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
         uint256 permitAmount,
         address intentAddress,
         uint256 deadline,
-        uint8 permitV, bytes32 permitR, bytes32 permitS,
-        uint8 sigV, bytes32 sigR, bytes32 sigS
+        uint8 permitV,
+        bytes32 permitR,
+        bytes32 permitS,
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS
     ) external nonReentrant {
         _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
 
@@ -59,7 +62,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
         uint256 amount,
         address intentAddress,
         uint256 deadline,
-        uint8 sigV, bytes32 sigR, bytes32 sigS
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS
     ) external nonReentrant {
         _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
 
@@ -75,20 +80,15 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
         uint256 amount,
         address intentAddress,
         uint256 deadline,
-        uint8 sigV, bytes32 sigR, bytes32 sigS
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS
     ) internal {
         require(amount > 0, "Amount must be greater than 0");
         require(token != address(0), "Token must not be zero-address");
         require(block.timestamp <= deadline, "Intent expired");
 
-        bytes32 intentHash = keccak256(abi.encode(
-            INTENT_TYPEHASH,
-            user,
-            token,
-            amount,
-            intentAddress,
-            deadline
-        ));
+        bytes32 intentHash = keccak256(abi.encode(INTENT_TYPEHASH, user, token, amount, intentAddress, deadline));
 
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, intentHash));
         address recovered = ECDSA.recover(digest, sigV, sigR, sigS);
