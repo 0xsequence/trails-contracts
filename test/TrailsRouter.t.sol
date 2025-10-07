@@ -353,12 +353,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
 
         (bool success,) = wallet.delegateCallBalanceInjector(
-            address(router),
-            address(0),
-            address(targetETH),
-            callData,
-            4,
-            PLACEHOLDER
+            address(router), address(0), address(targetETH), callData, 4, PLACEHOLDER
         );
 
         assertTrue(success, "Delegatecall should succeed");
