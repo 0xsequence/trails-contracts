@@ -30,6 +30,9 @@ interface IMulticall3 {
 /// @author Miguel Mota, Shun Kakinoki
 /// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
 contract TrailsRouter is IDelegatedExtension {
+    // -------------------------------------------------------------------------
+    // Libraries
+    // -------------------------------------------------------------------------
     using SafeERC20 for IERC20;
 
     // -------------------------------------------------------------------------
