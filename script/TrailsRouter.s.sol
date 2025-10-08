@@ -6,6 +6,10 @@ import {SingletonDeployer, console} from "erc2470-libs/script/SingletonDeployer.
 import {TrailsRouter} from "../src/TrailsRouter.sol";
 
 contract Deploy is SingletonDeployer {
+    // -------------------------------------------------------------------------
+    // Run
+    // -------------------------------------------------------------------------
+
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         address deployerAddress = vm.addr(pk);
