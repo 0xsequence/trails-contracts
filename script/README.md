@@ -56,7 +56,7 @@ Now, whenever you `cd` into this directory, `direnv` will automatically load the
 Once the environment variables are set, you can deploy the contract using the following command:
 
 ```bash
-forge script script/TrailsBalanceInjector.s.sol:Deploy --sig "run()" \
+forge script script/TrailsIntentEntrypoint.s.sol:Deploy --sig "run()" \
     --rpc-url $RPC_URL \
     --broadcast \
     --verify \
@@ -69,7 +69,7 @@ forge script script/TrailsBalanceInjector.s.sol:Deploy --sig "run()" \
 ```
 
 ```bash
-forge script script/TrailsMulticall3Router.s.sol:Deploy --sig "run()" \
+forge script script/TrailsRouter.s.sol:Deploy --sig "run()" \
     --rpc-url $RPC_URL \
     --broadcast \
     --verify \
@@ -83,19 +83,6 @@ forge script script/TrailsMulticall3Router.s.sol:Deploy --sig "run()" \
 
 ```bash
 forge script script/TrailsRouterShim.s.sol:Deploy --sig "run()" \
-    --rpc-url $RPC_URL \
-    --broadcast \
-    --verify \
-    --chain $CHAIN_ID \
-    --verifier-url $VERIFIER_URL \
-    --etherscan-api-key $ETHERSCAN_API_KEY \
-    --sender $ADDRESS \
-    --via-ir \
-    -vvvv
-```
-
-```bash
-forge script script/TrailsTokenSweeper.s.sol:Deploy --sig "run()" \
     --rpc-url $RPC_URL \
     --broadcast \
     --verify \
