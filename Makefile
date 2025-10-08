@@ -52,3 +52,15 @@ verify-deployment:
 		CONSTRUCTOR_ARGS=$(CONSTRUCTOR_ARGS) \
 		./scripts/verify-deployment.sh $(ADDRESS) $(SOURCE_CHAIN) $(TARGET_CHAIN); \
 	fi
+
+.PHONY: build
+build:
+	forge build
+
+.PHONY: test
+test:
+	forge test -vvv
+
+install-foundry:
+	curl -L https://foundry.paradigm.xyz | bash
+	foundryup
