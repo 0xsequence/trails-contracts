@@ -23,7 +23,7 @@ TrailsRouterShimTest:test_delegatecall_router_revert_bubbles_as_RouterCallFailed
 TrailsRouterShimTest:test_direct_handleSequenceDelegateCall_reverts_not_delegatecall() (gas: 9793)
 TrailsRouterTest:testDelegateCallWithETH() (gas: 261904)
 TrailsRouterTest:testInjectSweepAndCall() (gas: 723406)
-TrailsRouterTest:testRevertWhen_injectAndCall_InsufficientEth() (gas: 13106)
+TrailsRouterTest:testRevertWhen_injectAndCall_InsufficientEth() (gas: 10606)
 TrailsRouterTest:testRevertWhen_injectAndCall_NoEthAvailable() (gas: 11917)
 TrailsRouterTest:testRevertWhen_injectSweepAndCall_InsufficientAllowance() (gas: 51177)
 TrailsRouterTest:testRevertWhen_injectSweepAndCall_NoEthSent() (gas: 15239)
