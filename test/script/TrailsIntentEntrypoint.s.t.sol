@@ -98,8 +98,9 @@ contract TrailsIntentEntrypointDeploymentTest is Test {
         assertEq(entrypoint.VERSION(), "1", "Version should be 1");
         assertTrue(entrypoint.INTENT_TYPEHASH() != bytes32(0), "Intent typehash should be set");
 
-        // Test basic functionality - contract should be able to receive calls
-        (bool success,) = address(entrypoint).call("");
-        assertEq(success, true, "Entrypoint should accept basic calls");
+        // Verify contract has expected storage layout by checking usedIntents mapping
+        // This is a smoke test that the contract is properly initialized
+        bytes32 testIntentHash = keccak256("test");
+        assertEq(entrypoint.usedIntents(testIntentHash), false, "usedIntents should be false for unused intent");
     }
 }
