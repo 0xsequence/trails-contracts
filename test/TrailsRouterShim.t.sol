@@ -11,7 +11,7 @@ import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
 // -----------------------------------------------------------------------------
 
 /// @dev Minimal interface for delegated entrypoint used by tests
-interface IDelegatedExtension {
+interface IMockDelegatedExtension {
     function handleSequenceDelegateCall(
         bytes32 opHash,
         uint256 startingGas,
@@ -101,7 +101,7 @@ contract TrailsRouterShimTest is Test {
         emit MockRouter.Forwarded(holder, callValue, routerCalldata);
 
         // Act: delegate entrypoint
-        IDelegatedExtension(holder).handleSequenceDelegateCall{value: callValue}(opHash, 0, 0, 0, 0, forwardData);
+        IMockDelegatedExtension(holder).handleSequenceDelegateCall{value: callValue}(opHash, 0, 0, 0, 0, forwardData);
 
         // Assert: success sentinel written at holder storage
         bytes32 slot = TrailsSentinelLib.successSlot(opHash);
@@ -121,7 +121,7 @@ contract TrailsRouterShimTest is Test {
         // Call and capture revert data, then assert custom error selector
         (bool ok, bytes memory ret) = address(holder).call(
             abi.encodeWithSelector(
-                IDelegatedExtension.handleSequenceDelegateCall.selector, bytes32(0), 0, 0, 0, 0, forwardData
+                IMockDelegatedExtension.handleSequenceDelegateCall.selector, bytes32(0), 0, 0, 0, 0, forwardData
             )
         );
         assertFalse(ok, "call should revert");
