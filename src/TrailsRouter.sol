@@ -23,7 +23,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     // Immutable Variables
     // -------------------------------------------------------------------------
 
-    address public immutable multicall3 = 0xcA11bde05977b3631167028862bE2a173976CA11;
+    address public immutable MULTICALL3 = 0xcA11bde05977b3631167028862bE2a173976CA11;
     address private immutable SELF = address(this);
 
     // -------------------------------------------------------------------------
@@ -58,7 +58,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
 
     /// @inheritdoc ITrailsRouter
     function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
-        (bool success, bytes memory returnData) = multicall3.delegatecall(data);
+        (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
@@ -77,7 +77,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
-        (bool success, bytes memory returnData) = multicall3.delegatecall(data);
+        (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
@@ -94,7 +94,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
-        (bool success, bytes memory returnData) = multicall3.delegatecall(data);
+        (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
         return abi.decode(returnData, (IMulticall3.Result[]));
     }

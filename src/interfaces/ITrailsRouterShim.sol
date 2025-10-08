@@ -7,13 +7,6 @@ import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDeleg
 /// @notice Interface for the router shim that bridges Sequence wallets to the Trails router.
 interface ITrailsRouterShim is IDelegatedExtension {
     // -------------------------------------------------------------------------
-    // Views
-    // -------------------------------------------------------------------------
-
-    /// @notice The router address.
-    function router() external view returns (address);
-
-    // -------------------------------------------------------------------------
     // Functions
     // -------------------------------------------------------------------------
 

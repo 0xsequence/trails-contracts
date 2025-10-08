@@ -19,6 +19,7 @@ interface ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
 
     /// @notice Returns the EIP-712 domain separator used for intent signatures.
+    /// /// forge-lint:disable-next-line func-name-mixedcase
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 
     /// @notice Returns whether an intent digest has already been consumed.

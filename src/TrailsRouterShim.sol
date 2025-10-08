@@ -14,7 +14,7 @@ contract TrailsRouterShim is ITrailsRouterShim {
     // -------------------------------------------------------------------------
 
     /// @notice Address of the deployed TrailsMulticall3Router to forward calls to
-    address public immutable router;
+    address public immutable ROUTER;
     /// @dev Cached address of this contract to detect delegatecall context
     address private immutable SELF = address(this);
 
@@ -32,7 +32,7 @@ contract TrailsRouterShim is ITrailsRouterShim {
 
     constructor(address router_) {
         if (router_ == address(0)) revert ZeroRouterAddress();
-        router = router_;
+        ROUTER = router_;
     }
 
     // -------------------------------------------------------------------------
@@ -66,7 +66,7 @@ contract TrailsRouterShim is ITrailsRouterShim {
     // -------------------------------------------------------------------------
 
     function _forwardToRouter(bytes memory forwardData, uint256 callValue) internal returns (bytes memory) {
-        (bool success, bytes memory ret) = router.call{value: callValue}(forwardData);
+        (bool success, bytes memory ret) = ROUTER.call{value: callValue}(forwardData);
         if (!success) {
             revert RouterCallFailed(ret);
         }

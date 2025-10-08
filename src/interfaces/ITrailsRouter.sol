@@ -33,13 +33,6 @@ interface ITrailsRouter is IDelegatedExtension {
     event ActualRefund(address indexed token, address indexed recipient, uint256 expected, uint256 actual);
 
     // ---------------------------------------------------------------------
-    // Views
-    // ---------------------------------------------------------------------
-
-    /// @notice The Multicall3 address.
-    function multicall3() external view returns (address);
-
-    // ---------------------------------------------------------------------
     // Multicall Operations
     // ---------------------------------------------------------------------
 
