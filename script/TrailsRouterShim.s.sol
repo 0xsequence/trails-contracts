@@ -6,6 +6,10 @@ import {TrailsRouterShim} from "../src/TrailsRouterShim.sol";
 import {Deploy as TrailsRouterDeploy} from "./TrailsRouter.s.sol";
 
 contract Deploy is SingletonDeployer {
+    // -------------------------------------------------------------------------
+    // State Variables
+    // -------------------------------------------------------------------------
+
     address public routerAddress;
 
     // -------------------------------------------------------------------------
