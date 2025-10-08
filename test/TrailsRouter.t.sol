@@ -383,8 +383,6 @@ contract TrailsRouterTest is Test {
     }
 
     function testRevertWhen_injectSweepAndCall_NoEthSent() public {
-        uint256 ethAmount = 1 ether;
-
         bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.prank(user);
@@ -548,7 +546,7 @@ contract TrailsRouterTest is Test {
 
     function trailsRouterHelperInjectAndCall(
         address token,
-        address target,
+        address targetAddress,
         bytes memory callData,
         uint256 amountOffset,
         bytes32 placeholder,
@@ -557,12 +555,12 @@ contract TrailsRouterTest is Test {
         address wallet = address(0xcafe);
         vm.etch(wallet, address(router).code);
         vm.deal(wallet, ethBalance);
-        vm.expectCall(target, ethBalance, callData);
+        vm.expectCall(targetAddress, ethBalance, callData);
         (bool success,) = wallet.call(
             abi.encodeWithSignature(
                 "injectAndCall(address,address,bytes,uint256,bytes32)",
                 token,
-                target,
+                targetAddress,
                 callData,
                 amountOffset,
                 placeholder
