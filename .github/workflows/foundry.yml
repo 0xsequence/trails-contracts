@@ -50,6 +50,11 @@ jobs:
           forge test -vvv
         id: test
 
+      - name: Run Forge lint
+        run: |
+          forge lint
+        id: lint
+
       - name: Run Forge snapshot
         run: |
           forge snapshot --check
