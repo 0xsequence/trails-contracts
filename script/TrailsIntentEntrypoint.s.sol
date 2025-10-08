@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.30;
 
 import {SingletonDeployer, console} from "erc2470-libs/script/SingletonDeployer.s.sol";
 import {TrailsIntentEntrypoint} from "../src/TrailsIntentEntrypoint.sol";

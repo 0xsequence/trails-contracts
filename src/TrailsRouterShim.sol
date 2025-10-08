@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.30;
 
-import {Storage} from "../lib/wallet-contracts-v3/src/modules/Storage.sol";
+import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 import {ITrailsRouterShim} from "./interfaces/ITrailsRouterShim.sol";
 
