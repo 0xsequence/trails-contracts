@@ -114,14 +114,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // Internal Functions
     // -------------------------------------------------------------------------
 
-    /// @param user The signer authorizing the intent.
-    /// @param token The token being transferred.
-    /// @param amount The amount of tokens to transfer.
-    /// @param intentAddress The destination account receiving funds.
-    /// @param deadline The deadline for the intent.
-    /// @param sigV The v component of the signature.
-    /// @param sigR The r component of the signature.
-    /// @param sigS The s component of the signature.
     function _verifyAndMarkIntent(
         address user,
         address token,

@@ -39,6 +39,7 @@ contract TrailsRouterShim is ITrailsRouterShim {
     // Sequence delegated entry point
     // -------------------------------------------------------------------------
 
+    /// @inheritdoc ITrailsRouterShim
     function handleSequenceDelegateCall(
         bytes32 opHash,
         uint256, // startingGas (unused)
@@ -61,7 +62,7 @@ contract TrailsRouterShim is ITrailsRouterShim {
     }
 
     // -------------------------------------------------------------------------
-    // Internal helpers
+    // Internal Helpers
     // -------------------------------------------------------------------------
 
     function _forwardToRouter(bytes memory forwardData, uint256 callValue) internal returns (bytes memory) {

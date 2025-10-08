@@ -555,7 +555,8 @@ contract TrailsRouterTest is Test {
 
         vm.expectRevert(TrailsRouter.NativeTransferFailed.selector);
         // Call sweep through holder to simulate delegatecall context
-        holder.call(abi.encodeWithSelector(router.sweep.selector, address(0), address(revertingReceiver)));
+        (bool success,) = holder.call(abi.encodeWithSelector(router.sweep.selector, address(0), address(revertingReceiver)));
+        success;
     }
 
     function test_success_sentinel_not_set() public {
@@ -565,7 +566,8 @@ contract TrailsRouterTest is Test {
 
         vm.expectRevert(TrailsRouter.SuccessSentinelNotSet.selector);
         // Call through holder to simulate delegatecall context
-        holder.call(abi.encodeWithSelector(router.validateOpHashAndSweep.selector, opHash, token, recipientAddr));
+        (bool success,) = holder.call(abi.encodeWithSelector(router.validateOpHashAndSweep.selector, opHash, token, recipientAddr));
+        success;
     }
 
     function test_no_tokens_to_pull() public {
@@ -583,9 +585,10 @@ contract TrailsRouterTest is Test {
 
         vm.expectRevert(TrailsRouter.NoTokensToSweep.selector);
         // Call through holder to simulate delegatecall context
-        holder.call(
+        (bool success,) = holder.call(
             abi.encodeWithSelector(router.injectAndCall.selector, token, address(mockTarget), callData, 0, bytes32(0))
         );
+        success;
     }
 
     function test_amount_offset_out_of_bounds() public {
@@ -596,7 +599,7 @@ contract TrailsRouterTest is Test {
 
         vm.expectRevert(TrailsRouter.AmountOffsetOutOfBounds.selector);
         // Call through holder to simulate delegatecall context
-        holder.call(
+        (bool success,) = holder.call(
             abi.encodeWithSelector(
                 router.injectAndCall.selector,
                 address(mockToken),
@@ -606,6 +609,7 @@ contract TrailsRouterTest is Test {
                 bytes32(uint256(0xdeadbeef))
             )
         );
+        success;
     }
 
     function test_placeholder_mismatch() public {

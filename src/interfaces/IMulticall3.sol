@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 /// @title IMulticall3
 /// @notice Minimal subset of Multicall3 used by Trails router.
-/// @dev Matches the canonical implementation deployed at `0xcA11...`.
+/// @dev Matches the canonical implementation deployed at `0xcA11bde05977b3631167028862bE2a173976CA11`.
 interface IMulticall3 {
     // -------------------------------------------------------------------------
     // Structs

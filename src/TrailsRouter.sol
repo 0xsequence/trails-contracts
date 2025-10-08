@@ -56,21 +56,14 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     // Multicall3 Router Functions
     // -------------------------------------------------------------------------
 
-    /// @notice Aggregates multiple calls in a single transaction.
-    /// @dev Delegates to Multicall3 to preserve msg.sender context.
-    /// @param data The data to execute.
-    /// @return returnResults The result of the execution.
+    /// @inheritdoc ITrailsRouter
     function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
         (bool success, bytes memory returnData) = multicall3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
-    /// @notice Pull ERC20 from msg.sender, then delegatecall into Multicall3.
-    /// @dev Requires prior approval to this router.
-    /// @param token The ERC20 token to pull, or address(0) for ETH.
-    /// @param data The calldata for Multicall3.
-    /// @return returnResults The result of the execution.
+    /// @inheritdoc ITrailsRouter
     function pullAndExecute(address token, bytes calldata data)
         public
         payable
@@ -89,12 +82,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
-    /// @notice Pull specific amount of ERC20 from msg.sender, then delegatecall into Multicall3.
-    /// @dev Requires prior approval to this router.
-    /// @param token The ERC20 token to pull, or address(0) for ETH.
-    /// @param amount The amount to pull.
-    /// @param data The calldata for Multicall3.
-    /// @return returnResults The result of the execution.
+    /// @inheritdoc ITrailsRouter
     function pullAmountAndExecute(address token, uint256 amount, bytes calldata data)
         public
         payable
@@ -115,13 +103,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     // Balance Injection Functions
     // -------------------------------------------------------------------------
 
-    /// @notice Sweeps tokens from msg.sender and calls target with modified calldata.
-    /// @dev For regular calls (not delegatecall). Transfers tokens from msg.sender to this contract first.
-    /// @param token The ERC-20 token to sweep, or address(0) for ETH.
-    /// @param target The address to call with modified calldata.
-    /// @param callData The original calldata (must include a 32-byte placeholder).
-    /// @param amountOffset The byte offset in calldata where the placeholder is located.
-    /// @param placeholder The 32-byte placeholder that will be replaced with balance.
+    /// @inheritdoc ITrailsRouter
     function injectSweepAndCall(
         address token,
         address target,
@@ -143,13 +125,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
     }
 
-    /// @notice Injects balance and calls target (for delegatecall context).
-    /// @dev For delegatecalls from Sequence wallets. Reads balance from address(this).
-    /// @param token The ERC-20 token to sweep, or address(0) for ETH.
-    /// @param target The address to call with modified calldata.
-    /// @param callData The original calldata (must include a 32-byte placeholder).
-    /// @param amountOffset The byte offset in calldata where the placeholder is located.
-    /// @param placeholder The 32-byte placeholder that will be replaced with balance.
+    /// @inheritdoc ITrailsRouter
     function injectAndCall(
         address token,
         address target,
@@ -169,73 +145,11 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
     }
 
-    function _injectAndCallDelegated(
-        address token,
-        address target,
-        bytes memory callData,
-        uint256 amountOffset,
-        bytes32 placeholder
-    ) internal {
-        uint256 callerBalance = _getSelfBalance(token);
-        if (callerBalance == 0) {
-            if (token == address(0)) {
-                revert NoEthAvailable();
-            } else {
-                revert NoTokensToSweep();
-            }
-        }
-
-        _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
-    }
-
-    function _injectAndExecuteCall(
-        address token,
-        address target,
-        bytes memory callData,
-        uint256 amountOffset,
-        bytes32 placeholder,
-        uint256 callerBalance
-    ) internal {
-        // Replace placeholder with actual balance if needed
-        bool shouldReplace = (amountOffset != 0 || placeholder != bytes32(0));
-
-        if (shouldReplace) {
-            if (callData.length < amountOffset + 32) revert AmountOffsetOutOfBounds();
-
-            bytes32 found;
-            assembly {
-                found := mload(add(add(callData, 32), amountOffset))
-            }
-            if (found != placeholder) revert PlaceholderMismatch();
-
-            assembly {
-                mstore(add(add(callData, 32), amountOffset), callerBalance)
-            }
-        }
-
-        // Execute call based on token type
-        if (token == address(0)) {
-            (bool success, bytes memory result) = target.call{value: callerBalance}(callData);
-            emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
-            if (!success) revert TargetCallFailed(result);
-        } else {
-            IERC20 erc20 = IERC20(token);
-            SafeERC20.forceApprove(erc20, target, callerBalance);
-
-            (bool success, bytes memory result) = target.call(callData);
-            emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
-            if (!success) revert TargetCallFailed(result);
-        }
-    }
-
     // -------------------------------------------------------------------------
     // Token Sweeper Functions
     // -------------------------------------------------------------------------
 
-    /// @notice Approves the sweeper if ERC20, then sweeps the entire balance to recipient.
-    /// @dev For delegatecall context. Approval is set for `SELF` on the wallet.
-    /// @param _token The address of the token to sweep. Use address(0) for the native token.
-    /// @param _recipient The address to send the swept tokens to.
+    /// @inheritdoc ITrailsRouter
     function sweep(address _token, address _recipient) public payable onlyDelegatecall {
         uint256 amount = _getSelfBalance(_token);
         if (amount > 0) {
@@ -249,12 +163,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         }
     }
 
-    /// @notice Refunds up to `_refundAmount` to `_refundRecipient`, then sweeps any remaining balance to `_sweepRecipient`.
-    /// @dev For delegatecall context.
-    /// @param _token The token address to operate on. Use address(0) for native.
-    /// @param _refundRecipient Address receiving the refund portion.
-    /// @param _refundAmount Maximum amount to refund.
-    /// @param _sweepRecipient Address receiving the remaining balance.
+    /// @inheritdoc ITrailsRouter
     function refundAndSweep(address _token, address _refundRecipient, uint256 _refundAmount, address _sweepRecipient)
         public
         payable
@@ -292,11 +201,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         emit RefundAndSweep(_token, _refundRecipient, _refundAmount, _sweepRecipient, actualRefund, remaining);
     }
 
-    /// @notice Validates that the success sentinel for an opHash is set, then sweeps tokens.
-    /// @dev For delegatecall context. Used to ensure prior operation succeeded.
-    /// @param opHash The operation hash to validate.
-    /// @param _token The token to sweep.
-    /// @param _recipient The recipient of the sweep.
+    /// @inheritdoc ITrailsRouter
     function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient)
         public
         payable
@@ -313,9 +218,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     // Sequence Delegated Extension Entry Point
     // -------------------------------------------------------------------------
 
-    /// @notice Entry point for Sequence delegatecall routing.
-    /// @dev The wallet module delegatecalls this function with the original call data in `_data`.
-    ///      We decode the selector and dispatch to the corresponding function in this contract.
     /// @inheritdoc IDelegatedExtension
     function handleSequenceDelegateCall(
         bytes32 _opHash,
@@ -385,17 +287,10 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         SafeERC20.safeTransfer(erc20, _to, _amount);
     }
 
-    /// @notice Get balance of token for a specific account
-    /// @param token The token address (address(0) for native ETH)
-    /// @param account The account to check balance for
-    /// @return The balance of the token for the account
     function _getBalance(address token, address account) internal view returns (uint256) {
         return token == address(0) ? account.balance : IERC20(token).balanceOf(account);
     }
 
-    /// @notice Get balance of token for this contract
-    /// @param token The token address (address(0) for native ETH)
-    /// @return The balance of the token for this contract
     function _getSelfBalance(address token) internal view returns (uint256) {
         return _getBalance(token, address(this));
     }
@@ -411,6 +306,65 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
 
     function _erc20BalanceOf(address _token, address _account) internal view returns (uint256) {
         return IERC20(_token).balanceOf(_account);
+    }
+
+    function _injectAndCallDelegated(
+        address token,
+        address target,
+        bytes memory callData,
+        uint256 amountOffset,
+        bytes32 placeholder
+    ) internal {
+        uint256 callerBalance = _getSelfBalance(token);
+        if (callerBalance == 0) {
+            if (token == address(0)) {
+                revert NoEthAvailable();
+            } else {
+                revert NoTokensToSweep();
+            }
+        }
+
+        _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
+    }
+
+    function _injectAndExecuteCall(
+        address token,
+        address target,
+        bytes memory callData,
+        uint256 amountOffset,
+        bytes32 placeholder,
+        uint256 callerBalance
+    ) internal {
+        // Replace placeholder with actual balance if needed
+        bool shouldReplace = (amountOffset != 0 || placeholder != bytes32(0));
+
+        if (shouldReplace) {
+            if (callData.length < amountOffset + 32) revert AmountOffsetOutOfBounds();
+
+            bytes32 found;
+            assembly {
+                found := mload(add(add(callData, 32), amountOffset))
+            }
+            if (found != placeholder) revert PlaceholderMismatch();
+
+            assembly {
+                mstore(add(add(callData, 32), amountOffset), callerBalance)
+            }
+        }
+
+        // Execute call based on token type
+        if (token == address(0)) {
+            (bool success, bytes memory result) = target.call{value: callerBalance}(callData);
+            emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
+            if (!success) revert TargetCallFailed(result);
+        } else {
+            IERC20 erc20 = IERC20(token);
+            SafeERC20.forceApprove(erc20, target, callerBalance);
+
+            (bool success, bytes memory result) = target.call(callData);
+            emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
+            if (!success) revert TargetCallFailed(result);
+        }
     }
 
     // -------------------------------------------------------------------------

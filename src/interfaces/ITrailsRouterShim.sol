@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
+
 /// @title ITrailsRouterShim
 /// @notice Interface for the router shim that bridges Sequence wallets to the Trails router.
-interface ITrailsRouterShim {
+interface ITrailsRouterShim is IDelegatedExtension {
     // -------------------------------------------------------------------------
     // Views
     // -------------------------------------------------------------------------
@@ -14,6 +16,7 @@ interface ITrailsRouterShim {
     // Functions
     // -------------------------------------------------------------------------
 
+    /// @inheritdoc IDelegatedExtension
     function handleSequenceDelegateCall(
         bytes32 opHash,
         uint256 startingGas,
