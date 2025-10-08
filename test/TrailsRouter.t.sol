@@ -555,7 +555,8 @@ contract TrailsRouterTest is Test {
 
         vm.expectRevert(TrailsRouter.NativeTransferFailed.selector);
         // Call sweep through holder to simulate delegatecall context
-        (bool success,) = holder.call(abi.encodeWithSelector(router.sweep.selector, address(0), address(revertingReceiver)));
+        (bool success,) =
+            holder.call(abi.encodeWithSelector(router.sweep.selector, address(0), address(revertingReceiver)));
         success;
     }
 
@@ -566,7 +567,8 @@ contract TrailsRouterTest is Test {
 
         vm.expectRevert(TrailsRouter.SuccessSentinelNotSet.selector);
         // Call through holder to simulate delegatecall context
-        (bool success,) = holder.call(abi.encodeWithSelector(router.validateOpHashAndSweep.selector, opHash, token, recipientAddr));
+        (bool success,) =
+            holder.call(abi.encodeWithSelector(router.validateOpHashAndSweep.selector, opHash, token, recipientAddr));
         success;
     }
 
