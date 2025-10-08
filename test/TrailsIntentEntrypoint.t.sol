@@ -30,7 +30,7 @@ contract TrailsIntentEntrypointTest is Test {
         token.transfer(user, 1000 * 10 ** token.decimals());
     }
 
-    function testConstructor() public {
+    function testConstructor() public view {
         // Simple constructor test - just verify the contract was deployed
         assertTrue(address(entrypoint) != address(0));
     }
