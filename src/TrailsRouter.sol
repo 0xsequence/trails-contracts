@@ -274,7 +274,7 @@ contract TrailsRouter is IDelegatedExtension {
         onlyDelegatecall
     {
         uint256 current = _getSelfBalance(_token);
-        
+
         // For ERC20, approve for the full current balance since we'll transfer all of it
         if (_token != address(0)) {
             _ensureERC20Approval(_token, current);
@@ -402,9 +402,7 @@ contract TrailsRouter is IDelegatedExtension {
     /// @param account The account to check balance for
     /// @return The balance of the token for the account
     function _getBalance(address token, address account) internal view returns (uint256) {
-        return token == address(0) 
-            ? account.balance 
-            : IERC20(token).balanceOf(account);
+        return token == address(0) ? account.balance : IERC20(token).balanceOf(account);
     }
 
     /// @notice Get balance of token for this contract
