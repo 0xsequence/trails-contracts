@@ -129,9 +129,30 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         if (intentAddress == address(0)) revert InvalidIntentAddress();
         if (block.timestamp > deadline) revert IntentExpired();
 
-        bytes32 intentHash = keccak256(abi.encode(INTENT_TYPEHASH, user, token, amount, intentAddress, deadline));
+        bytes32 _typehash = INTENT_TYPEHASH;
+        bytes32 intentHash;
+        // keccak256(abi.encode(INTENT_TYPEHASH, user, token, amount, intentAddress, deadline));
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, _typehash)
+            mstore(add(ptr, 0x20), user)
+            mstore(add(ptr, 0x40), token)
+            mstore(add(ptr, 0x60), amount)
+            mstore(add(ptr, 0x80), intentAddress)
+            mstore(add(ptr, 0xa0), deadline)
+            intentHash := keccak256(ptr, 0xc0)
+        }
 
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, intentHash));
+        bytes32 _domainSeparator = DOMAIN_SEPARATOR;
+        bytes32 digest;
+        // keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, intentHash));
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, 0x1901)
+            mstore(add(ptr, 0x20), _domainSeparator)
+            mstore(add(ptr, 0x40), intentHash)
+            digest := keccak256(add(ptr, 0x1e), 0x42)
+        }
         address recovered = ECDSA.recover(digest, sigV, sigR, sigS);
         if (recovered != user) revert InvalidIntentSignature();
 
