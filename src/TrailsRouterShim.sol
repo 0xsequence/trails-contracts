@@ -3,10 +3,12 @@ pragma solidity ^0.8.27;
 
 import {Storage} from "../lib/wallet-contracts-v3/src/modules/Storage.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
+import {ITrailsRouterShim} from "./interfaces/ITrailsRouterShim.sol";
 
 /// @title TrailsRouterShim
+/// @author Shun Kakinoki
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
-contract TrailsRouterShim {
+contract TrailsRouterShim is ITrailsRouterShim {
     // -------------------------------------------------------------------------
     // Immutable variables
     // -------------------------------------------------------------------------
@@ -37,6 +39,7 @@ contract TrailsRouterShim {
     // Sequence delegated entry point
     // -------------------------------------------------------------------------
 
+    /// @inheritdoc ITrailsRouterShim
     function handleSequenceDelegateCall(
         bytes32 opHash,
         uint256, // startingGas (unused)
@@ -44,7 +47,7 @@ contract TrailsRouterShim {
         uint256, // numCalls (unused)
         uint256, // space (unused)
         bytes calldata data
-    ) external payable onlyDelegatecall {
+    ) external onlyDelegatecall {
         // Decode the inner call data and call value forwarded to the router
         (bytes memory inner, uint256 callValue) = abi.decode(data, (bytes, uint256));
         bytes memory routerReturn = _forwardToRouter(inner, callValue);
@@ -59,7 +62,7 @@ contract TrailsRouterShim {
     }
 
     // -------------------------------------------------------------------------
-    // Internal helpers
+    // Internal Helpers
     // -------------------------------------------------------------------------
 
     function _forwardToRouter(bytes memory forwardData, uint256 callValue) internal returns (bytes memory) {

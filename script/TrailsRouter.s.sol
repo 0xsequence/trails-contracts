@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.30;
 
 import {SingletonDeployer, console} from "erc2470-libs/script/SingletonDeployer.s.sol";
-import {TrailsMulticall3Router} from "../src/TrailsMulticall3Router.sol";
+import {TrailsRouter} from "../src/TrailsRouter.sol";
 
 contract Deploy is SingletonDeployer {
     function run() external {
@@ -13,10 +13,10 @@ contract Deploy is SingletonDeployer {
 
         bytes32 salt = bytes32(0);
 
-        // Deploy TrailsMulticall3Router
-        bytes memory initCode = type(TrailsMulticall3Router).creationCode;
-        address wrapper = _deployIfNotAlready("TrailsMulticall3Router", initCode, salt, pk);
+        // Deploy TrailsRouter
+        bytes memory initCode = type(TrailsRouter).creationCode;
+        address router = _deployIfNotAlready("TrailsRouter", initCode, salt, pk);
 
-        console.log("TrailsMulticall3Router deployed at:", wrapper);
+        console.log("TrailsRouter deployed at:", router);
     }
 }

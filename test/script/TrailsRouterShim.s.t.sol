@@ -6,10 +6,18 @@ import {Deploy as TrailsRouterShimDeploy} from "script/TrailsRouterShim.s.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 
 contract TrailsRouterShimDeploymentTest is Test {
+    // -------------------------------------------------------------------------
+    // Test State Variables
+    // -------------------------------------------------------------------------
+
     TrailsRouterShimDeploy internal deployScript;
     address internal deployer;
     uint256 internal deployerPk;
     string internal deployerPkStr;
+
+    // -------------------------------------------------------------------------
+    // Setup
+    // -------------------------------------------------------------------------
 
     function setUp() public {
         deployScript = new TrailsRouterShimDeploy();
@@ -18,6 +26,10 @@ contract TrailsRouterShimDeploymentTest is Test {
         deployer = vm.addr(deployerPk);
         vm.deal(deployer, 100 ether);
     }
+
+    // -------------------------------------------------------------------------
+    // Test Functions
+    // -------------------------------------------------------------------------
 
     function test_DeployRouterShim_Success() public {
         vm.setEnv("PRIVATE_KEY", deployerPkStr);

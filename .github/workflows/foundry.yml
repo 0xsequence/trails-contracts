@@ -1,8 +1,12 @@
-name: CI
+name: Foundry Tests
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -45,3 +49,8 @@ jobs:
         run: |
           forge test -vvv
         id: test
+
+      - name: Run Forge snapshot
+        run: |
+          forge snapshot --check
+        id: snapshot
