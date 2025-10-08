@@ -15,12 +15,21 @@ contract Deploy is SingletonDeployer {
         address deployerAddress = vm.addr(pk);
         console.log("Deployer Address:", deployerAddress);
 
+        address router = deployRouter(pk);
+        console.log("TrailsRouter deployed at:", router);
+    }
+
+    // -------------------------------------------------------------------------
+    // Deploy Router
+    // -------------------------------------------------------------------------
+
+    function deployRouter(uint256 pk) public returns (address) {
         bytes32 salt = bytes32(0);
 
         // Deploy TrailsRouter
         bytes memory initCode = type(TrailsRouter).creationCode;
         address router = _deployIfNotAlready("TrailsRouter", initCode, salt, pk);
 
-        console.log("TrailsRouter deployed at:", router);
+        return router;
     }
 }
