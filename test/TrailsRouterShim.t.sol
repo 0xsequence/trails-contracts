@@ -101,7 +101,7 @@ contract TrailsRouterShimTest is Test {
         emit MockRouter.Forwarded(holder, callValue, routerCalldata);
 
         // Act: delegate entrypoint
-        IMockDelegatedExtension(holder).handleSequenceDelegateCall{value: callValue}(opHash, 0, 0, 0, 0, forwardData);
+        IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, forwardData);
 
         // Assert: success sentinel written at holder storage
         bytes32 slot = TrailsSentinelLib.successSlot(opHash);

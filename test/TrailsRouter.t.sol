@@ -271,20 +271,6 @@ contract TrailsRouterTest is Test {
         assertEq(mockToken.balanceOf(user), 1000e18 - transferAmount);
     }
 
-    function test_pullAmountAndExecute_WithZeroAddress_ShouldSkipTransfer() public {
-        Call3[] memory calls = new Call3[](1);
-        calls[0] =
-            Call3({target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")});
-
-        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
-
-        vm.prank(user);
-        router.pullAmountAndExecute(address(0), 1 ether, callData);
-
-        assertEq(mockToken.balanceOf(address(router)), 0);
-        assertEq(mockToken.balanceOf(user), 1000e18);
-    }
-
     function test_RevertWhen_pullAmountAndExecute_InsufficientAllowance() public {
         uint256 transferAmount = 100e18;
 

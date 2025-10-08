@@ -1,26 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+import {ITrailsIntentEntrypoint} from "./interfaces/ITrailsIntentEntrypoint.sol";
 
 /// @title TrailsIntentEntrypoint
 /// @author Miguel Mota
 /// @notice A contract to facilitate deposits to intent addresses with off-chain signed intents.
-contract TrailsIntentEntrypoint is ReentrancyGuard {
+contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     using ECDSA for bytes32;
 
     bytes32 public constant INTENT_TYPEHASH =
         keccak256("Intent(address user,address token,uint256 amount,address intentAddress,uint256 deadline)");
     string public constant VERSION = "1";
 
+    /// @notice EIP-712 domain separator used for intent signatures.
     bytes32 public immutable DOMAIN_SEPARATOR;
 
+    /// @notice Tracks whether an intent digest has been consumed to prevent replays.
     mapping(bytes32 => bool) public usedIntents;
-
-    event IntentDeposit(address indexed user, address indexed intentAddress, uint256 amount);
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(
@@ -34,6 +36,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
         );
     }
 
+    /// @inheritdoc ITrailsIntentEntrypoint
     function depositToIntentWithPermit(
         address user,
         address token,
@@ -50,15 +53,13 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
     ) external nonReentrant {
         _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
 
-        // Permit this contract to spend user's tokens
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
-
-        // Transfer tokens to intent address
         IERC20(token).transferFrom(user, intentAddress, amount);
 
         emit IntentDeposit(user, intentAddress, amount);
     }
 
+    /// @inheritdoc ITrailsIntentEntrypoint
     function depositToIntent(
         address user,
         address token,
@@ -71,7 +72,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
     ) external nonReentrant {
         _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
 
-        // Transfer tokens (assumes prior approval)
         IERC20(token).transferFrom(user, intentAddress, amount);
 
         emit IntentDeposit(user, intentAddress, amount);
@@ -89,6 +89,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
     ) internal {
         require(amount > 0, "Amount must be greater than 0");
         require(token != address(0), "Token must not be zero-address");
+        require(intentAddress != address(0), "Intent address must not be zero");
         require(block.timestamp <= deadline, "Intent expired");
 
         bytes32 intentHash = keccak256(abi.encode(INTENT_TYPEHASH, user, token, amount, intentAddress, deadline));

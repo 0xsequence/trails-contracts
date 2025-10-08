@@ -6,12 +6,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
 import {IMulticall3} from "./interfaces/IMulticall3.sol";
+import {ITrailsRouter} from "./interfaces/ITrailsRouter.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 
 /// @title TrailsRouter
 /// @author Miguel Mota, Shun Kakinoki
 /// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
-contract TrailsRouter is IDelegatedExtension {
+/// @dev Must be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
+contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     // -------------------------------------------------------------------------
     // Libraries
     // -------------------------------------------------------------------------
@@ -35,31 +37,6 @@ contract TrailsRouter is IDelegatedExtension {
 
     // -------------------------------------------------------------------------
     // Events
-    // -------------------------------------------------------------------------
-
-    event BalanceInjectorCall(
-        address indexed token,
-        address indexed target,
-        bytes32 placeholder,
-        uint256 amountReplaced,
-        uint256 amountOffset,
-        bool success,
-        bytes result
-    );
-    event Refund(address indexed token, address indexed recipient, uint256 amount);
-    event Sweep(address indexed token, address indexed recipient, uint256 amount);
-    event RefundAndSweep(
-        address indexed token,
-        address indexed refundRecipient,
-        uint256 refundAmount,
-        address indexed sweepRecipient,
-        uint256 actualRefund,
-        uint256 remaining
-    );
-    event ActualRefund(address indexed token, address indexed recipient, uint256 expected, uint256 actual);
-
-    // -------------------------------------------------------------------------
-    // Modifiers
     // -------------------------------------------------------------------------
 
     modifier onlyDelegatecall() {
@@ -91,8 +68,11 @@ contract TrailsRouter is IDelegatedExtension {
         payable
         returns (IMulticall3.Result[] memory returnResults)
     {
-        if (token != address(0)) {
+        if (token == address(0)) {
+            require(msg.value > 0, "No ETH sent");
+        } else {
             uint256 amount = _getBalance(token, msg.sender);
+            require(amount > 0, "No tokens to pull");
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
@@ -112,7 +92,9 @@ contract TrailsRouter is IDelegatedExtension {
         payable
         returns (IMulticall3.Result[] memory returnResults)
     {
-        if (token != address(0)) {
+        if (token == address(0)) {
+            require(msg.value >= amount, "Insufficient ETH sent");
+        } else {
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
@@ -311,6 +293,7 @@ contract TrailsRouter is IDelegatedExtension {
     /// @notice Entry point for Sequence delegatecall routing.
     /// @dev The wallet module delegatecalls this function with the original call data in `_data`.
     ///      We decode the selector and dispatch to the corresponding function in this contract.
+    /// @inheritdoc IDelegatedExtension
     function handleSequenceDelegateCall(
         bytes32 _opHash,
         uint256, /* _startingGas */
@@ -318,7 +301,7 @@ contract TrailsRouter is IDelegatedExtension {
         uint256, /* _numCalls */
         uint256, /* _space */
         bytes calldata _data
-    ) external override onlyDelegatecall {
+    ) external override(IDelegatedExtension, ITrailsRouter) onlyDelegatecall {
         bytes4 selector;
         if (_data.length >= 4) {
             selector = bytes4(_data[0:4]);
@@ -411,5 +394,6 @@ contract TrailsRouter is IDelegatedExtension {
     // Receive ETH
     // -------------------------------------------------------------------------
 
+    /// @notice Allow direct native token transfers when contract is used standalone.
     receive() external payable {}
 }
