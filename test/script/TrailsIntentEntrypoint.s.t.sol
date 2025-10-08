@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {Deploy as TrailsIntentEntrypointDeploy} from "script/TrailsIntentEntrypoint.s.sol";
 import {TrailsIntentEntrypoint} from "src/TrailsIntentEntrypoint.sol";
-import {ISingletonFactory, SINGLETON_FACTORY_ADDR} from "../../lib/erc2470-libs/src/ISingletonFactory.sol";
+import {Create2Utils} from "../utils/Create2Utils.sol";
 
 contract TrailsIntentEntrypointDeploymentTest is Test {
     // -------------------------------------------------------------------------
@@ -16,8 +16,11 @@ contract TrailsIntentEntrypointDeploymentTest is Test {
     uint256 internal _deployerPk;
     string internal _deployerPkStr;
 
-    address payable internal constant EXPECTED_INTENT_ENTRYPOINT_ADDRESS =
-        payable(0x763D5d81641f1d2E5B91189Ed2f70F70635cAf39);
+    // Expected predetermined address (calculated using CREATE2)
+    function expectedIntentEntrypointAddress() internal pure returns (address payable) {
+        return
+            Create2Utils.calculateCreate2Address(type(TrailsIntentEntrypoint).creationCode, Create2Utils.standardSalt());
+    }
 
     // -------------------------------------------------------------------------
     // Setup
@@ -42,7 +45,7 @@ contract TrailsIntentEntrypointDeploymentTest is Test {
         _deployScript.run();
 
         // Get the expected address
-        address payable expectedAddress = EXPECTED_INTENT_ENTRYPOINT_ADDRESS;
+        address payable expectedAddress = expectedIntentEntrypointAddress();
 
         // Verify the deployed contract is functional
         TrailsIntentEntrypoint entrypoint = TrailsIntentEntrypoint(expectedAddress);
@@ -57,7 +60,7 @@ contract TrailsIntentEntrypointDeploymentTest is Test {
         vm.setEnv("PRIVATE_KEY", _deployerPkStr);
 
         // Get the expected address
-        address payable expectedAddress = EXPECTED_INTENT_ENTRYPOINT_ADDRESS;
+        address payable expectedAddress = expectedIntentEntrypointAddress();
 
         // First deployment
         vm.recordLogs();
@@ -84,7 +87,7 @@ contract TrailsIntentEntrypointDeploymentTest is Test {
         _deployScript.run();
 
         // Get reference to deployed contract
-        address expectedAddress = EXPECTED_INTENT_ENTRYPOINT_ADDRESS;
+        address payable expectedAddress = expectedIntentEntrypointAddress();
         TrailsIntentEntrypoint entrypoint = TrailsIntentEntrypoint(expectedAddress);
 
         // Verify contract is deployed and functional

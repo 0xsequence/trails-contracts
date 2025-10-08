@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {Deploy as TrailsRouterDeploy} from "script/TrailsRouter.s.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
-import {ISingletonFactory, SINGLETON_FACTORY_ADDR} from "../../lib/erc2470-libs/src/ISingletonFactory.sol";
+import {Create2Utils} from "../utils/Create2Utils.sol";
 
 contract TrailsRouterDeploymentTest is Test {
     // -------------------------------------------------------------------------
@@ -16,8 +16,10 @@ contract TrailsRouterDeploymentTest is Test {
     uint256 internal _deployerPk;
     string internal _deployerPkStr;
 
-    // Expected predetermined address (hardcoded from broadcast logs)
-    address payable internal constant EXPECTED_ROUTER_ADDRESS = payable(0xC428EBE276bB72c00524e6FBb5280B0FaB009973);
+    // Expected predetermined address (calculated using CREATE2)
+    function expectedRouterAddress() internal pure returns (address payable) {
+        return Create2Utils.calculateCreate2Address(type(TrailsRouter).creationCode, Create2Utils.standardSalt());
+    }
 
     // -------------------------------------------------------------------------
     // Setup
@@ -42,10 +44,11 @@ contract TrailsRouterDeploymentTest is Test {
         _deployScript.run();
 
         // Verify TrailsRouter was deployed at the expected address
-        assertEq(EXPECTED_ROUTER_ADDRESS.code.length > 0, true, "TrailsRouter should be deployed");
+        address payable expectedAddr = expectedRouterAddress();
+        assertEq(expectedAddr.code.length > 0, true, "TrailsRouter should be deployed");
 
         // Verify the deployed contract is functional
-        TrailsRouter router = TrailsRouter(EXPECTED_ROUTER_ADDRESS);
+        TrailsRouter router = TrailsRouter(expectedAddr);
         assertEq(address(router).code.length > 0, true, "Router should have code");
     }
 
@@ -57,7 +60,8 @@ contract TrailsRouterDeploymentTest is Test {
         _deployScript.run();
 
         // Verify first deployment address
-        assertEq(EXPECTED_ROUTER_ADDRESS.code.length > 0, true, "First deployment: TrailsRouter deployed");
+        address payable expectedAddr = expectedRouterAddress();
+        assertEq(expectedAddr.code.length > 0, true, "First deployment: TrailsRouter deployed");
 
         // Re-set the PRIVATE_KEY for second deployment
         vm.setEnv("PRIVATE_KEY", _deployerPkStr);
@@ -67,7 +71,7 @@ contract TrailsRouterDeploymentTest is Test {
         _deployScript.run();
 
         // Verify second deployment still has contract at same address
-        assertEq(EXPECTED_ROUTER_ADDRESS.code.length > 0, true, "Second deployment: TrailsRouter still deployed");
+        assertEq(expectedAddr.code.length > 0, true, "Second deployment: TrailsRouter still deployed");
     }
 
     function test_DeployedRouter_HasCorrectConfiguration() public {
@@ -77,7 +81,8 @@ contract TrailsRouterDeploymentTest is Test {
         _deployScript.run();
 
         // Get reference to deployed contract
-        TrailsRouter router = TrailsRouter(EXPECTED_ROUTER_ADDRESS);
+        address payable expectedAddr = expectedRouterAddress();
+        TrailsRouter router = TrailsRouter(expectedAddr);
 
         // Verify contract is deployed and functional
         assertEq(address(router).code.length > 0, true, "Router should have code");

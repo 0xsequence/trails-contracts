@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {Deploy as TrailsRouterShimDeploy} from "script/TrailsRouterShim.s.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
-import {ISingletonFactory, SINGLETON_FACTORY_ADDR} from "../../lib/erc2470-libs/src/ISingletonFactory.sol";
+import {Create2Utils} from "../utils/Create2Utils.sol";
 
 contract TrailsRouterShimDeploymentTest is Test {
     // -------------------------------------------------------------------------
@@ -17,8 +17,16 @@ contract TrailsRouterShimDeploymentTest is Test {
     uint256 internal _deployerPk;
     string internal _deployerPkStr;
 
-    // Expected predetermined address for TrailsRouterShim
-    address payable internal constant EXPECTED_SHIM_ADDRESS = payable(0x393b5b2BBE9b43f5CEfa5319aDBD46d7a6f97b40);
+    // Expected predetermined addresses (calculated using CREATE2)
+    function expectedRouterAddress() internal pure returns (address payable) {
+        return Create2Utils.calculateCreate2Address(type(TrailsRouter).creationCode, Create2Utils.standardSalt());
+    }
+
+    function expectedShimAddress() internal pure returns (address payable) {
+        address routerAddr = expectedRouterAddress();
+        bytes memory shimInitCode = abi.encodePacked(type(TrailsRouterShim).creationCode, abi.encode(routerAddr));
+        return Create2Utils.calculateCreate2Address(shimInitCode, Create2Utils.standardSalt());
+    }
 
     // -------------------------------------------------------------------------
     // Setup
@@ -49,10 +57,11 @@ contract TrailsRouterShimDeploymentTest is Test {
         assertEq(deployedRouterAddr.code.length > 0, true, "TrailsRouter should be deployed");
 
         // Verify TrailsRouterShim was deployed at the expected address
-        assertEq(EXPECTED_SHIM_ADDRESS.code.length > 0, true, "TrailsRouterShim should be deployed at expected address");
+        address payable expectedShimAddr = expectedShimAddress();
+        assertEq(expectedShimAddr.code.length > 0, true, "TrailsRouterShim should be deployed at expected address");
 
         // Verify the shim's router address is correctly set
-        TrailsRouterShim shim = TrailsRouterShim(EXPECTED_SHIM_ADDRESS);
+        TrailsRouterShim shim = TrailsRouterShim(expectedShimAddr);
         assertEq(address(shim.ROUTER()), deployedRouterAddr, "Shim should have correct router address");
     }
 
@@ -68,7 +77,8 @@ contract TrailsRouterShimDeploymentTest is Test {
 
         // Verify first deployment addresses
         assertEq(deployedRouterAddr.code.length > 0, true, "First deployment: TrailsRouter deployed");
-        assertEq(EXPECTED_SHIM_ADDRESS.code.length > 0, true, "First deployment: TrailsRouterShim deployed");
+        address payable expectedShimAddr = expectedShimAddress();
+        assertEq(expectedShimAddr.code.length > 0, true, "First deployment: TrailsRouterShim deployed");
 
         // Re-set the PRIVATE_KEY for second deployment
         vm.setEnv("PRIVATE_KEY", _deployerPkStr);
@@ -79,7 +89,7 @@ contract TrailsRouterShimDeploymentTest is Test {
 
         // Verify second deployment still has contracts at same addresses
         assertEq(deployedRouterAddr.code.length > 0, true, "Second deployment: TrailsRouter still deployed");
-        assertEq(EXPECTED_SHIM_ADDRESS.code.length > 0, true, "Second deployment: TrailsRouterShim still deployed");
+        assertEq(expectedShimAddr.code.length > 0, true, "Second deployment: TrailsRouterShim still deployed");
 
         // Both deployments should succeed without reverting
     }
@@ -92,7 +102,8 @@ contract TrailsRouterShimDeploymentTest is Test {
 
         // Get references to deployed contracts
         address deployedRouterAddr = _deployScript.routerAddress();
-        TrailsRouterShim shim = TrailsRouterShim(EXPECTED_SHIM_ADDRESS);
+        address payable expectedShimAddr = expectedShimAddress();
+        TrailsRouterShim shim = TrailsRouterShim(expectedShimAddr);
         TrailsRouter router = TrailsRouter(payable(deployedRouterAddr));
 
         // Verify the router address is set correctly in the shim
