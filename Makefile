@@ -1,4 +1,4 @@
-.PHONY: all install submodules update-submodules reset-submodules verify-deployment
+.PHONY: all install submodules update-submodules reset-submodules verify-deployment build lint test install-foundry
 
 all: install
 
@@ -53,11 +53,12 @@ verify-deployment:
 		./scripts/verify-deployment.sh $(ADDRESS) $(SOURCE_CHAIN) $(TARGET_CHAIN); \
 	fi
 
-.PHONY: build
 build:
 	forge build
 
-.PHONY: test
+lint:
+	forge fmt --check && forge lint
+
 test:
 	forge test -vvv
 
