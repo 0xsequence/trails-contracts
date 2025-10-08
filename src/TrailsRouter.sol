@@ -267,47 +267,56 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     // Internal Helpers
     // -------------------------------------------------------------------------
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _safeTransferFrom(address token, address from, address to, uint256 amount) internal {
         IERC20 erc20 = IERC20(token);
         SafeERC20.safeTransferFrom(erc20, from, to, amount);
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _ensureERC20Approval(address _token, uint256 _amount) internal {
         IERC20 erc20 = IERC20(_token);
         SafeERC20.forceApprove(erc20, SELF, _amount);
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _transferNative(address _to, uint256 _amount) internal {
         (bool success,) = payable(_to).call{value: _amount}("");
         if (!success) revert NativeTransferFailed();
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _transferERC20(address _token, address _to, uint256 _amount) internal {
         IERC20 erc20 = IERC20(_token);
         SafeERC20.safeTransfer(erc20, _to, _amount);
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _getBalance(address token, address account) internal view returns (uint256) {
         return token == address(0) ? account.balance : IERC20(token).balanceOf(account);
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _getSelfBalance(address token) internal view returns (uint256) {
         return _getBalance(token, address(this));
     }
 
-    // Legacy functions for backward compatibility
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _nativeBalance() internal view returns (uint256) {
         return address(this).balance;
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _erc20Balance(address _token) internal view returns (uint256) {
         return IERC20(_token).balanceOf(address(this));
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _erc20BalanceOf(address _token, address _account) internal view returns (uint256) {
         return IERC20(_token).balanceOf(_account);
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _injectAndCallDelegated(
         address token,
         address target,
