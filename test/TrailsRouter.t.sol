@@ -489,6 +489,4 @@ contract TrailsRouterTest is Test {
         vm.expectRevert(TrailsRouter.NotDelegateCall.selector);
         router.sweep(address(0), recipient);
     }
-
-    receive() external payable {}
 }
