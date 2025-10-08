@@ -34,6 +34,14 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     error NotDelegateCall();
     error InvalidDelegatedSelector(bytes4 selector);
     error SuccessSentinelNotSet();
+    error NoEthSent();
+    error NoTokensToPull();
+    error InsufficientEth(uint256 required, uint256 received);
+    error NoTokensToSweep();
+    error NoEthAvailable();
+    error AmountOffsetOutOfBounds();
+    error PlaceholderMismatch();
+    error TargetCallFailed(bytes revertData);
 
     // -------------------------------------------------------------------------
     // Events
@@ -54,7 +62,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     /// @return returnResults The result of the execution.
     function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
         (bool success, bytes memory returnData) = multicall3.delegatecall(data);
-        require(success, "TrailsRouter: call failed");
+        if (!success) revert TargetCallFailed(returnData);
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
@@ -69,15 +77,15 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         returns (IMulticall3.Result[] memory returnResults)
     {
         if (token == address(0)) {
-            require(msg.value > 0, "No ETH sent");
+            if (msg.value == 0) revert NoEthSent();
         } else {
             uint256 amount = _getBalance(token, msg.sender);
-            require(amount > 0, "No tokens to pull");
+            if (amount == 0) revert NoTokensToPull();
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
         (bool success, bytes memory returnData) = multicall3.delegatecall(data);
-        require(success, "TrailsRouter: pullAndExecute failed");
+        if (!success) revert TargetCallFailed(returnData);
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
@@ -93,13 +101,13 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         returns (IMulticall3.Result[] memory returnResults)
     {
         if (token == address(0)) {
-            require(msg.value >= amount, "Insufficient ETH sent");
+            if (msg.value < amount) revert InsufficientEth(amount, msg.value);
         } else {
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
         (bool success, bytes memory returnData) = multicall3.delegatecall(data);
-        require(success, "TrailsRouter: pullAmountAndExecute failed");
+        if (!success) revert TargetCallFailed(returnData);
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
@@ -125,10 +133,10 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
 
         if (token == address(0)) {
             callerBalance = msg.value;
-            require(callerBalance > 0, "No ETH sent");
+            if (callerBalance == 0) revert NoEthSent();
         } else {
             callerBalance = _getBalance(token, msg.sender);
-            require(callerBalance > 0, "No tokens to sweep");
+            if (callerBalance == 0) revert NoTokensToSweep();
             _safeTransferFrom(token, msg.sender, address(this), callerBalance);
         }
 
@@ -148,11 +156,20 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         bytes calldata callData,
         uint256 amountOffset,
         bytes32 placeholder
-    ) external payable {
-        _injectAndCall(token, target, callData, amountOffset, placeholder);
+    ) public payable {
+        uint256 callerBalance = _getSelfBalance(token);
+        if (callerBalance == 0) {
+            if (token == address(0)) {
+                revert NoEthAvailable();
+            } else {
+                revert NoTokensToSweep();
+            }
+        }
+
+        _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
     }
 
-    function _injectAndCall(
+    function _injectAndCallDelegated(
         address token,
         address target,
         bytes memory callData,
@@ -160,7 +177,13 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         bytes32 placeholder
     ) internal {
         uint256 callerBalance = _getSelfBalance(token);
-        require(callerBalance > 0, token == address(0) ? "No ETH available in contract" : "No tokens to sweep");
+        if (callerBalance == 0) {
+            if (token == address(0)) {
+                revert NoEthAvailable();
+            } else {
+                revert NoTokensToSweep();
+            }
+        }
 
         _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
     }
@@ -177,13 +200,13 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         bool shouldReplace = (amountOffset != 0 || placeholder != bytes32(0));
 
         if (shouldReplace) {
-            require(callData.length >= amountOffset + 32, "amountOffset out of bounds");
+            if (callData.length < amountOffset + 32) revert AmountOffsetOutOfBounds();
 
             bytes32 found;
             assembly {
                 found := mload(add(add(callData, 32), amountOffset))
             }
-            require(found == placeholder, "Placeholder mismatch");
+            if (found != placeholder) revert PlaceholderMismatch();
 
             assembly {
                 mstore(add(add(callData, 32), amountOffset), callerBalance)
@@ -194,14 +217,14 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         if (token == address(0)) {
             (bool success, bytes memory result) = target.call{value: callerBalance}(callData);
             emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
-            require(success, string(result));
+            if (!success) revert TargetCallFailed(result);
         } else {
             IERC20 erc20 = IERC20(token);
             SafeERC20.forceApprove(erc20, target, callerBalance);
 
             (bool success, bytes memory result) = target.call(callData);
             emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
-            require(success, string(result));
+            if (!success) revert TargetCallFailed(result);
         }
     }
 
@@ -311,7 +334,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         if (selector == this.injectAndCall.selector) {
             (address token, address target, bytes memory callData, uint256 amountOffset, bytes32 placeholder) =
                 abi.decode(_data[4:], (address, address, bytes, uint256, bytes32));
-            _injectAndCall(token, target, callData, amountOffset, placeholder);
+            _injectAndCallDelegated(token, target, callData, amountOffset, placeholder);
             return;
         }
 

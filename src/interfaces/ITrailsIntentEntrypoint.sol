@@ -4,11 +4,19 @@ pragma solidity ^0.8.20;
 /// @title ITrailsIntentEntrypoint
 /// @notice Interface for the Trails intent entrypoint contract handling signed deposits.
 interface ITrailsIntentEntrypoint {
+    // -------------------------------------------------------------------------
+    // Events
+    // -------------------------------------------------------------------------
+
     /// @notice Emitted when an intent deposit is executed.
     /// @param user The signer authorizing the deposit.
     /// @param intentAddress The destination account receiving funds.
     /// @param amount The amount of tokens transferred.
     event IntentDeposit(address indexed user, address indexed intentAddress, uint256 amount);
+
+    // -------------------------------------------------------------------------
+    // Views
+    // -------------------------------------------------------------------------
 
     /// @notice Returns the EIP-712 domain separator used for intent signatures.
     function DOMAIN_SEPARATOR() external view returns (bytes32);
@@ -16,6 +24,10 @@ interface ITrailsIntentEntrypoint {
     /// @notice Returns whether an intent digest has already been consumed.
     /// @param digest The EIP-712 digest of the intent message.
     function usedIntents(bytes32 digest) external view returns (bool);
+
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
 
     /// @notice Executes an off-chain signed intent and pays using ERC-20 permit for allowance.
     /// @param user The signer authorizing the intent.

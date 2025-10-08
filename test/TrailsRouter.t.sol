@@ -8,6 +8,7 @@ import {MockSenderGetter} from "test/mocks/MockSenderGetter.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 import {MockMulticall3} from "test/mocks/MockMulticall3.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 
 // -----------------------------------------------------------------------------
@@ -281,7 +282,9 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
-        vm.expectRevert(); // SafeERC20 will revert with ERC20InsufficientAllowance
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(router), 0, transferAmount)
+        );
         router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
     }
 
@@ -302,6 +305,22 @@ contract TrailsRouterTest is Test {
 
         assertEq(mockToken.balanceOf(address(router)), userBalance);
         assertEq(mockToken.balanceOf(user), 0);
+    }
+
+    function test_RevertWhen_pullAndExecute_InsufficientAllowance() public {
+        uint256 userBalance = mockToken.balanceOf(user);
+
+        Call3[] memory calls = new Call3[](1);
+        calls[0] =
+            Call3({target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")});
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
+
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(router), 0, userBalance)
+        );
+        router.pullAndExecute(address(mockToken), callData);
     }
 
     function test_ReceiveETH_ShouldAcceptETH() public {
@@ -351,6 +370,28 @@ contract TrailsRouterTest is Test {
         assertEq(address(targetETH).balance, ethAmount);
     }
 
+    function testRevertWhen_injectSweepAndCall_InsufficientAllowance() public {
+        uint256 balance = 1e18;
+        mockToken.mint(address(this), balance);
+
+        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(router), 0, balance)
+        );
+        router.injectSweepAndCall(address(mockToken), address(target), callData, 4, PLACEHOLDER);
+    }
+
+    function testRevertWhen_injectSweepAndCall_NoEthSent() public {
+        uint256 ethAmount = 1 ether;
+
+        bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
+
+        vm.prank(user);
+        vm.expectRevert(TrailsRouter.NoEthSent.selector);
+        router.injectSweepAndCall{value: 0}(address(0), address(targetETH), callData, 4, PLACEHOLDER);
+    }
+
     function testDelegateCallWithETH() public {
         MockWallet wallet = new MockWallet();
 
@@ -366,6 +407,21 @@ contract TrailsRouterTest is Test {
         assertTrue(success, "Delegatecall should succeed");
         assertEq(targetETH.lastAmount(), ethAmount, "Target should receive wallet's ETH balance");
         assertEq(address(wallet).balance, 0, "Wallet should be swept empty");
+    }
+
+    function testRevertWhen_injectAndCall_InsufficientEth() public {
+        bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
+
+        vm.prank(holder);
+        vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
+        TrailsRouter(holder).injectAndCall(address(0), address(targetETH), callData, 4, PLACEHOLDER);
+    }
+
+    function testRevertWhen_injectAndCall_NoEthAvailable() public {
+        bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
+
+        vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
+        TrailsRouter(holder).injectAndCall(address(0), address(targetETH), callData, 4, PLACEHOLDER);
     }
 
     // -------------------------------------------------------------------------
@@ -488,5 +544,30 @@ contract TrailsRouterTest is Test {
     function test_direct_sweep_reverts_not_delegatecall() public {
         vm.expectRevert(TrailsRouter.NotDelegateCall.selector);
         router.sweep(address(0), recipient);
+    }
+
+    function trailsRouterHelperInjectAndCall(
+        address token,
+        address target,
+        bytes memory callData,
+        uint256 amountOffset,
+        bytes32 placeholder,
+        uint256 ethBalance
+    ) internal {
+        address wallet = address(0xcafe);
+        vm.etch(wallet, address(router).code);
+        vm.deal(wallet, ethBalance);
+        vm.expectCall(target, ethBalance, callData);
+        (bool success,) = wallet.call(
+            abi.encodeWithSignature(
+                "injectAndCall(address,address,bytes,uint256,bytes32)",
+                token,
+                target,
+                callData,
+                amountOffset,
+                placeholder
+            )
+        );
+        vm.assertEq(success, false, "helper should bubble revert for assertions");
     }
 }

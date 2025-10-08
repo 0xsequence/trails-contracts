@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "../src/TrailsIntentEntrypoint.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 // -----------------------------------------------------------------------------
 // Mock Contracts and Utilities
@@ -163,7 +164,7 @@ contract TrailsIntentEntrypointTest is Test {
 
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(userPrivateKey, intentDigest);
 
-        vm.expectRevert();
+        vm.expectRevert(TrailsIntentEntrypoint.IntentExpired.selector);
         entrypoint.depositToIntentWithPermit(
             user,
             address(token),
@@ -219,7 +220,7 @@ contract TrailsIntentEntrypointTest is Test {
 
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(wrongPrivateKey, intentDigest);
 
-        vm.expectRevert();
+        vm.expectRevert(TrailsIntentEntrypoint.InvalidIntentSignature.selector);
         entrypoint.depositToIntentWithPermit(
             user,
             address(token),
@@ -249,7 +250,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
 
-        vm.expectRevert("Intent address must not be zero");
+        vm.expectRevert(TrailsIntentEntrypoint.InvalidIntentAddress.selector);
         entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, v, r, s);
         vm.stopPrank();
     }
@@ -285,7 +286,11 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(userPrivateKey, intentDigest);
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector, address(entrypoint), permitAmount, amount
+            )
+        );
         entrypoint.depositToIntentWithPermit(
             user,
             address(token),
@@ -319,7 +324,7 @@ contract TrailsIntentEntrypointTest is Test {
 
         entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, v, r, s);
 
-        vm.expectRevert("Intent already used");
+        vm.expectRevert(TrailsIntentEntrypoint.IntentAlreadyUsed.selector);
         entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, v, r, s);
 
         vm.stopPrank();

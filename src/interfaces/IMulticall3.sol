@@ -5,6 +5,10 @@ pragma solidity ^0.8.30;
 /// @notice Minimal subset of Multicall3 used by Trails router.
 /// @dev Matches the canonical implementation deployed at `0xcA11...`.
 interface IMulticall3 {
+    // -------------------------------------------------------------------------
+    // Structs
+    // -------------------------------------------------------------------------
+
     struct Call3 {
         address target;
         bool allowFailure;
@@ -15,6 +19,10 @@ interface IMulticall3 {
         bool success;
         bytes returnData;
     }
+
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
 
     function aggregate3(Call3[] calldata calls) external payable returns (Result[] memory returnData);
 }
