@@ -329,4 +329,80 @@ contract TrailsIntentEntrypointTest is Test {
 
         vm.stopPrank();
     }
+
+    function testDepositToIntentRequiresNonZeroAmount() public {
+        vm.startPrank(user);
+
+        address intentAddress = address(0x1234);
+        uint256 amount = 0; // Zero amount
+        uint256 deadline = block.timestamp + 100;
+
+        bytes32 intentHash =
+            keccak256(abi.encode(entrypoint.INTENT_TYPEHASH(), user, address(token), amount, intentAddress, deadline));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+        vm.expectRevert(TrailsIntentEntrypoint.InvalidAmount.selector);
+        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, v, r, s);
+
+        vm.stopPrank();
+    }
+
+    function testDepositToIntentWithPermitRequiresNonZeroAmount() public {
+        vm.startPrank(user);
+
+        address intentAddress = address(0x1234);
+        uint256 amount = 0; // Zero amount
+        uint256 deadline = block.timestamp + 100;
+
+        // Create permit signature
+        bytes32 permitHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                token.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        user,
+                        address(entrypoint),
+                        amount,
+                        token.nonces(user),
+                        deadline
+                    )
+                )
+            )
+        );
+
+        (uint8 permitV, bytes32 permitR, bytes32 permitS) = vm.sign(userPrivateKey, permitHash);
+
+        bytes32 intentHash =
+            keccak256(abi.encode(entrypoint.INTENT_TYPEHASH(), user, address(token), amount, intentAddress, deadline));
+        bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(userPrivateKey, intentDigest);
+
+        vm.expectRevert(TrailsIntentEntrypoint.InvalidAmount.selector);
+        entrypoint.depositToIntentWithPermit(
+            user, address(token), amount, amount, intentAddress, deadline, permitV, permitR, permitS, sigV, sigR, sigS
+        );
+
+        vm.stopPrank();
+    }
+
+    function testDepositToIntentRequiresValidToken() public {
+        vm.startPrank(user);
+
+        address intentAddress = address(0x1234);
+        uint256 amount = 10 * 10 ** token.decimals();
+        uint256 deadline = block.timestamp + 100;
+
+        bytes32 intentHash =
+            keccak256(abi.encode(entrypoint.INTENT_TYPEHASH(), user, address(0), amount, intentAddress, deadline));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+        vm.expectRevert(TrailsIntentEntrypoint.InvalidToken.selector);
+        entrypoint.depositToIntent(user, address(0), amount, intentAddress, deadline, v, r, s);
+
+        vm.stopPrank();
+    }
 }

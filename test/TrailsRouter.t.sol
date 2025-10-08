@@ -544,6 +544,86 @@ contract TrailsRouterTest is Test {
         router.sweep(address(0), recipient);
     }
 
+    function test_native_transfer_failed() public {
+        RevertingReceiver revertingReceiver = new RevertingReceiver();
+
+        // Give holder some ETH to sweep
+        vm.deal(holder, 1 ether);
+
+        // Verify holder has ETH
+        assertEq(holder.balance, 1 ether);
+
+        vm.expectRevert(TrailsRouter.NativeTransferFailed.selector);
+        // Call sweep through holder to simulate delegatecall context
+        holder.call(abi.encodeWithSelector(router.sweep.selector, address(0), address(revertingReceiver)));
+    }
+
+    function test_success_sentinel_not_set() public {
+        bytes32 opHash = keccak256("test operation");
+        address token = address(mockToken);
+        address recipientAddr = recipient;
+
+        vm.expectRevert(TrailsRouter.SuccessSentinelNotSet.selector);
+        // Call through holder to simulate delegatecall context
+        holder.call(abi.encodeWithSelector(router.validateOpHashAndSweep.selector, opHash, token, recipientAddr));
+    }
+
+    function test_no_tokens_to_pull() public {
+        address token = address(new MockERC20("Test", "TST", 18)); // New token, caller has 0 balance
+        bytes memory callData = abi.encodeWithSelector(bytes4(0x12345678)); // Dummy selector
+
+        vm.expectRevert(TrailsRouter.NoTokensToPull.selector);
+        router.pullAndExecute(token, callData);
+    }
+
+    function test_no_tokens_to_sweep() public {
+        address token = address(new MockERC20("Test", "TST", 18)); // New token, contract has 0 balance
+        MockTarget mockTarget = new MockTarget(address(token));
+        bytes memory callData = abi.encodeWithSelector(mockTarget.deposit.selector, 100, address(0));
+
+        vm.expectRevert(TrailsRouter.NoTokensToSweep.selector);
+        // Call through holder to simulate delegatecall context
+        holder.call(
+            abi.encodeWithSelector(router.injectAndCall.selector, token, address(mockTarget), callData, 0, bytes32(0))
+        );
+    }
+
+    function test_amount_offset_out_of_bounds() public {
+        MockTarget mockTarget = new MockTarget(address(mockToken));
+        // Create callData that's too short for the amountOffset
+        bytes memory callData = hex"12345678"; // 4 bytes, less than amountOffset + 32 = 36 + 32 = 68
+        uint256 amountOffset = 36; // This will make amountOffset + 32 = 68 > callData.length
+
+        vm.expectRevert(TrailsRouter.AmountOffsetOutOfBounds.selector);
+        // Call through holder to simulate delegatecall context
+        holder.call(
+            abi.encodeWithSelector(
+                router.injectAndCall.selector,
+                address(mockToken),
+                address(mockTarget),
+                callData,
+                amountOffset,
+                bytes32(uint256(0xdeadbeef))
+            )
+        );
+    }
+
+    function test_placeholder_mismatch() public {
+        MockTarget mockTarget = new MockTarget(address(mockToken));
+        // Create callData with wrong placeholder
+        bytes32 wrongPlaceholder = bytes32(uint256(0x12345678));
+        bytes32 expectedPlaceholder = bytes32(uint256(0xdeadbeef));
+        bytes memory callData = abi.encodeWithSelector(mockTarget.deposit.selector, wrongPlaceholder, address(0));
+
+        vm.expectRevert(TrailsRouter.PlaceholderMismatch.selector);
+        // Call through holder to simulate delegatecall context
+        holder.call(
+            abi.encodeWithSelector(
+                router.injectAndCall.selector, address(mockToken), address(mockTarget), callData, 4, expectedPlaceholder
+            )
+        );
+    }
+
     function trailsRouterHelperInjectAndCall(
         address token,
         address targetAddress,

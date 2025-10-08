@@ -6,10 +6,18 @@ import {Deploy as TrailsRouterDeploy} from "script/TrailsRouter.s.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
 
 contract TrailsRouterDeploymentTest is Test {
+    // -------------------------------------------------------------------------
+    // Test State Variables
+    // -------------------------------------------------------------------------
+
     TrailsRouterDeploy internal deployScript;
     address internal deployer;
     uint256 internal deployerPk;
     string internal deployerPkStr;
+
+    // -------------------------------------------------------------------------
+    // Setup
+    // -------------------------------------------------------------------------
 
     function setUp() public {
         deployScript = new TrailsRouterDeploy();
@@ -18,6 +26,10 @@ contract TrailsRouterDeploymentTest is Test {
         deployer = vm.addr(deployerPk);
         vm.deal(deployer, 100 ether);
     }
+
+    // -------------------------------------------------------------------------
+    // Test Functions
+    // -------------------------------------------------------------------------
 
     function test_DeployRouter_Success() public {
         vm.setEnv("PRIVATE_KEY", deployerPkStr);

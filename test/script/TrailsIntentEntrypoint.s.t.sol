@@ -6,10 +6,18 @@ import {Deploy as TrailsIntentEntrypointDeploy} from "script/TrailsIntentEntrypo
 import {TrailsIntentEntrypoint} from "src/TrailsIntentEntrypoint.sol";
 
 contract TrailsIntentEntrypointDeploymentTest is Test {
+    // -------------------------------------------------------------------------
+    // Test State Variables
+    // -------------------------------------------------------------------------
+
     TrailsIntentEntrypointDeploy internal deployScript;
     address internal deployer;
     uint256 internal deployerPk;
     string internal deployerPkStr;
+
+    // -------------------------------------------------------------------------
+    // Setup
+    // -------------------------------------------------------------------------
 
     function setUp() public {
         deployScript = new TrailsIntentEntrypointDeploy();
@@ -18,6 +26,10 @@ contract TrailsIntentEntrypointDeploymentTest is Test {
         deployer = vm.addr(deployerPk);
         vm.deal(deployer, 100 ether);
     }
+
+    // -------------------------------------------------------------------------
+    // Tests
+    // -------------------------------------------------------------------------
 
     function test_DeployIntentEntrypoint_Success() public {
         vm.setEnv("PRIVATE_KEY", deployerPkStr);
