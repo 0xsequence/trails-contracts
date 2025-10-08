@@ -621,11 +621,12 @@ contract TrailsRouterTest is Test {
 
         vm.expectRevert(TrailsRouter.PlaceholderMismatch.selector);
         // Call through holder to simulate delegatecall context
-        holder.call(
+        (bool success,) = holder.call(
             abi.encodeWithSelector(
                 router.injectAndCall.selector, address(mockToken), address(mockTarget), callData, 4, expectedPlaceholder
             )
         );
+        success;
     }
 
     function trailsRouterHelperInjectAndCall(
