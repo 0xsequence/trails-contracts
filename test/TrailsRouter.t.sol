@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import {Test, console} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
+import {Test} from "forge-std/Test.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
 import {MockSenderGetter} from "test/mocks/MockSenderGetter.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
@@ -73,24 +72,24 @@ contract MockTarget {
         if (shouldRevert) revert("Target reverted");
         lastAmount = amount;
         if (address(token) != address(0)) {
-            token.transferFrom(msg.sender, address(this), amount);
+            require(token.transferFrom(msg.sender, address(this), amount), "ERC20 transferFrom failed");
         }
     }
 }
 
 contract MockTargetETH {
     uint256 public lastAmount;
-    uint256 public receivedETH;
+    uint256 public receivedEth;
     bool public shouldRevert;
 
     function setShouldRevert(bool _shouldRevert) external {
         shouldRevert = _shouldRevert;
     }
 
-    function depositETH(uint256 amount, address /*receiver*/ ) external payable {
+    function depositEth(uint256 amount, address /*receiver*/ ) external payable {
         if (shouldRevert) revert("Target reverted");
         lastAmount = amount;
-        receivedETH = msg.value;
+        receivedEth = msg.value;
     }
 
     receive() external payable {}
@@ -150,7 +149,7 @@ contract TrailsRouterTest is Test {
     FailingToken internal failingToken;
     ERC20Mock internal erc20;
     MockTarget internal target;
-    MockTargetETH internal targetETH;
+    MockTargetETH internal targetEth;
 
     address internal user = makeAddr("user");
     address payable public holder;
@@ -204,7 +203,7 @@ contract TrailsRouterTest is Test {
         // Create simple MockERC20 for target
         MockERC20 simpleToken = new MockERC20("Simple", "SMP", 18);
         target = new MockTarget(address(simpleToken));
-        targetETH = new MockTargetETH();
+        targetEth = new MockTargetETH();
 
         holder = payable(address(0xbabe));
         recipient = payable(address(0x1));
@@ -361,13 +360,13 @@ contract TrailsRouterTest is Test {
     function testSweepAndCallETH() public {
         uint256 ethAmount = 1 ether;
 
-        bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
+        bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
-        router.injectSweepAndCall{value: ethAmount}(address(0), address(targetETH), callData, 4, PLACEHOLDER);
+        router.injectSweepAndCall{value: ethAmount}(address(0), address(targetEth), callData, 4, PLACEHOLDER);
 
-        assertEq(targetETH.lastAmount(), ethAmount);
-        assertEq(targetETH.receivedETH(), ethAmount);
-        assertEq(address(targetETH).balance, ethAmount);
+        assertEq(targetEth.lastAmount(), ethAmount);
+        assertEq(targetEth.receivedEth(), ethAmount);
+        assertEq(address(targetEth).balance, ethAmount);
     }
 
     function testRevertWhen_injectSweepAndCall_InsufficientAllowance() public {
@@ -383,11 +382,11 @@ contract TrailsRouterTest is Test {
     }
 
     function testRevertWhen_injectSweepAndCall_NoEthSent() public {
-        bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
+        bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.prank(user);
         vm.expectRevert(TrailsRouter.NoEthSent.selector);
-        router.injectSweepAndCall{value: 0}(address(0), address(targetETH), callData, 4, PLACEHOLDER);
+        router.injectSweepAndCall{value: 0}(address(0), address(targetEth), callData, 4, PLACEHOLDER);
     }
 
     function testDelegateCallWithETH() public {
@@ -396,30 +395,30 @@ contract TrailsRouterTest is Test {
         uint256 ethAmount = 2 ether;
         vm.deal(address(wallet), ethAmount);
 
-        bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
+        bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
         (bool success,) = wallet.delegateCallBalanceInjector(
-            address(router), address(0), address(targetETH), callData, 4, PLACEHOLDER
+            address(router), address(0), address(targetEth), callData, 4, PLACEHOLDER
         );
 
         assertTrue(success, "Delegatecall should succeed");
-        assertEq(targetETH.lastAmount(), ethAmount, "Target should receive wallet's ETH balance");
+        assertEq(targetEth.lastAmount(), ethAmount, "Target should receive wallet's ETH balance");
         assertEq(address(wallet).balance, 0, "Wallet should be swept empty");
     }
 
     function testRevertWhen_injectAndCall_InsufficientEth() public {
-        bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
+        bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.prank(holder);
         vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
-        TrailsRouter(holder).injectAndCall(address(0), address(targetETH), callData, 4, PLACEHOLDER);
+        TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER);
     }
 
     function testRevertWhen_injectAndCall_NoEthAvailable() public {
-        bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
+        bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
-        TrailsRouter(holder).injectAndCall(address(0), address(targetETH), callData, 4, PLACEHOLDER);
+        TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER);
     }
 
     // -------------------------------------------------------------------------

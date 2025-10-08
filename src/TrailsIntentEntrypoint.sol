@@ -87,7 +87,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
 
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
-        IERC20(token).transferFrom(user, intentAddress, amount);
+        require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
 
         emit IntentDeposit(user, intentAddress, amount);
     }
@@ -105,7 +105,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     ) external nonReentrant {
         _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
 
-        IERC20(token).transferFrom(user, intentAddress, amount);
+        require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
 
         emit IntentDeposit(user, intentAddress, amount);
     }

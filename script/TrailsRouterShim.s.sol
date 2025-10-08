@@ -3,9 +3,7 @@ pragma solidity ^0.8.30;
 
 import {SingletonDeployer, console} from "erc2470-libs/script/SingletonDeployer.s.sol";
 import {TrailsRouterShim} from "../src/TrailsRouterShim.sol";
-import {TrailsRouter} from "../src/TrailsRouter.sol";
 import {Deploy as TrailsRouterDeploy} from "./TrailsRouter.s.sol";
-import {SINGLETON_FACTORY_ADDR} from "erc2470-libs/src/ISingletonFactory.sol";
 
 contract Deploy is SingletonDeployer {
     address public routerAddress;

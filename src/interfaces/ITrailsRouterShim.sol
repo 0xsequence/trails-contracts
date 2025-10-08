@@ -11,7 +11,7 @@ interface ITrailsRouterShim is IDelegatedExtension {
     // -------------------------------------------------------------------------
 
     /// @notice The router address.
-    function ROUTER() external view returns (address);
+    function router() external view returns (address);
 
     // -------------------------------------------------------------------------
     // Functions

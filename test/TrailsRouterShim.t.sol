@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
 

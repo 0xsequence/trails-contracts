@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.30;
 
-import "forge-std/Test.sol";
-import "../src/TrailsIntentEntrypoint.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import {Test} from "forge-std/Test.sol";
+import {TrailsIntentEntrypoint} from "../src/TrailsIntentEntrypoint.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 // -----------------------------------------------------------------------------
@@ -44,7 +44,7 @@ contract TrailsIntentEntrypointTest is Test {
         user = vm.addr(userPrivateKey);
 
         // Give user some tokens
-        token.transfer(user, 1000 * 10 ** token.decimals());
+        require(token.transfer(user, 1000 * 10 ** token.decimals()), "ERC20 transfer failed");
     }
 
     // -------------------------------------------------------------------------

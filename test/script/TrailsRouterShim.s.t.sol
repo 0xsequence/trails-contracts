@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 import {Deploy as TrailsRouterShimDeploy} from "script/TrailsRouterShim.s.sol";
@@ -62,7 +62,7 @@ contract TrailsRouterShimDeploymentTest is Test {
 
         // Verify the shim's router address is correctly set
         TrailsRouterShim shim = TrailsRouterShim(expectedShimAddr);
-        assertEq(address(shim.ROUTER()), deployedRouterAddr, "Shim should have correct router address");
+        assertEq(address(shim.router()), deployedRouterAddr, "Shim should have correct router address");
     }
 
     function test_DeployRouterShim_SameAddress() public {
@@ -107,14 +107,14 @@ contract TrailsRouterShimDeploymentTest is Test {
         TrailsRouter router = TrailsRouter(payable(deployedRouterAddr));
 
         // Verify the router address is set correctly in the shim
-        assertEq(address(shim.ROUTER()), deployedRouterAddr, "Shim should have correct router address set");
+        assertEq(address(shim.router()), deployedRouterAddr, "Shim should have correct router address set");
 
         // Verify router is properly initialized (basic smoke test)
         assertEq(address(router).code.length > 0, true, "Router should have code");
 
         // Test that the shim can access its router (basic functionality test)
         // This tests that the immutable is correctly set and accessible
-        address routerFromShim = address(shim.ROUTER());
+        address routerFromShim = address(shim.router());
         assertEq(routerFromShim, deployedRouterAddr, "Shim should be able to access its router address");
     }
 }
