@@ -1,4 +1,4 @@
-.PHONY: all install submodules update-submodules reset-submodules verify-deployment
+.PHONY: all install submodules update-submodules reset-submodules verify-deployment build lint test install-foundry
 
 all: install
 
@@ -52,3 +52,16 @@ verify-deployment:
 		CONSTRUCTOR_ARGS=$(CONSTRUCTOR_ARGS) \
 		./scripts/verify-deployment.sh $(ADDRESS) $(SOURCE_CHAIN) $(TARGET_CHAIN); \
 	fi
+
+build:
+	forge build
+
+lint:
+	forge fmt --check && forge lint
+
+test:
+	forge test -vvv
+
+install-foundry:
+	curl -L https://foundry.paradigm.xyz | bash
+	foundryup

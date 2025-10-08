@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
 
+// -----------------------------------------------------------------------------
+// Interfaces
+// -----------------------------------------------------------------------------
+
 /// @dev Minimal interface for delegated entrypoint used by tests
-interface IDelegatedExtension {
+interface IMockDelegatedExtension {
     function handleSequenceDelegateCall(
         bytes32 opHash,
         uint256 startingGas,
@@ -17,6 +20,10 @@ interface IDelegatedExtension {
         bytes calldata data
     ) external payable;
 }
+
+// -----------------------------------------------------------------------------
+// Mock Contracts
+// -----------------------------------------------------------------------------
 
 /// @dev Mock router that emits events and supports receiving value
 contract MockRouter is Test {
@@ -40,13 +47,22 @@ contract RevertingRouter {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Test Contract
+// -----------------------------------------------------------------------------
 contract TrailsRouterShimTest is Test {
+    // -------------------------------------------------------------------------
+    // Test State Variables
+    // -------------------------------------------------------------------------
     TrailsRouterShim internal shimImpl;
     MockRouter internal router;
 
     // address that will host the shim code to simulate delegatecall context
     address payable internal holder;
 
+    // -------------------------------------------------------------------------
+    // Setup and Tests
+    // -------------------------------------------------------------------------
     function setUp() public {
         router = new MockRouter();
         shimImpl = new TrailsRouterShim(address(router));
@@ -55,6 +71,9 @@ contract TrailsRouterShimTest is Test {
         vm.etch(holder, address(shimImpl).code);
     }
 
+    // -------------------------------------------------------------------------
+    // Test Functions
+    // -------------------------------------------------------------------------
     function test_constructor_revert_zeroRouter() public {
         vm.expectRevert(TrailsRouterShim.ZeroRouterAddress.selector);
         new TrailsRouterShim(address(0));
@@ -81,7 +100,7 @@ contract TrailsRouterShimTest is Test {
         emit MockRouter.Forwarded(holder, callValue, routerCalldata);
 
         // Act: delegate entrypoint
-        IDelegatedExtension(holder).handleSequenceDelegateCall{value: callValue}(opHash, 0, 0, 0, 0, forwardData);
+        IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, forwardData);
 
         // Assert: success sentinel written at holder storage
         bytes32 slot = TrailsSentinelLib.successSlot(opHash);
@@ -101,7 +120,7 @@ contract TrailsRouterShimTest is Test {
         // Call and capture revert data, then assert custom error selector
         (bool ok, bytes memory ret) = address(holder).call(
             abi.encodeWithSelector(
-                IDelegatedExtension.handleSequenceDelegateCall.selector, bytes32(0), 0, 0, 0, 0, forwardData
+                IMockDelegatedExtension.handleSequenceDelegateCall.selector, bytes32(0), 0, 0, 0, 0, forwardData
             )
         );
         assertFalse(ok, "call should revert");

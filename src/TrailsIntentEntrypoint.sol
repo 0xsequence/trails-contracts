@@ -1,23 +1,57 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.30;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ITrailsIntentEntrypoint} from "./interfaces/ITrailsIntentEntrypoint.sol";
 
-contract TrailsIntentEntrypoint is ReentrancyGuard {
+/// @title TrailsIntentEntrypoint
+/// @author Miguel Mota
+/// @notice A contract to facilitate deposits to intent addresses with off-chain signed intents.
+contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
+    // -------------------------------------------------------------------------
+    // Libraries
+    // -------------------------------------------------------------------------
     using ECDSA for bytes32;
+
+    // -------------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------------
 
     bytes32 public constant INTENT_TYPEHASH =
         keccak256("Intent(address user,address token,uint256 amount,address intentAddress,uint256 deadline)");
     string public constant VERSION = "1";
 
+    // -------------------------------------------------------------------------
+    // Errors
+    // -------------------------------------------------------------------------
+
+    error InvalidAmount();
+    error InvalidToken();
+    error InvalidIntentAddress();
+    error IntentExpired();
+    error InvalidIntentSignature();
+    error IntentAlreadyUsed();
+
+    // -------------------------------------------------------------------------
+    // Immutable Variables
+    // -------------------------------------------------------------------------
+
+    /// @notice EIP-712 domain separator used for intent signatures.
     bytes32 public immutable DOMAIN_SEPARATOR;
 
+    // -------------------------------------------------------------------------
+    // State Variables
+    // -------------------------------------------------------------------------
+
+    /// @notice Tracks whether an intent digest has been consumed to prevent replays.
     mapping(bytes32 => bool) public usedIntents;
 
-    event IntentDeposit(address indexed user, address indexed intentAddress, uint256 amount);
+    // -------------------------------------------------------------------------
+    // Constructor
+    // -------------------------------------------------------------------------
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(
@@ -31,6 +65,11 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Functions
+    // -------------------------------------------------------------------------
+
+    /// @inheritdoc ITrailsIntentEntrypoint
     function depositToIntentWithPermit(
         address user,
         address token,
@@ -47,15 +86,13 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
     ) external nonReentrant {
         _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
 
-        // Permit this contract to spend user's tokens
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
-
-        // Transfer tokens to intent address
-        IERC20(token).transferFrom(user, intentAddress, amount);
+        require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
 
         emit IntentDeposit(user, intentAddress, amount);
     }
 
+    /// @inheritdoc ITrailsIntentEntrypoint
     function depositToIntent(
         address user,
         address token,
@@ -68,11 +105,14 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
     ) external nonReentrant {
         _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
 
-        // Transfer tokens (assumes prior approval)
-        IERC20(token).transferFrom(user, intentAddress, amount);
+        require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
 
         emit IntentDeposit(user, intentAddress, amount);
     }
+
+    // -------------------------------------------------------------------------
+    // Internal Functions
+    // -------------------------------------------------------------------------
 
     function _verifyAndMarkIntent(
         address user,
@@ -84,17 +124,39 @@ contract TrailsIntentEntrypoint is ReentrancyGuard {
         bytes32 sigR,
         bytes32 sigS
     ) internal {
-        require(amount > 0, "Amount must be greater than 0");
-        require(token != address(0), "Token must not be zero-address");
-        require(block.timestamp <= deadline, "Intent expired");
+        if (amount == 0) revert InvalidAmount();
+        if (token == address(0)) revert InvalidToken();
+        if (intentAddress == address(0)) revert InvalidIntentAddress();
+        if (block.timestamp > deadline) revert IntentExpired();
 
-        bytes32 intentHash = keccak256(abi.encode(INTENT_TYPEHASH, user, token, amount, intentAddress, deadline));
+        bytes32 _typehash = INTENT_TYPEHASH;
+        bytes32 intentHash;
+        // keccak256(abi.encode(INTENT_TYPEHASH, user, token, amount, intentAddress, deadline));
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, _typehash)
+            mstore(add(ptr, 0x20), user)
+            mstore(add(ptr, 0x40), token)
+            mstore(add(ptr, 0x60), amount)
+            mstore(add(ptr, 0x80), intentAddress)
+            mstore(add(ptr, 0xa0), deadline)
+            intentHash := keccak256(ptr, 0xc0)
+        }
 
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, intentHash));
+        bytes32 _domainSeparator = DOMAIN_SEPARATOR;
+        bytes32 digest;
+        // keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, intentHash));
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, 0x1901)
+            mstore(add(ptr, 0x20), _domainSeparator)
+            mstore(add(ptr, 0x40), intentHash)
+            digest := keccak256(add(ptr, 0x1e), 0x42)
+        }
         address recovered = ECDSA.recover(digest, sigV, sigR, sigS);
-        require(recovered == user, "Invalid intent signature");
+        if (recovered != user) revert InvalidIntentSignature();
 
-        require(!usedIntents[digest], "Intent already used");
+        if (usedIntents[digest]) revert IntentAlreadyUsed();
         usedIntents[digest] = true;
     }
 }

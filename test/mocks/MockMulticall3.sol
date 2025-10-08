@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.30;
 
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 
