@@ -5,22 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
-
-// -----------------------------------------------------------------------------
-// Interfaces
-// -----------------------------------------------------------------------------
-
-/// @dev Minimal interface for delegated entrypoint used by tests
-interface IDelegatedExtension {
-    function handleSequenceDelegateCall(
-        bytes32 opHash,
-        uint256 startingGas,
-        uint256 index,
-        uint256 numCalls,
-        uint256 space,
-        bytes calldata data
-    ) external payable;
-}
+import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 
 // -----------------------------------------------------------------------------
 // Mock Contracts

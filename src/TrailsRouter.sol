@@ -5,26 +5,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
+import {IMulticall3} from "./interfaces/IMulticall3.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
-
-// -----------------------------------------------------------------------------
-// Interfaces
-// -----------------------------------------------------------------------------
-
-interface IMulticall3 {
-    struct Call3 {
-        address target;
-        bool allowFailure;
-        bytes callData;
-    }
-
-    struct Result {
-        bool success;
-        bytes returnData;
-    }
-
-    function aggregate3(Call3[] calldata calls) external payable returns (Result[] memory returnData);
-}
 
 /// @title TrailsRouter
 /// @author Miguel Mota, Shun Kakinoki
