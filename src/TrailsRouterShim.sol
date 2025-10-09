@@ -30,7 +30,7 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard, Tstorish {
     // -------------------------------------------------------------------------
 
     /// @param router_ The address of the router to forward calls to
-    constructor(address router_) Tstorish() {
+    constructor(address router_) {
         if (router_ == address(0)) revert ZeroRouterAddress();
         ROUTER = router_;
     }

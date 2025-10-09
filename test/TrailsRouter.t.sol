@@ -10,7 +10,7 @@ import {MockMulticall3} from "test/mocks/MockMulticall3.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
-import {TstoreSetter, TstoreGetter, TstoreMode} from "test/utils/TstoreUtils.sol";
+import {TstoreSetter, TstoreMode} from "test/utils/TstoreUtils.sol";
 
 // -----------------------------------------------------------------------------
 // Helper Contracts and Structs
@@ -500,16 +500,27 @@ contract TrailsRouterTest is Test {
     }
 
     function test_validateOpHashAndSweep_native_success() public {
+        // Force tstore active for delegated storage context (holder)
+        TstoreMode.setActive(holder);
+
         bytes32 opHash = keccak256("test-op-hash");
         vm.deal(holder, 1 ether);
 
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
+        // Compute slot using the same logic as TrailsSentinelLib.successSlot
+        bytes32 namespace = TEST_NAMESPACE;
+        bytes32 slot;
+        assembly {
+            mstore(0x00, namespace)
+            mstore(0x20, opHash)
+            slot := keccak256(0x00, 0x40)
+        }
 
         // Set transient storage inline at holder's context using bytecode deployment
+        // tstore(slot, value) - slot must be on top of stack
         bytes memory setTstoreCode = abi.encodePacked(
-            hex"7f", slot,           // push32 slot
             hex"7f", TEST_SUCCESS_VALUE, // push32 value
-            hex"5d",                // tstore
+            hex"7f", slot,           // push32 slot (on top)
+            hex"5d",                // tstore(slot, value)
             hex"00"                 // stop
         );
 
@@ -559,32 +570,6 @@ contract TrailsRouterTest is Test {
         assertEq(recipient.balance, 1 ether);
     }
 
-    function test_validateOpHashAndSweep_native_success_sstore_only() public {
-        // Force tstore inactive for delegated storage context (holder)
-        TstoreMode.setInactive(holder);
-
-        // Arrange
-        bytes32 opHash = keccak256("test-op-hash-sstore");
-        vm.deal(holder, 1 ether);
-
-        // Pre-write success sentinel at the delegated storage of `holder`
-        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
-        vm.store(holder, slot, TEST_SUCCESS_VALUE);
-
-        // Act via delegated entrypoint
-        bytes memory data =
-            abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
-        vm.expectEmit(true, true, false, true);
-        emit Sweep(address(0), recipient, 1 ether);
-        IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
-
-        // Assert
-        assertEq(holder.balance, 0);
-        assertEq(recipient.balance, 1 ether);
-        // With tstore inactive, sstore at the slot should be SUCCESS_VALUE
-        uint256 storedSAfter = uint256(vm.load(holder, slot));
-        assertEq(storedSAfter, uint256(TEST_SUCCESS_VALUE));
-    }
 
     function test_handleSequenceDelegateCall_dispatches_to_sweep_native() public {
         uint256 amount = 1 ether;

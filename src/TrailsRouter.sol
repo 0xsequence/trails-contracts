@@ -42,11 +42,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     error PlaceholderMismatch();
     error TargetCallFailed(bytes revertData);
 
-    // -------------------------------------------------------------------------
-    // Constructor
-    // -------------------------------------------------------------------------
-
-    constructor() Tstorish() {}
 
     // -------------------------------------------------------------------------
     // Receive ETH
