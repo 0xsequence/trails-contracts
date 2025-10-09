@@ -267,6 +267,8 @@ contract TrailsRouterShimTest is Test {
         // Create large call data to test assembly handling
         bytes memory largeData = new bytes(10000);
         for (uint256 i = 0; i < largeData.length; i++) {
+            // casting to 'uint8' is safe because i % 256 is always between 0-255
+            /// forge-lint: disable-next-line(unsafe-typecast)
             largeData[i] = bytes1(uint8(i % 256));
         }
         bytes memory forwardData = abi.encode(largeData, uint256(0));
