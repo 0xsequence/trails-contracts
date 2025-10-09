@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {DelegatecallGuard} from "src/guards/DelegatecallGuard.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
-import {TstoreGetter, TstoreMode} from "test/utils/TstoreUtils.sol";
+import {TstoreMode, TstoreRead} from "test/utils/TstoreUtils.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
 
 // -----------------------------------------------------------------------------
@@ -110,14 +110,7 @@ contract TrailsRouterShimTest is Test {
 
         // Assert via tload
         uint256 slot = TrailsSentinelLib.successSlot(opHash);
-        bytes memory original = address(shimImpl).code;
-        vm.etch(holder, address(new TstoreGetter()).code);
-        (bool gok, bytes memory ret) =
-            holder.staticcall(abi.encodeWithSelector(TstoreGetter.get.selector, bytes32(slot)));
-        vm.etch(holder, original);
-        assertTrue(gok, "tload failed");
-        require(ret.length >= 32, "tload returned insufficient data");
-        uint256 storedT = abi.decode(ret, (uint256));
+        uint256 storedT = TstoreRead.tloadAt(holder, bytes32(slot));
         assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
     }
 
@@ -172,14 +165,7 @@ contract TrailsRouterShimTest is Test {
 
         // Read via tload
         uint256 slot = TrailsSentinelLib.successSlot(opHash);
-        bytes memory original = address(shimImpl).code;
-        vm.etch(holder, address(new TstoreGetter()).code);
-        (bool gok, bytes memory ret) =
-            holder.staticcall(abi.encodeWithSelector(TstoreGetter.get.selector, bytes32(slot)));
-        vm.etch(holder, original);
-        assertTrue(gok, "tload failed");
-        require(ret.length >= 32, "tload returned insufficient data");
-        uint256 storedT = abi.decode(ret, (uint256));
+        uint256 storedT = TstoreRead.tloadAt(holder, bytes32(slot));
         assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
     }
 

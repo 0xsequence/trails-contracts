@@ -10,7 +10,7 @@ import {MockMulticall3} from "test/mocks/MockMulticall3.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
-import {TstoreSetter, TstoreMode, TstoreGetter} from "test/utils/TstoreUtils.sol";
+import {TstoreSetter, TstoreMode, TstoreRead} from "test/utils/TstoreUtils.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
 
 // -----------------------------------------------------------------------------
@@ -572,14 +572,7 @@ contract TrailsRouterTest is Test {
 
         // Read via tload
         slot = bytes32(TrailsSentinelLib.successSlot(opHash));
-        bytes memory original = address(router).code;
-        vm.etch(holder, address(new TstoreGetter()).code);
-        (bool gok, bytes memory ret) =
-            holder.staticcall(abi.encodeWithSelector(TstoreGetter.get.selector, bytes32(slot)));
-        vm.etch(holder, routerCode);
-        assertTrue(gok, "tload failed");
-        require(ret.length >= 32, "tload returned insufficient data");
-        uint256 storedT = abi.decode(ret, (uint256));
+        uint256 storedT = TstoreRead.tloadAt(holder, slot);
         assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
     }
 
