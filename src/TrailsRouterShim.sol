@@ -81,7 +81,11 @@ contract TrailsRouterShim is ITrailsRouterShim {
     // -------------------------------------------------------------------------
 
     modifier onlyDelegatecall() {
-        if (address(this) == SELF) revert NotDelegateCall();
+        _onlyDelegatecall();
         _;
+    }
+
+    function _onlyDelegatecall() internal view {
+        if (address(this) == SELF) revert NotDelegateCall();
     }
 }
