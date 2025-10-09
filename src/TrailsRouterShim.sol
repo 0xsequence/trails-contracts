@@ -47,7 +47,10 @@ contract TrailsRouterShim is ITrailsRouterShim {
         uint256, // numCalls (unused)
         uint256, // space (unused)
         bytes calldata data
-    ) external onlyDelegatecall {
+    )
+        external
+        onlyDelegatecall
+    {
         // Decode the inner call data and call value forwarded to the router
         (bytes memory inner, uint256 callValue) = abi.decode(data, (bytes, uint256));
         bytes memory routerReturn = _forwardToRouter(inner, callValue);

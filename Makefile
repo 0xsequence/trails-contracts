@@ -1,9 +1,9 @@
-.PHONY: all install submodules update-submodules reset-submodules verify-deployment build lint test install-foundry
+.PHONY: all install submodules update-submodules reset-submodules verify-deployment build lint fmt test install-foundry
 
-all: install
+all: deps
 
 # Install dependencies
-install: submodules
+deps: submodules
 
 # Update git submodules
 submodules:
@@ -59,9 +59,12 @@ build:
 lint:
 	forge fmt --check && forge lint
 
+fmt:
+	forge fmt
+
 test:
 	forge test -vvv
 
 install-foundry:
-	curl -L https://foundry.paradigm.xyz | bash
-	foundryup
+	@command -v forge > /dev/null 2>&1 || (echo "forge not found; installing Foundry..." && curl -L https://foundry.paradigm.xyz | bash)
+	@foundryup

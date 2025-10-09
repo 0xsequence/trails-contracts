@@ -158,11 +158,6 @@ forge script script/TrailsIntentEntrypoint.s.sol --rpc-url $RPC_URL --broadcast 
 
 ## Development
 
-### Prerequisites
-
-- [Foundry](https://book.getfoundry.sh/getting-started/installation)
-- Git submodules initialized
-
 ### Setup
 
 ```bash
@@ -170,18 +165,21 @@ forge script script/TrailsIntentEntrypoint.s.sol --rpc-url $RPC_URL --broadcast 
 git clone https://github.com/0xsequence/trails-contracts
 cd trails-contracts
 
-# Install dependencies
-make install
+# Install foundry, or see https://book.getfoundry.sh/getting-started/installation
+make install-foundry
+
+# Install dependencies via git submodules
+make deps
 
 # Build contracts
-forge build
+make build
 ```
 
 ### Testing
 
 ```bash
 # Run all tests
-forge test
+make test
 ```
 
 ## Security Considerations

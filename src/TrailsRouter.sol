@@ -226,7 +226,11 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         uint256, /* _numCalls */
         uint256, /* _space */
         bytes calldata _data
-    ) external override(IDelegatedExtension, ITrailsRouter) onlyDelegatecall {
+    )
+        external
+        override(IDelegatedExtension, ITrailsRouter)
+        onlyDelegatecall
+    {
         bytes4 selector;
         if (_data.length >= 4) {
             selector = bytes4(_data[0:4]);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {SINGLETON_FACTORY_ADDR} from "../../lib/erc2470-libs/src/ISingletonFactory.sol";
+import {SINGLETON_FACTORY_ADDR} from "lib/erc2470-libs/src/ISingletonFactory.sol";
 
 /// @title Create2 Address Calculation Utilities
 /// @notice Utility functions for calculating CREATE2 addresses used in deployment tests
@@ -15,15 +15,13 @@ library Create2Utils {
         pure
         returns (address payable expectedAddr)
     {
-        expectedAddr = payable(
-            address(
+        expectedAddr = payable(address(
                 uint160(
                     uint256(
                         keccak256(abi.encodePacked(bytes1(0xff), SINGLETON_FACTORY_ADDR, salt, keccak256(initCode)))
                     )
                 )
-            )
-        );
+            ));
     }
 
     /// @dev Get the standard salt used for deterministic deployments (bytes32(0))
