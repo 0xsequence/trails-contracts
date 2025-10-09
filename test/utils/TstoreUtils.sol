@@ -69,9 +69,7 @@ library TstoreRead {
         // Temporarily etch the TstoreGetter runtime code to enable tload via staticcall
         HEVM.etch(target, type(TstoreGetter).runtimeCode);
 
-        (bool ok, bytes memory ret) = target.staticcall(
-            abi.encodeWithSelector(TstoreGetter.get.selector, slot)
-        );
+        (bool ok, bytes memory ret) = target.staticcall(abi.encodeWithSelector(TstoreGetter.get.selector, slot));
 
         // Restore original code regardless of call outcome
         HEVM.etch(target, originalCode);

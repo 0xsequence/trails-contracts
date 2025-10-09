@@ -519,10 +519,12 @@ contract TrailsRouterTest is Test {
         // Set transient storage inline at holder's context using bytecode deployment
         // tstore(slot, value) - slot must be on top of stack
         bytes memory setTstoreCode = abi.encodePacked(
-            hex"7f", TEST_SUCCESS_VALUE, // push32 value
-            hex"7f", slot,           // push32 slot (on top)
-            hex"5d",                // tstore(slot, value)
-            hex"00"                 // stop
+            hex"7f",
+            TEST_SUCCESS_VALUE, // push32 value
+            hex"7f",
+            slot, // push32 slot (on top)
+            hex"5d", // tstore(slot, value)
+            hex"00" // stop
         );
 
         bytes memory routerCode = address(router).code;
@@ -575,7 +577,6 @@ contract TrailsRouterTest is Test {
         uint256 storedT = TstoreRead.tloadAt(holder, slot);
         assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
     }
-
 
     function test_handleSequenceDelegateCall_dispatches_to_sweep_native() public {
         uint256 amount = 1 ether;
