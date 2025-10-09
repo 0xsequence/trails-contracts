@@ -4,9 +4,9 @@ out = "out"
 libs = ["lib"]
 
 solc_version = "0.8.30"
-viaIR = true
+via-ir = true
 optimizer = true
-optimizer_runs = 50
+optimizer_runs = 4294967295
 
 [lint]
 exclude_lints = ["unsafe-cheatcode"]
