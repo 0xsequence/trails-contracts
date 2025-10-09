@@ -527,8 +527,8 @@ contract TrailsRouterTest is Test {
     }
 
     function test_validateOpHashAndSweep_native_success_tstore() public {
-        // Force tstore active on TrailsRouter storage
-        TstoreMode.setActive(address(router));
+        // Force tstore active for delegated storage context (holder)
+        TstoreMode.setActive(holder);
 
         // Arrange
         bytes32 opHash = keccak256("test-op-hash-tstore");
@@ -549,14 +549,16 @@ contract TrailsRouterTest is Test {
         emit Sweep(address(0), recipient, 1 ether);
         IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
 
-        // Assert
+        // Assert: with tstore active, the sstore slot should remain zero
+        uint256 storedS = uint256(vm.load(holder, slot));
+        assertEq(storedS, 0);
         assertEq(holder.balance, 0);
         assertEq(recipient.balance, 1 ether);
     }
 
     function test_validateOpHashAndSweep_native_success_sstore_only() public {
-        // Force tstore inactive via storage toggle on the TrailsRouter storage
-        TstoreMode.setInactive(address(router));
+        // Force tstore inactive for delegated storage context (holder)
+        TstoreMode.setInactive(holder);
 
         // Arrange
         bytes32 opHash = keccak256("test-op-hash-sstore");
@@ -583,6 +585,9 @@ contract TrailsRouterTest is Test {
         // Assert
         assertEq(holder.balance, 0);
         assertEq(recipient.balance, 1 ether);
+        // With tstore inactive, sstore at the slot should be SUCCESS_VALUE
+        uint256 storedSAfter = uint256(vm.load(holder, slot));
+        assertEq(storedSAfter, uint256(TEST_SUCCESS_VALUE));
     }
 
     function test_handleSequenceDelegateCall_dispatches_to_sweep_native() public {
