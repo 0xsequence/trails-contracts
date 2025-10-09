@@ -7,3 +7,6 @@ solc_version = "0.8.30"
 viaIR = true
 optimizer = true
 optimizer_runs = 50
+
+[lint]
+exclude_lints = ["unsafe-cheatcode"]
