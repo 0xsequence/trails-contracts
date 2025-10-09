@@ -115,11 +115,10 @@ contract TrailsRouterShimTest is Test {
         (bool gok, bytes memory ret) =
             holder.staticcall(abi.encodeWithSelector(TstoreGetter.get.selector, bytes32(slot)));
         vm.etch(holder, original);
-        // No probe assertions; we rely on behavior-level validation elsewhere
-        if (gok && ret.length >= 32) {
-            uint256 storedT = abi.decode(ret, (uint256));
-            assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
-        }
+        assertTrue(gok, "tload failed");
+        require(ret.length >= 32, "tload returned insufficient data");
+        uint256 storedT = abi.decode(ret, (uint256));
+        assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
     }
 
     function test_delegatecall_forwards_and_sets_sentinel_sstore_inactive() public {
@@ -178,11 +177,10 @@ contract TrailsRouterShimTest is Test {
         (bool gok, bytes memory ret) =
             holder.staticcall(abi.encodeWithSelector(TstoreGetter.get.selector, bytes32(slot)));
         vm.etch(holder, original);
-        // No probe assertions; we rely on behavior-level validation elsewhere
-        if (gok && ret.length >= 32) {
-            uint256 storedT = abi.decode(ret, (uint256));
-            assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
-        }
+        assertTrue(gok, "tload failed");
+        require(ret.length >= 32, "tload returned insufficient data");
+        uint256 storedT = abi.decode(ret, (uint256));
+        assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
     }
 
     function test_delegatecall_sets_sentinel_with_sstore_when_no_tstore() public {

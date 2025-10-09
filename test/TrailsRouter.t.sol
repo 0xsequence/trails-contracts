@@ -504,14 +504,19 @@ contract TrailsRouterTest is Test {
         vm.deal(holder, 1 ether);
 
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
-        // Try to set transient storage via tstore on the holder; if not supported, fallback to sstore
-        TstoreSetter setter = new TstoreSetter();
+
+        // Set transient storage inline at holder's context using bytecode deployment
+        bytes memory setTstoreCode = abi.encodePacked(
+            hex"7f", slot,           // push32 slot
+            hex"7f", TEST_SUCCESS_VALUE, // push32 value
+            hex"5d",                // tstore
+            hex"00"                 // stop
+        );
+
         bytes memory routerCode = address(router).code;
-        vm.etch(holder, address(setter).code);
-        (bool ok,) = holder.call(abi.encodeWithSelector(TstoreSetter.set.selector, slot, TEST_SUCCESS_VALUE));
-        if (!ok) {
-            vm.store(holder, slot, TEST_SUCCESS_VALUE);
-        }
+        vm.etch(holder, setTstoreCode);
+        (bool ok,) = holder.call("");
+        assertTrue(ok, "tstore set failed");
         vm.etch(holder, routerCode);
 
         bytes memory data =
@@ -562,17 +567,9 @@ contract TrailsRouterTest is Test {
         bytes32 opHash = keccak256("test-op-hash-sstore");
         vm.deal(holder, 1 ether);
 
-        // Pre-write success sentinel at the delegated storage of `holder` for both paths.
+        // Pre-write success sentinel at the delegated storage of `holder`
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
-        // sstore path
         vm.store(holder, slot, TEST_SUCCESS_VALUE);
-        // tstore path (best-effort)
-        bytes memory routerCode = address(router).code;
-        vm.etch(holder, address(new TstoreSetter()).code);
-        // ignore success; if unsupported, sstore write above ensures success
-        (bool ok,) = holder.call(abi.encodeWithSelector(TstoreSetter.set.selector, slot, TEST_SUCCESS_VALUE));
-        assertTrue(ok, "tstore set failed");
-        vm.etch(holder, routerCode);
 
         // Act via delegated entrypoint
         bytes memory data =
