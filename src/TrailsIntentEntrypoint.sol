@@ -114,6 +114,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // Internal Functions
     // -------------------------------------------------------------------------
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _verifyAndMarkIntent(
         address user,
         address token,

@@ -29,6 +29,7 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard {
     // Constructor
     // -------------------------------------------------------------------------
 
+    /// @param router_ The address of the router to forward calls to
     constructor(address router_) {
         if (router_ == address(0)) revert ZeroRouterAddress();
         ROUTER = router_;
@@ -64,6 +65,7 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard {
     // Internal Helpers
     // -------------------------------------------------------------------------
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _forwardToRouter(bytes memory forwardData, uint256 callValue) internal returns (bytes memory) {
         (bool success, bytes memory ret) = ROUTER.call{value: callValue}(forwardData);
         if (!success) {
