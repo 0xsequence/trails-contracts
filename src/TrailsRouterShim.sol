@@ -9,7 +9,7 @@ import {DelegatecallGuard} from "./guards/DelegatecallGuard.sol";
 /// @title TrailsRouterShim
 /// @author Shun Kakinoki
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
-contract TrailsRouterShim is DelegatecallGuard, Tstorish, ITrailsRouterShim {
+contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard, Tstorish {
     // -------------------------------------------------------------------------
     // Immutable variables
     // -------------------------------------------------------------------------
