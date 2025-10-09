@@ -31,7 +31,7 @@ The contract combines:
 
 ```solidity
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.30;
 
 contract TrailsEntrypointV2 is ReentrancyGuard {
     // Inherits from OpenZeppelin's ReentrancyGuard for protection
