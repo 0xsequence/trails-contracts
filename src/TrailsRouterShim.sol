@@ -4,25 +4,24 @@ pragma solidity ^0.8.30;
 import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 import {ITrailsRouterShim} from "./interfaces/ITrailsRouterShim.sol";
+import {DelegatecallGuard} from "./guards/DelegatecallGuard.sol";
 
 /// @title TrailsRouterShim
 /// @author Shun Kakinoki
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
-contract TrailsRouterShim is ITrailsRouterShim {
+contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard {
     // -------------------------------------------------------------------------
     // Immutable variables
     // -------------------------------------------------------------------------
 
     /// @notice Address of the deployed TrailsMulticall3Router to forward calls to
     address public immutable ROUTER;
-    /// @dev Cached address of this contract to detect delegatecall context
-    address private immutable SELF = address(this);
+    // SELF provided by DelegatecallGuard
 
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
 
-    error NotDelegateCall();
     error RouterCallFailed(bytes data);
     error ZeroRouterAddress();
 
@@ -33,15 +32,6 @@ contract TrailsRouterShim is ITrailsRouterShim {
     constructor(address router_) {
         if (router_ == address(0)) revert ZeroRouterAddress();
         ROUTER = router_;
-    }
-
-    // -------------------------------------------------------------------------
-    // Modifiers
-    // -------------------------------------------------------------------------
-
-    modifier onlyDelegatecall() {
-        _onlyDelegatecall();
-        _;
     }
 
     // -------------------------------------------------------------------------
@@ -80,9 +70,5 @@ contract TrailsRouterShim is ITrailsRouterShim {
             revert RouterCallFailed(ret);
         }
         return ret;
-    }
-
-    function _onlyDelegatecall() internal view {
-        if (address(this) == SELF) revert NotDelegateCall();
     }
 }

@@ -7,6 +7,10 @@ import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
 import {Create2Utils} from "../utils/Create2Utils.sol";
 
+// -----------------------------------------------------------------------------
+// Test Contract
+// -----------------------------------------------------------------------------
+
 contract TrailsRouterShimDeploymentTest is Test {
     // -------------------------------------------------------------------------
     // Test State Variables
@@ -16,6 +20,10 @@ contract TrailsRouterShimDeploymentTest is Test {
     address internal _deployer;
     uint256 internal _deployerPk;
     string internal _deployerPkStr;
+
+    // -------------------------------------------------------------------------
+    // Pure Functions
+    // -------------------------------------------------------------------------
 
     // Expected predetermined addresses (calculated using CREATE2)
     function expectedRouterAddress() internal pure returns (address payable) {

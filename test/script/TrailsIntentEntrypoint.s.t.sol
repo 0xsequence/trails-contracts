@@ -6,6 +6,10 @@ import {Deploy as TrailsIntentEntrypointDeploy} from "script/TrailsIntentEntrypo
 import {TrailsIntentEntrypoint} from "src/TrailsIntentEntrypoint.sol";
 import {Create2Utils} from "../utils/Create2Utils.sol";
 
+// -----------------------------------------------------------------------------
+// Test Contract
+// -----------------------------------------------------------------------------
+
 contract TrailsIntentEntrypointDeploymentTest is Test {
     // -------------------------------------------------------------------------
     // Test State Variables
@@ -15,6 +19,10 @@ contract TrailsIntentEntrypointDeploymentTest is Test {
     address internal _deployer;
     uint256 internal _deployerPk;
     string internal _deployerPkStr;
+
+    // -------------------------------------------------------------------------
+    // Pure Functions
+    // -------------------------------------------------------------------------
 
     // Expected predetermined address (calculated using CREATE2)
     function expectedIntentEntrypointAddress() internal pure returns (address payable) {

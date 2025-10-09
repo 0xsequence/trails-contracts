@@ -5,6 +5,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
+import {DelegatecallGuard} from "./guards/DelegatecallGuard.sol";
 import {IMulticall3} from "./interfaces/IMulticall3.sol";
 import {ITrailsRouter} from "./interfaces/ITrailsRouter.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
@@ -13,7 +14,7 @@ import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 /// @author Miguel Mota, Shun Kakinoki
 /// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
 /// @dev Must be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
-contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
+contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard {
     // -------------------------------------------------------------------------
     // Libraries
     // -------------------------------------------------------------------------
@@ -24,14 +25,12 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     // -------------------------------------------------------------------------
 
     address public immutable MULTICALL3 = 0xcA11bde05977b3631167028862bE2a173976CA11;
-    address private immutable SELF = address(this);
 
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
 
     error NativeTransferFailed();
-    error NotDelegateCall();
     error InvalidDelegatedSelector(bytes4 selector);
     error SuccessSentinelNotSet();
     error NoEthSent();
@@ -42,15 +41,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     error AmountOffsetOutOfBounds();
     error PlaceholderMismatch();
     error TargetCallFailed(bytes revertData);
-
-    // -------------------------------------------------------------------------
-    // Events
-    // -------------------------------------------------------------------------
-
-    modifier onlyDelegatecall() {
-        _onlyDelegatecall();
-        _;
-    }
 
     // -------------------------------------------------------------------------
     // Receive ETH
@@ -283,7 +273,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
     /// forge-lint: disable-next-line(mixed-case-function)
     function _ensureERC20Approval(address _token, uint256 _amount) internal {
         IERC20 erc20 = IERC20(_token);
-        SafeERC20.forceApprove(erc20, SELF, _amount);
+        SafeERC20.forceApprove(erc20, _SELF, _amount);
     }
 
     /// forge-lint: disable-next-line(mixed-case-function)
@@ -382,10 +372,5 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
             emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
             if (!success) revert TargetCallFailed(result);
         }
-    }
-
-    /// forge-lint: disable-next-line(mixed-case-function)
-    function _onlyDelegatecall() internal view {
-        if (address(this) == SELF) revert NotDelegateCall();
     }
 }

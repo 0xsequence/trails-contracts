@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
+import {DelegatecallGuard} from "src/guards/DelegatecallGuard.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
 
 // -----------------------------------------------------------------------------
@@ -82,7 +83,7 @@ contract TrailsRouterShimTest is Test {
     function test_direct_handleSequenceDelegateCall_reverts_not_delegatecall() public {
         bytes memory inner = abi.encodeWithSignature("someFunc()");
         bytes memory data = abi.encode(inner, 0);
-        vm.expectRevert(TrailsRouterShim.NotDelegateCall.selector);
+        vm.expectRevert(DelegatecallGuard.NotDelegateCall.selector);
         shimImpl.handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 

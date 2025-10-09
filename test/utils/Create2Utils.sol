@@ -3,6 +3,10 @@ pragma solidity ^0.8.30;
 
 import {SINGLETON_FACTORY_ADDR} from "lib/erc2470-libs/src/ISingletonFactory.sol";
 
+// -----------------------------------------------------------------------------
+// Library
+// -----------------------------------------------------------------------------
+
 /// @title Create2 Address Calculation Utilities
 /// @notice Utility functions for calculating CREATE2 addresses used in deployment tests
 library Create2Utils {

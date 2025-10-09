@@ -6,6 +6,10 @@ import {Deploy as TrailsRouterDeploy} from "script/TrailsRouter.s.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
 import {Create2Utils} from "../utils/Create2Utils.sol";
 
+// -----------------------------------------------------------------------------
+// Test Contract
+// -----------------------------------------------------------------------------
+
 contract TrailsRouterDeploymentTest is Test {
     // -------------------------------------------------------------------------
     // Test State Variables
@@ -15,6 +19,10 @@ contract TrailsRouterDeploymentTest is Test {
     address internal _deployer;
     uint256 internal _deployerPk;
     string internal _deployerPkStr;
+
+    // -------------------------------------------------------------------------
+    // Pure Functions
+    // -------------------------------------------------------------------------
 
     // Expected predetermined address (calculated using CREATE2)
     function expectedRouterAddress() internal pure returns (address payable) {

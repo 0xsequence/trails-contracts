@@ -1,3 +1,5 @@
+DelegatecallGuardTest:test_delegatecall_context_succeeds() (gas: 17100)
+DelegatecallGuardTest:test_direct_call_reverts_NotDelegateCall() (gas: 8516)
 TrailsIntentEntrypointDeploymentTest:test_DeployIntentEntrypoint_SameAddress() (gas: 573279)
 TrailsIntentEntrypointDeploymentTest:test_DeployIntentEntrypoint_Success() (gas: 565812)
 TrailsIntentEntrypointDeploymentTest:test_DeployedIntentEntrypoint_HasCorrectConfiguration() (gas: 573035)

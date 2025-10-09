@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
+import {DelegatecallGuard} from "src/guards/DelegatecallGuard.sol";
 import {MockSenderGetter} from "test/mocks/MockSenderGetter.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 import {MockMulticall3} from "test/mocks/MockMulticall3.sol";
@@ -539,7 +540,7 @@ contract TrailsRouterTest is Test {
     }
 
     function test_direct_sweep_reverts_not_delegatecall() public {
-        vm.expectRevert(TrailsRouter.NotDelegateCall.selector);
+        vm.expectRevert(DelegatecallGuard.NotDelegateCall.selector);
         router.sweep(address(0), recipient);
     }
 
