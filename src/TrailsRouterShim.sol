@@ -36,6 +36,15 @@ contract TrailsRouterShim is ITrailsRouterShim {
     }
 
     // -------------------------------------------------------------------------
+    // Modifiers
+    // -------------------------------------------------------------------------
+
+    modifier onlyDelegatecall() {
+        _onlyDelegatecall();
+        _;
+    }
+
+    // -------------------------------------------------------------------------
     // Sequence delegated entry point
     // -------------------------------------------------------------------------
 
@@ -71,15 +80,6 @@ contract TrailsRouterShim is ITrailsRouterShim {
             revert RouterCallFailed(ret);
         }
         return ret;
-    }
-
-    // -------------------------------------------------------------------------
-    // Modifiers
-    // -------------------------------------------------------------------------
-
-    modifier onlyDelegatecall() {
-        _onlyDelegatecall();
-        _;
     }
 
     function _onlyDelegatecall() internal view {

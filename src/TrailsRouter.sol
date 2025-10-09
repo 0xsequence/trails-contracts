@@ -52,9 +52,12 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         _;
     }
 
-    function _onlyDelegatecall() internal view {
-        if (address(this) == SELF) revert NotDelegateCall();
-    }
+    // -------------------------------------------------------------------------
+    // Receive ETH
+    // -------------------------------------------------------------------------
+
+    /// @notice Allow direct native token transfers when contract is used standalone.
+    receive() external payable {}
 
     // -------------------------------------------------------------------------
     // Multicall3 Router Functions
@@ -340,6 +343,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _injectAndExecuteCall(
         address token,
         address target,
@@ -380,10 +384,8 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Receive ETH
-    // -------------------------------------------------------------------------
-
-    /// @notice Allow direct native token transfers when contract is used standalone.
-    receive() external payable {}
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _onlyDelegatecall() internal view {
+        if (address(this) == SELF) revert NotDelegateCall();
+    }
 }
