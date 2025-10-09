@@ -16,3 +16,6 @@
 [submodule "lib/evm-cctp-contracts"]
 	path = lib/evm-cctp-contracts
 	url = https://github.com/circlefin/evm-cctp-contracts
+[submodule "lib/tstorish"]
+	path = lib/tstorish
+	url = https://github.com/ProjectOpenSea/tstorish
