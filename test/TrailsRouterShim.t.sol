@@ -156,11 +156,12 @@ contract TrailsRouterShimTest is Test {
         // Invoke delegate entrypoint to set sentinel
         bytes memory routerCalldata = hex"";
         bytes memory forwardData = abi.encode(routerCalldata, 0);
-        (bool ok,) = address(holder).call(
-            abi.encodeWithSelector(
-                IMockDelegatedExtension.handleSequenceDelegateCall.selector, opHash, 0, 0, 0, 0, forwardData
-            )
-        );
+        (bool ok,) = address(holder)
+            .call(
+                abi.encodeWithSelector(
+                    IMockDelegatedExtension.handleSequenceDelegateCall.selector, opHash, 0, 0, 0, 0, forwardData
+                )
+            );
         assertTrue(ok, "delegatecall should succeed");
 
         // Read via tload
@@ -178,11 +179,12 @@ contract TrailsRouterShimTest is Test {
         // Invoke delegate entrypoint to set sentinel
         bytes memory routerCalldata = hex"";
         bytes memory forwardData = abi.encode(routerCalldata, 0);
-        (bool ok,) = address(holder).call(
-            abi.encodeWithSelector(
-                IMockDelegatedExtension.handleSequenceDelegateCall.selector, opHash, 0, 0, 0, 0, forwardData
-            )
-        );
+        (bool ok,) = address(holder)
+            .call(
+                abi.encodeWithSelector(
+                    IMockDelegatedExtension.handleSequenceDelegateCall.selector, opHash, 0, 0, 0, 0, forwardData
+                )
+            );
         assertTrue(ok, "delegatecall should succeed");
 
         // Verify via TrailsRouter delegated validation
@@ -208,11 +210,12 @@ contract TrailsRouterShimTest is Test {
         bytes memory forwardData = abi.encode(routerCalldata, 0);
 
         // Call and capture revert data, then assert custom error selector
-        (bool ok, bytes memory ret) = address(holder).call(
-            abi.encodeWithSelector(
-                IMockDelegatedExtension.handleSequenceDelegateCall.selector, bytes32(0), 0, 0, 0, 0, forwardData
-            )
-        );
+        (bool ok, bytes memory ret) = address(holder)
+            .call(
+                abi.encodeWithSelector(
+                    IMockDelegatedExtension.handleSequenceDelegateCall.selector, bytes32(0), 0, 0, 0, 0, forwardData
+                )
+            );
         assertFalse(ok, "call should revert");
         bytes4 sel;
         assembly {
