@@ -15,13 +15,15 @@ library Create2Utils {
         pure
         returns (address payable expectedAddr)
     {
-        expectedAddr = payable(address(
+        expectedAddr = payable(
+            address(
                 uint160(
                     uint256(
                         keccak256(abi.encodePacked(bytes1(0xff), SINGLETON_FACTORY_ADDR, salt, keccak256(initCode)))
                     )
                 )
-            ));
+            )
+        );
     }
 
     /// @dev Get the standard salt used for deterministic deployments (bytes32(0))

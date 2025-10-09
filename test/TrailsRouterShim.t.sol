@@ -118,12 +118,11 @@ contract TrailsRouterShimTest is Test {
         bytes memory forwardData = abi.encode(routerCalldata, 0);
 
         // Call and capture revert data, then assert custom error selector
-        (bool ok, bytes memory ret) = address(holder)
-            .call(
-                abi.encodeWithSelector(
-                    IMockDelegatedExtension.handleSequenceDelegateCall.selector, bytes32(0), 0, 0, 0, 0, forwardData
-                )
-            );
+        (bool ok, bytes memory ret) = address(holder).call(
+            abi.encodeWithSelector(
+                IMockDelegatedExtension.handleSequenceDelegateCall.selector, bytes32(0), 0, 0, 0, 0, forwardData
+            )
+        );
         assertFalse(ok, "call should revert");
         bytes4 sel;
         assembly {
