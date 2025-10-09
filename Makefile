@@ -68,3 +68,8 @@ test:
 install-foundry:
 	@command -v forge > /dev/null 2>&1 || (echo "forge not found; installing Foundry..." && curl -L https://foundry.paradigm.xyz | bash)
 	@foundryup
+
+storage-layout:
+	@forge inspect src/TrailsRouter.sol storage-layout
+	@forge inspect src/TrailsRouterShim.sol storage-layout
+	@forge inspect src/TrailsIntentEntrypoint.sol storage-layout

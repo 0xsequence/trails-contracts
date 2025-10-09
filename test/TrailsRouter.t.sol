@@ -527,13 +527,8 @@ contract TrailsRouterTest is Test {
     }
 
     function test_validateOpHashAndSweep_native_success_tstore() public {
-        // Exact case: tstore ACTIVE for router code at `holder`.
-        // Assumptions:
-        // - We explicitly set `_tstoreSupport` (slot 0) to 1 to enable tstore path.
-        // - Success sentinel is written/read via tstore at TrailsSentinelLib.successSlot(opHash).
-
-        // Force tstore active via storage toggle
-        TstoreMode.setActive(holder);
+        // Force tstore active on TrailsRouter storage
+        TstoreMode.setActive(address(router));
 
         // Arrange
         bytes32 opHash = keccak256("test-op-hash-tstore");
@@ -560,13 +555,8 @@ contract TrailsRouterTest is Test {
     }
 
     function test_validateOpHashAndSweep_native_success_sstore_only() public {
-        // Exact case: tstore INACTIVE for router code at `holder`.
-        // Assumptions:
-        // - We explicitly set `_tstoreSupport` (slot 0) to 0 to force sstore path.
-        // - The fallback path uses sstore/sload to persist/read the success sentinel.
-
-        // Force tstore inactive via storage toggle
-        TstoreMode.setInactive(holder);
+        // Force tstore inactive via storage toggle on the TrailsRouter storage
+        TstoreMode.setInactive(address(router));
 
         // Arrange
         bytes32 opHash = keccak256("test-op-hash-sstore");
