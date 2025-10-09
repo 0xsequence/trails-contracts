@@ -516,10 +516,8 @@ contract TrailsRouterTest is Test {
 
         bytes memory data =
             abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
-
         vm.expectEmit(true, true, false, true);
         emit Sweep(address(0), recipient, 1 ether);
-
         IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
 
         assertEq(holder.balance, 0);
