@@ -572,7 +572,8 @@ contract TrailsRouterTest is Test {
         bytes memory routerCode = address(router).code;
         vm.etch(holder, address(new TstoreSetter()).code);
         // ignore success; if unsupported, sstore write above ensures success
-        holder.call(abi.encodeWithSelector(TstoreSetter.set.selector, slot, TEST_SUCCESS_VALUE));
+        (bool ok,) = holder.call(abi.encodeWithSelector(TstoreSetter.set.selector, slot, TEST_SUCCESS_VALUE));
+        require(ok, "tstore set failed");
         vm.etch(holder, routerCode);
 
         // Act via delegated entrypoint
