@@ -8,11 +8,21 @@ import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 // -----------------------------------------------------------------------------
 
 contract MockMulticall3 {
+    bool public shouldFail;
+
+    function setShouldFail(bool _shouldFail) external {
+        shouldFail = _shouldFail;
+    }
+
     function aggregate3(IMulticall3.Call3[] calldata calls)
         external
         payable
         returns (IMulticall3.Result[] memory returnResults)
     {
+        if (shouldFail) {
+            revert("MockMulticall3: forced failure");
+        }
+
         returnResults = new IMulticall3.Result[](calls.length);
         for (uint256 i = 0; i < calls.length; i++) {
             IMulticall3.Call3 calldata call = calls[i];

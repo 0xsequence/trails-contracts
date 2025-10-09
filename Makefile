@@ -73,3 +73,6 @@ storage-layout:
 	@forge inspect src/TrailsRouter.sol storage-layout
 	@forge inspect src/TrailsRouterShim.sol storage-layout
 	@forge inspect src/TrailsIntentEntrypoint.sol storage-layout
+
+coverage:
+	@forge coverage --ir-minimum --no-match-coverage "test/|script/"
