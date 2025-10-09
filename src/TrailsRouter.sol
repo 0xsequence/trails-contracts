@@ -14,7 +14,7 @@ import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 /// @author Miguel Mota, Shun Kakinoki
 /// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
 /// @dev Must be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
-contract TrailsRouter is DelegatecallGuard, Tstorish, IDelegatedExtension, ITrailsRouter {
+contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, Tstorish {
     // -------------------------------------------------------------------------
     // Libraries
     // -------------------------------------------------------------------------
