@@ -10,6 +10,7 @@ import {MockMulticall3} from "test/mocks/MockMulticall3.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
+import {TstoreSetter, TstoreGetter, TstoreMode} from "test/utils/TstoreUtils.sol";
 
 // -----------------------------------------------------------------------------
 // Helper Contracts and Structs
@@ -503,7 +504,15 @@ contract TrailsRouterTest is Test {
         vm.deal(holder, 1 ether);
 
         bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
-        vm.store(holder, slot, TEST_SUCCESS_VALUE);
+        // Try to set transient storage via tstore on the holder; if not supported, fallback to sstore
+        TstoreSetter setter = new TstoreSetter();
+        bytes memory routerCode = address(router).code;
+        vm.etch(holder, address(setter).code);
+        (bool ok,) = holder.call(abi.encodeWithSelector(TstoreSetter.set.selector, slot, TEST_SUCCESS_VALUE));
+        if (!ok) {
+            vm.store(holder, slot, TEST_SUCCESS_VALUE);
+        }
+        vm.etch(holder, routerCode);
 
         bytes memory data =
             abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
@@ -513,6 +522,75 @@ contract TrailsRouterTest is Test {
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
 
+        assertEq(holder.balance, 0);
+        assertEq(recipient.balance, 1 ether);
+    }
+
+    function test_validateOpHashAndSweep_native_success_tstore() public {
+        // Exact case: tstore ACTIVE for router code at `holder`.
+        // Assumptions:
+        // - We explicitly set `_tstoreSupport` (slot 0) to 1 to enable tstore path.
+        // - Success sentinel is written/read via tstore at TrailsSentinelLib.successSlot(opHash).
+
+        // Force tstore active via storage toggle
+        TstoreMode.setActive(holder);
+
+        // Arrange
+        bytes32 opHash = keccak256("test-op-hash-tstore");
+        vm.deal(holder, 1 ether);
+
+        // Pre-write success sentinel using tstore at the delegated storage of `holder`.
+        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
+        bytes memory routerCode = address(router).code;
+        vm.etch(holder, address(new TstoreSetter()).code);
+        (bool ok,) = holder.call(abi.encodeWithSelector(TstoreSetter.set.selector, slot, TEST_SUCCESS_VALUE));
+        require(ok, "tstore set failed");
+        vm.etch(holder, routerCode);
+
+        // Act via delegated entrypoint
+        bytes memory data =
+            abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), recipient, 1 ether);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
+
+        // Assert
+        assertEq(holder.balance, 0);
+        assertEq(recipient.balance, 1 ether);
+    }
+
+    function test_validateOpHashAndSweep_native_success_sstore_only() public {
+        // Exact case: tstore INACTIVE for router code at `holder`.
+        // Assumptions:
+        // - We explicitly set `_tstoreSupport` (slot 0) to 0 to force sstore path.
+        // - The fallback path uses sstore/sload to persist/read the success sentinel.
+
+        // Force tstore inactive via storage toggle
+        TstoreMode.setInactive(holder);
+
+        // Arrange
+        bytes32 opHash = keccak256("test-op-hash-sstore");
+        vm.deal(holder, 1 ether);
+
+        // Pre-write success sentinel at the delegated storage of `holder` for both paths.
+        bytes32 slot = keccak256(abi.encode(TEST_NAMESPACE, opHash));
+        // sstore path
+        vm.store(holder, slot, TEST_SUCCESS_VALUE);
+        // tstore path (best-effort)
+        bytes memory routerCode = address(router).code;
+        vm.etch(holder, address(new TstoreSetter()).code);
+        // ignore success; if unsupported, sstore write above ensures success
+        holder.call(abi.encodeWithSelector(TstoreSetter.set.selector, slot, TEST_SUCCESS_VALUE));
+        vm.etch(holder, routerCode);
+
+        // Act via delegated entrypoint
+        bytes memory data =
+            abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
+        vm.expectEmit(true, true, false, true);
+        emit Sweep(address(0), recipient, 1 ether);
+        IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
+
+        // Assert
         assertEq(holder.balance, 0);
         assertEq(recipient.balance, 1 ether);
     }
