@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
+import {Tstorish} from "tstorish/Tstorish.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 import {ITrailsRouterShim} from "./interfaces/ITrailsRouterShim.sol";
 import {DelegatecallGuard} from "./guards/DelegatecallGuard.sol";
@@ -9,7 +9,7 @@ import {DelegatecallGuard} from "./guards/DelegatecallGuard.sol";
 /// @title TrailsRouterShim
 /// @author Shun Kakinoki
 /// @notice Sequence delegate-call extension that forwards Trails router calls and records success sentinels.
-contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard {
+contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard, Tstorish {
     // -------------------------------------------------------------------------
     // Immutable variables
     // -------------------------------------------------------------------------
@@ -53,8 +53,8 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard {
         bytes memory routerReturn = _forwardToRouter(inner, callValue);
 
         // Set the success sentinel storage slot for the opHash
-        bytes32 slot = TrailsSentinelLib.successSlot(opHash);
-        Storage.writeBytes32(slot, TrailsSentinelLib.SUCCESS_VALUE);
+        uint256 slot = TrailsSentinelLib.successSlot(opHash);
+        _setTstorish(slot, TrailsSentinelLib.SUCCESS_VALUE);
 
         assembly {
             return(add(routerReturn, 32), mload(routerReturn))

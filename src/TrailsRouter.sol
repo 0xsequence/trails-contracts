@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
-import {Storage} from "wallet-contracts-v3/modules/Storage.sol";
+import {Tstorish} from "tstorish/Tstorish.sol";
 import {DelegatecallGuard} from "./guards/DelegatecallGuard.sol";
 import {IMulticall3} from "./interfaces/IMulticall3.sol";
 import {ITrailsRouter} from "./interfaces/ITrailsRouter.sol";
@@ -14,7 +14,7 @@ import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 /// @author Miguel Mota, Shun Kakinoki
 /// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
 /// @dev Must be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
-contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard {
+contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, Tstorish {
     // -------------------------------------------------------------------------
     // Libraries
     // -------------------------------------------------------------------------
@@ -204,8 +204,8 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard {
         payable
         onlyDelegatecall
     {
-        bytes32 slot = TrailsSentinelLib.successSlot(opHash);
-        if (Storage.readBytes32(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
+        uint256 slot = TrailsSentinelLib.successSlot(opHash);
+        if (_getTstorish(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
             revert SuccessSentinelNotSet();
         }
         sweep(_token, _recipient);

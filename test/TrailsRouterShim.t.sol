@@ -5,6 +5,8 @@ import {Test} from "forge-std/Test.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {DelegatecallGuard} from "src/guards/DelegatecallGuard.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
+import {TstoreMode, TstoreRead} from "test/utils/TstoreUtils.sol";
+import {TrailsRouter} from "src/TrailsRouter.sol";
 
 // -----------------------------------------------------------------------------
 // Interfaces
@@ -87,9 +89,12 @@ contract TrailsRouterShimTest is Test {
         shimImpl.handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
-    function test_delegatecall_forwards_and_sets_sentinel_and_bubbles_return() public {
+    function test_delegatecall_forwards_and_sets_sentinel_tstore_active() public {
+        // Explicitly force tstore active for TrailsRouterShim storage
+        TstoreMode.setActive(address(shimImpl));
+
         // Arrange: opHash and value
-        bytes32 opHash = keccak256("test-op");
+        bytes32 opHash = keccak256("test-op-tstore");
         uint256 callValue = 1 ether;
         vm.deal(holder, callValue);
 
@@ -103,10 +108,94 @@ contract TrailsRouterShimTest is Test {
         // Act: delegate entrypoint
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, forwardData);
 
-        // Assert: success sentinel written at holder storage
-        bytes32 slot = TrailsSentinelLib.successSlot(opHash);
-        bytes32 stored = vm.load(holder, slot);
-        assertEq(stored, TrailsSentinelLib.SUCCESS_VALUE);
+        // Assert via tload
+        uint256 slot = TrailsSentinelLib.successSlot(opHash);
+        uint256 storedT = TstoreRead.tloadAt(holder, bytes32(slot));
+        assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
+    }
+
+    function test_delegatecall_forwards_and_sets_sentinel_sstore_inactive() public {
+        // Explicitly force tstore inactive for shim code at `holder`
+        TstoreMode.setInactive(holder);
+
+        // Arrange: opHash and value
+        bytes32 opHash = keccak256("test-op-sstore");
+        uint256 callValue = 1 ether;
+        vm.deal(holder, callValue);
+
+        // Expect router event when forwarded
+        bytes memory routerCalldata = abi.encodeWithSignature("doNothing(uint256)", uint256(123));
+        bytes memory forwardData = abi.encode(routerCalldata, callValue);
+
+        vm.expectEmit(true, true, true, true);
+        emit MockRouter.Forwarded(holder, callValue, routerCalldata);
+
+        // Act: delegate entrypoint
+        IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, forwardData);
+
+        // Verify sentinel by re-etching TrailsRouter and validating via delegated entrypoint
+        bytes memory original = address(shimImpl).code;
+        vm.etch(holder, address(new TrailsRouter()).code);
+
+        address payable recipient = payable(address(0x111));
+        vm.deal(holder, callValue);
+        bytes memory data =
+            abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
+        IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
+        assertEq(holder.balance, 0);
+        assertEq(recipient.balance, callValue);
+        vm.etch(holder, original);
+    }
+
+    function test_delegatecall_sets_sentinel_with_tstore_when_supported() public {
+        // Force tstore active to ensure tstore path on TrailsRouterShim storage
+        TstoreMode.setActive(address(shimImpl));
+        bytes32 opHash = keccak256("tstore-case");
+        vm.deal(holder, 0);
+
+        // Invoke delegate entrypoint to set sentinel
+        bytes memory routerCalldata = hex"";
+        bytes memory forwardData = abi.encode(routerCalldata, 0);
+        (bool ok,) = address(holder).call(
+            abi.encodeWithSelector(
+                IMockDelegatedExtension.handleSequenceDelegateCall.selector, opHash, 0, 0, 0, 0, forwardData
+            )
+        );
+        assertTrue(ok, "delegatecall should succeed");
+
+        // Read via tload
+        uint256 slot = TrailsSentinelLib.successSlot(opHash);
+        uint256 storedT = TstoreRead.tloadAt(holder, bytes32(slot));
+        assertEq(storedT, TrailsSentinelLib.SUCCESS_VALUE);
+    }
+
+    function test_delegatecall_sets_sentinel_with_sstore_when_no_tstore() public {
+        // Force tstore inactive to ensure sstore path
+        TstoreMode.setInactive(holder);
+        bytes32 opHash = keccak256("sstore-case");
+        vm.deal(holder, 0);
+
+        // Invoke delegate entrypoint to set sentinel
+        bytes memory routerCalldata = hex"";
+        bytes memory forwardData = abi.encode(routerCalldata, 0);
+        (bool ok,) = address(holder).call(
+            abi.encodeWithSelector(
+                IMockDelegatedExtension.handleSequenceDelegateCall.selector, opHash, 0, 0, 0, 0, forwardData
+            )
+        );
+        assertTrue(ok, "delegatecall should succeed");
+
+        // Verify via TrailsRouter delegated validation
+        bytes memory original = address(shimImpl).code;
+        vm.etch(holder, address(new TrailsRouter()).code);
+        address payable recipient = payable(address(0x112));
+        vm.deal(holder, 1 ether);
+        bytes memory data =
+            abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
+        IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
+        assertEq(holder.balance, 0);
+        assertEq(recipient.balance, 1 ether);
+        vm.etch(holder, original);
     }
 
     function test_delegatecall_router_revert_bubbles_as_RouterCallFailed() public {

@@ -1,5 +1,4 @@
 @/=src/
-
 test/=test/
 
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
@@ -7,3 +6,4 @@ forge-std/=lib/forge-std/src/
 lifi-contracts/=lib/contracts/src/
 erc2470-libs/=lib/erc2470-libs/
 wallet-contracts-v3/=lib/wallet-contracts-v3/src/
+tstorish/=lib/tstorish/src/
