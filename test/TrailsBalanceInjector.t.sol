@@ -41,7 +41,7 @@ contract MockTarget {
         shouldRevert = _shouldRevert;
     }
 
-    function deposit(uint256 amount, address /*receiver*/ ) external {
+    function deposit(uint256 amount, address /*receiver*/) external {
         if (shouldRevert) revert("Target reverted");
         lastAmount = amount;
         // Pull tokens from msg.sender (simulating real DeFi protocols like Aave)
@@ -60,7 +60,7 @@ contract MockTargetETH {
         shouldRevert = _shouldRevert;
     }
 
-    function depositETH(uint256 amount, address /*receiver*/ ) external payable {
+    function depositETH(uint256 amount, address /*receiver*/) external payable {
         if (shouldRevert) revert("Target reverted");
         lastAmount = amount;
         receivedETH = msg.value;
@@ -204,9 +204,9 @@ contract TrailsBalanceInjectorTest is Test {
         uint256 amountOffset = 4;
 
         // Call injectSweepAndCall with ETH (token = address(0))
-        balanceInjector.injectSweepAndCall{value: ethAmount}(
-            address(0), address(targetETH), callData, amountOffset, PLACEHOLDER
-        );
+        balanceInjector.injectSweepAndCall{
+            value: ethAmount
+        }(address(0), address(targetETH), callData, amountOffset, PLACEHOLDER);
 
         // Verify target received the correct amount in the function parameter
         assertEq(targetETH.lastAmount(), ethAmount);
@@ -233,9 +233,9 @@ contract TrailsBalanceInjectorTest is Test {
         bytes32 wrongPlaceholder = 0x1111111111111111111111111111111111111111111111111111111111111111;
 
         vm.expectRevert("Placeholder mismatch");
-        balanceInjector.injectSweepAndCall{value: ethAmount}(
-            address(0), address(targetETH), callData, 4, wrongPlaceholder
-        );
+        balanceInjector.injectSweepAndCall{
+            value: ethAmount
+        }(address(0), address(targetETH), callData, 4, wrongPlaceholder);
     }
 
     function testRevertWhenETHTargetFails() public {
@@ -277,9 +277,9 @@ contract TrailsBalanceInjectorTest is Test {
         // Then, test ETH
         uint256 ethAmount = 1.5 ether;
         bytes memory ethCallData = abi.encodeWithSignature("depositETH(uint256,address)", PLACEHOLDER, address(0x123));
-        balanceInjector.injectSweepAndCall{value: ethAmount}(
-            address(0), address(targetETH), ethCallData, 4, PLACEHOLDER
-        );
+        balanceInjector.injectSweepAndCall{
+            value: ethAmount
+        }(address(0), address(targetETH), ethCallData, 4, PLACEHOLDER);
         assertEq(targetETH.lastAmount(), ethAmount);
         assertEq(targetETH.receivedETH(), ethAmount);
     }
@@ -418,7 +418,9 @@ contract TrailsBalanceInjectorTest is Test {
         bytes memory callData = abi.encodeWithSignature("depositETH(uint256,address)", ethAmount, address(0x123));
 
         // Call with offset=0 and placeholder=0 to skip replacement
-        balanceInjector.injectSweepAndCall{value: ethAmount}(
+        balanceInjector.injectSweepAndCall{
+            value: ethAmount
+        }(
             address(0),
             address(targetETH),
             callData,

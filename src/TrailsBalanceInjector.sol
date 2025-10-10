@@ -41,7 +41,10 @@ contract TrailsBalanceInjector is IDelegatedExtension {
         uint256, /* _numCalls */
         uint256, /* _space */
         bytes calldata _data
-    ) external override {
+    )
+        external
+        override
+    {
         // Decode the inner injectAndCall call
         require(_data.length >= 4, "Invalid calldata");
         bytes4 selector = bytes4(_data[:4]);
