@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
@@ -159,5 +159,47 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
 
         if (usedIntents[digest]) revert IntentAlreadyUsed();
         usedIntents[digest] = true;
+    }
+
+    /// @inheritdoc ITrailsIntentEntrypoint
+    function payFee(
+        address user,
+        address feeToken,
+        uint256 feeAmount,
+        address feeCollector
+    ) external nonReentrant {
+        require(feeAmount > 0, "Fee amount must be greater than 0");
+        require(feeToken != address(0), "Fee token must not be zero address");
+        require(feeCollector != address(0), "Fee collector must not be zero address");
+
+        // Transfer fee using existing allowance (from deposit permit)
+        require(IERC20(feeToken).transferFrom(user, feeCollector, feeAmount), "ERC20 transferFrom failed");
+
+        emit FeePaid(user, feeToken, feeAmount, feeCollector);
+    }
+
+    /// @inheritdoc ITrailsIntentEntrypoint
+    function payFeeWithPermit(
+        address user,
+        address feeToken,
+        uint256 feeAmount,
+        address feeCollector,
+        uint256 deadline,
+        uint8 permitV,
+        bytes32 permitR,
+        bytes32 permitS
+    ) external nonReentrant {
+        require(feeAmount > 0, "Fee amount must be greater than 0");
+        require(feeToken != address(0), "Fee token must not be zero address");
+        require(feeCollector != address(0), "Fee collector must not be zero address");
+        require(block.timestamp <= deadline, "Permit expired");
+
+        // Execute permit to approve this contract
+        IERC20Permit(feeToken).permit(user, address(this), feeAmount, deadline, permitV, permitR, permitS);
+
+        // Transfer fee to collector
+        require(IERC20(feeToken).transferFrom(user, feeCollector, feeAmount), "ERC20 transferFrom failed");
+
+        emit FeePaid(user, feeToken, feeAmount, feeCollector);
     }
 }
