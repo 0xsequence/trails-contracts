@@ -21,7 +21,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
 
     bytes32 public constant INTENT_TYPEHASH =
-        keccak256("Intent(address user,address token,uint256 amount,address intentAddress,uint256 deadline)");
+        keccak256("Intent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce)");
     string public constant VERSION = "1";
 
     // -------------------------------------------------------------------------
@@ -34,6 +34,8 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     error IntentExpired();
     error InvalidIntentSignature();
     error IntentAlreadyUsed();
+    error InvalidChainId();
+    error InvalidNonce();
 
     // -------------------------------------------------------------------------
     // Immutable Variables
@@ -48,6 +50,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
 
     /// @notice Tracks whether an intent digest has been consumed to prevent replays.
     mapping(bytes32 => bool) public usedIntents;
+    
+    /// @notice Tracks nonce for each user to prevent replay attacks.
+    mapping(address => uint256) public nonces;
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -77,6 +82,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 permitAmount,
         address intentAddress,
         uint256 deadline,
+        uint256 nonce,
+        uint256 feeAmount,
+        address feeCollector,
         uint8 permitV,
         bytes32 permitR,
         bytes32 permitS,
@@ -84,10 +92,16 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         bytes32 sigR,
         bytes32 sigS
     ) external nonReentrant {
-        _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
+        _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, nonce, sigV, sigR, sigS);
 
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
         require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
+        
+        // Pay fee if specified (fee token is same as deposit token)
+        if (feeAmount > 0 && feeCollector != address(0)) {
+            require(IERC20(token).transferFrom(user, feeCollector, feeAmount), "ERC20 fee transferFrom failed");
+            emit FeePaid(user, token, feeAmount, feeCollector);
+        }
 
         emit IntentDeposit(user, intentAddress, amount);
     }
@@ -99,13 +113,22 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 amount,
         address intentAddress,
         uint256 deadline,
+        uint256 nonce,
+        uint256 feeAmount,
+        address feeCollector,
         uint8 sigV,
         bytes32 sigR,
         bytes32 sigS
     ) external nonReentrant {
-        _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, sigV, sigR, sigS);
+        _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, nonce, sigV, sigR, sigS);
 
         require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
+        
+        // Pay fee if specified (fee token is same as deposit token)
+        if (feeAmount > 0 && feeCollector != address(0)) {
+            require(IERC20(token).transferFrom(user, feeCollector, feeAmount), "ERC20 fee transferFrom failed");
+            emit FeePaid(user, token, feeAmount, feeCollector);
+        }
 
         emit IntentDeposit(user, intentAddress, amount);
     }
@@ -121,6 +144,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 amount,
         address intentAddress,
         uint256 deadline,
+        uint256 nonce,
         uint8 sigV,
         bytes32 sigR,
         bytes32 sigS
@@ -129,10 +153,13 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         if (token == address(0)) revert InvalidToken();
         if (intentAddress == address(0)) revert InvalidIntentAddress();
         if (block.timestamp > deadline) revert IntentExpired();
+        // Chain ID is already included in the signature, so we don't need to check it here
+        // The signature verification will fail if the chain ID doesn't match
+        if (nonce != nonces[user]) revert InvalidNonce();
 
         bytes32 _typehash = INTENT_TYPEHASH;
         bytes32 intentHash;
-        // keccak256(abi.encode(INTENT_TYPEHASH, user, token, amount, intentAddress, deadline));
+        // keccak256(abi.encode(INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce));
         assembly {
             let ptr := mload(0x40)
             mstore(ptr, _typehash)
@@ -141,7 +168,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
             mstore(add(ptr, 0x60), amount)
             mstore(add(ptr, 0x80), intentAddress)
             mstore(add(ptr, 0xa0), deadline)
-            intentHash := keccak256(ptr, 0xc0)
+            mstore(add(ptr, 0xc0), chainid())
+            mstore(add(ptr, 0xe0), nonce)
+            intentHash := keccak256(ptr, 0x100)
         }
 
         bytes32 _domainSeparator = DOMAIN_SEPARATOR;
@@ -159,47 +188,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
 
         if (usedIntents[digest]) revert IntentAlreadyUsed();
         usedIntents[digest] = true;
+        
+        // Increment nonce for the user
+        nonces[user]++;
     }
 
-    /// @inheritdoc ITrailsIntentEntrypoint
-    function payFee(
-        address user,
-        address feeToken,
-        uint256 feeAmount,
-        address feeCollector
-    ) external nonReentrant {
-        require(feeAmount > 0, "Fee amount must be greater than 0");
-        require(feeToken != address(0), "Fee token must not be zero address");
-        require(feeCollector != address(0), "Fee collector must not be zero address");
-
-        // Transfer fee using existing allowance (from deposit permit)
-        require(IERC20(feeToken).transferFrom(user, feeCollector, feeAmount), "ERC20 transferFrom failed");
-
-        emit FeePaid(user, feeToken, feeAmount, feeCollector);
-    }
-
-    /// @inheritdoc ITrailsIntentEntrypoint
-    function payFeeWithPermit(
-        address user,
-        address feeToken,
-        uint256 feeAmount,
-        address feeCollector,
-        uint256 deadline,
-        uint8 permitV,
-        bytes32 permitR,
-        bytes32 permitS
-    ) external nonReentrant {
-        require(feeAmount > 0, "Fee amount must be greater than 0");
-        require(feeToken != address(0), "Fee token must not be zero address");
-        require(feeCollector != address(0), "Fee collector must not be zero address");
-        require(block.timestamp <= deadline, "Permit expired");
-
-        // Execute permit to approve this contract
-        IERC20Permit(feeToken).permit(user, address(this), feeAmount, deadline, permitV, permitR, permitS);
-
-        // Transfer fee to collector
-        require(IERC20(feeToken).transferFrom(user, feeCollector, feeAmount), "ERC20 transferFrom failed");
-
-        emit FeePaid(user, feeToken, feeAmount, feeCollector);
-    }
 }
