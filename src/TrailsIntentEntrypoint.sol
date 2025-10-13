@@ -192,5 +192,4 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         // Increment nonce for the user
         nonces[user]++;
     }
-
 }
