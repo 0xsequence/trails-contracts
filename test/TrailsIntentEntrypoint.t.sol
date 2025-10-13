@@ -13,7 +13,17 @@ contract MockERC20Permit is ERC20, ERC20Permit {
     }
 }
 
-contract IntentEntrypointTest is Test {
+// -----------------------------------------------------------------------------
+// Test Contract
+// -----------------------------------------------------------------------------
+
+contract TrailsIntentEntrypointTest is Test {
+    // Mirror events for expectEmit if needed
+    event FeePaid(address indexed user, address indexed feeToken, uint256 feeAmount, address indexed feeCollector);
+    // -------------------------------------------------------------------------
+    // Test State Variables
+    // -------------------------------------------------------------------------
+
     TrailsIntentEntrypoint public entrypoint;
     MockERC20Permit public token;
     address public user = vm.addr(0x123456789);

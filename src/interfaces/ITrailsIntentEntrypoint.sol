@@ -14,12 +14,36 @@ interface ITrailsIntentEntrypoint {
     /// @param amount The amount of tokens deposited
     event IntentDeposit(address indexed user, address indexed intentAddress, uint256 amount);
 
-    /// @notice Emitted when a fee is paid
-    /// @param user The user paying the fee
-    /// @param feeToken The token used to pay the fee
-    /// @param feeAmount The amount of fee paid
-    /// @param feeCollector The address that received the fee
+    /// @notice Emitted when a fee is paid.
+    /// @param user The account from which the fee was taken.
+    /// @param feeToken The ERC-20 token used to pay the fee.
+    /// @param feeAmount The amount of the fee paid.
+    /// @param feeCollector The address receiving the fee.
     event FeePaid(address indexed user, address indexed feeToken, uint256 feeAmount, address indexed feeCollector);
+
+    // -------------------------------------------------------------------------
+    // Views
+    // -------------------------------------------------------------------------
+
+    /// @notice Returns the EIP-712 domain separator used for intent signatures.
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+
+    /// @notice Returns the intent typehash constant used in EIP-712 signatures.
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function INTENT_TYPEHASH() external view returns (bytes32);
+
+    /// @notice Returns the version string of the contract.
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function VERSION() external view returns (string memory);
+
+    /// @notice Returns whether an intent digest has already been consumed.
+    /// @param digest The EIP-712 digest of the intent message.
+    function usedIntents(bytes32 digest) external view returns (bool);
+
+    /// @notice Returns the current nonce for a given user.
+    /// @param user The user address to query.
+    function nonces(address user) external view returns (uint256);
 
     // -------------------------------------------------------------------------
     // Functions
@@ -84,5 +108,4 @@ interface ITrailsIntentEntrypoint {
         bytes32 sigR,
         bytes32 sigS
     ) external;
-
 }
