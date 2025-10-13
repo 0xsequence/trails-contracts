@@ -23,6 +23,8 @@ contract MockERC20Permit is ERC20, ERC20Permit {
 // -----------------------------------------------------------------------------
 
 contract TrailsIntentEntrypointTest is Test {
+    // Mirror events for expectEmit if needed
+    event FeePaid(address indexed user, address indexed feeToken, uint256 feeAmount, address indexed feeCollector);
     // -------------------------------------------------------------------------
     // Test State Variables
     // -------------------------------------------------------------------------
@@ -900,6 +902,215 @@ contract TrailsIntentEntrypointTest is Test {
 
         // Verify the intent was processed correctly
         assertTrue(entrypoint.usedIntents(intentDigest));
+
+        vm.stopPrank();
+    }
+
+    // ---------------------------------------------------------------------
+    // Fee payment tests
+    // ---------------------------------------------------------------------
+
+    function testPayFee_SucceedsWithAllowance() public {
+        vm.startPrank(user);
+
+        address collector = address(0xC0FFEE);
+        uint256 feeAmount = 25 * 10 ** token.decimals();
+
+        // Approve allowance for the entrypoint to use for fee
+        require(token.approve(address(entrypoint), feeAmount), "approve failed");
+
+        uint256 userBefore = token.balanceOf(user);
+        uint256 collectorBefore = token.balanceOf(collector);
+
+        entrypoint.payFee(user, address(token), feeAmount, collector);
+
+        uint256 userAfter = token.balanceOf(user);
+        uint256 collectorAfter = token.balanceOf(collector);
+
+        assertEq(userAfter, userBefore - feeAmount);
+        assertEq(collectorAfter, collectorBefore + feeAmount);
+
+        vm.stopPrank();
+    }
+
+    function testPayFee_RevertZeroAmount() public {
+        vm.startPrank(user);
+        address collector = address(0xC0FFEE);
+        vm.expectRevert(bytes("Fee amount must be greater than 0"));
+        entrypoint.payFee(user, address(token), 0, collector);
+        vm.stopPrank();
+    }
+
+    function testPayFee_RevertZeroToken() public {
+        vm.startPrank(user);
+        address collector = address(0xC0FFEE);
+        vm.expectRevert(bytes("Fee token must not be zero address"));
+        entrypoint.payFee(user, address(0), 1, collector);
+        vm.stopPrank();
+    }
+
+    function testPayFee_RevertZeroCollector() public {
+        vm.startPrank(user);
+        vm.expectRevert(bytes("Fee collector must not be zero address"));
+        entrypoint.payFee(user, address(token), 1, address(0));
+        vm.stopPrank();
+    }
+
+    function testPayFee_RevertInsufficientAllowance() public {
+        vm.startPrank(user);
+
+        address collector = address(0xC0FFEE);
+        uint256 feeAmount = 10 * 10 ** token.decimals();
+
+        // No approval provided
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(entrypoint), 0, feeAmount)
+        );
+        entrypoint.payFee(user, address(token), feeAmount, collector);
+
+        vm.stopPrank();
+    }
+
+    function testPayFeeWithPermit_Succeeds() public {
+        vm.startPrank(user);
+
+        address collector = address(0xBEEF);
+        uint256 feeAmount = 30 * 10 ** token.decimals();
+        uint256 deadline = block.timestamp + 3600;
+
+        // Create permit signature for feeAmount
+        bytes32 permitHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                token.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        user,
+                        address(entrypoint),
+                        feeAmount,
+                        token.nonces(user),
+                        deadline
+                    )
+                )
+            )
+        );
+
+        (uint8 permitV, bytes32 permitR, bytes32 permitS) = vm.sign(userPrivateKey, permitHash);
+
+        uint256 userBefore = token.balanceOf(user);
+        uint256 collectorBefore = token.balanceOf(collector);
+
+        entrypoint.payFeeWithPermit(user, address(token), feeAmount, collector, deadline, permitV, permitR, permitS);
+
+        uint256 userAfter = token.balanceOf(user);
+        uint256 collectorAfter = token.balanceOf(collector);
+
+        assertEq(userAfter, userBefore - feeAmount);
+        assertEq(collectorAfter, collectorBefore + feeAmount);
+
+        vm.stopPrank();
+    }
+
+    function testPayFeeWithPermit_RevertZeroAmount() public {
+        vm.startPrank(user);
+        address collector = address(0xBEEF);
+        vm.expectRevert(bytes("Fee amount must be greater than 0"));
+        entrypoint.payFeeWithPermit(user, address(token), 0, collector, block.timestamp + 1, 0, bytes32(0), bytes32(0));
+        vm.stopPrank();
+    }
+
+    function testPayFeeWithPermit_RevertZeroToken() public {
+        vm.startPrank(user);
+        address collector = address(0xBEEF);
+        vm.expectRevert(bytes("Fee token must not be zero address"));
+        entrypoint.payFeeWithPermit(user, address(0), 1, collector, block.timestamp + 1, 0, bytes32(0), bytes32(0));
+        vm.stopPrank();
+    }
+
+    function testPayFeeWithPermit_RevertZeroCollector() public {
+        vm.startPrank(user);
+        vm.expectRevert(bytes("Fee collector must not be zero address"));
+        entrypoint.payFeeWithPermit(user, address(token), 1, address(0), block.timestamp + 1, 0, bytes32(0), bytes32(0));
+        vm.stopPrank();
+    }
+
+    function testPayFeeWithPermit_RevertExpiredDeadline() public {
+        vm.startPrank(user);
+        address collector = address(0xBEEF);
+        uint256 pastDeadline = block.timestamp - 1;
+        vm.expectRevert(bytes("Permit expired"));
+        entrypoint.payFeeWithPermit(user, address(token), 1, collector, pastDeadline, 0, bytes32(0), bytes32(0));
+        vm.stopPrank();
+    }
+
+    function testPayFee_UsesLeftoverPermitAllowance() public {
+        vm.startPrank(user);
+
+        address intentAddress = address(0x9999);
+        address collector = address(0xC011EC7);
+        uint256 totalPermit = 100 * 10 ** token.decimals();
+        uint256 depositAmount = 60 * 10 ** token.decimals();
+        uint256 feeAmount = totalPermit - depositAmount; // 40
+        uint256 deadline = block.timestamp + 3600;
+
+        // Create permit for totalPermit
+        bytes32 permitHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                token.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        user,
+                        address(entrypoint),
+                        totalPermit,
+                        token.nonces(user),
+                        deadline
+                    )
+                )
+            )
+        );
+        (uint8 permitV, bytes32 permitR, bytes32 permitS) = vm.sign(userPrivateKey, permitHash);
+
+        // Intent signature for deposit
+        bytes32 intentHash = keccak256(
+            abi.encode(entrypoint.INTENT_TYPEHASH(), user, address(token), depositAmount, intentAddress, deadline)
+        );
+        bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(userPrivateKey, intentDigest);
+
+        // Execute deposit with higher permit than amount -> leaves leftover allowance
+        entrypoint.depositToIntentWithPermit(
+            user,
+            address(token),
+            depositAmount,
+            totalPermit,
+            intentAddress,
+            deadline,
+            permitV,
+            permitR,
+            permitS,
+            sigV,
+            sigR,
+            sigS
+        );
+
+        // Verify leftover allowance equals feeAmount
+        assertEq(token.allowance(user, address(entrypoint)), feeAmount);
+
+        uint256 userBefore = token.balanceOf(user);
+        uint256 collectorBefore = token.balanceOf(collector);
+
+        // Use leftover allowance to pay fee
+        entrypoint.payFee(user, address(token), feeAmount, collector);
+
+        uint256 userAfter = token.balanceOf(user);
+        uint256 collectorAfter = token.balanceOf(collector);
+
+        assertEq(userAfter, userBefore - feeAmount);
+        assertEq(collectorAfter, collectorBefore + feeAmount);
+        assertEq(token.allowance(user, address(entrypoint)), 0);
 
         vm.stopPrank();
     }
