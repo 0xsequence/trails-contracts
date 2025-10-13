@@ -29,9 +29,9 @@ interface ITrailsIntentEntrypoint {
     /// forge-lint: disable-next-line(mixed-case-function)
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 
-    /// @notice Returns the intent typehash constant used in EIP-712 signatures.
+    /// @notice Returns the trails intent typehash constant used in EIP-712 signatures.
     /// forge-lint: disable-next-line(mixed-case-function)
-    function INTENT_TYPEHASH() external view returns (bytes32);
+    function TRAILS_INTENT_TYPEHASH() external view returns (bytes32);
 
     /// @notice Returns the version string of the contract.
     /// forge-lint: disable-next-line(mixed-case-function)

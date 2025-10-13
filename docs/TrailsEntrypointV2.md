@@ -91,8 +91,8 @@ bytes32 public constant DOMAIN_TYPEHASH = keccak256(
     "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
 );
 
-bytes32 public constant INTENT_TYPEHASH = keccak256(
-    "Intent(address sender,address token,uint256 amount,uint256 destinationChain,address destinationAddress,bytes extraData,uint256 nonce,uint256 deadline)"
+bytes32 public constant TRAILS_INTENT_TYPEHASH = keccak256(
+    "TrailsIntent(address sender,address token,uint256 amount,uint256 destinationChain,address destinationAddress,bytes extraData,uint256 nonce,uint256 deadline)"
 );
 ```
 
@@ -100,7 +100,7 @@ bytes32 public constant INTENT_TYPEHASH = keccak256(
 ```solidity
 function hashIntent(Intent memory intent) public view returns (bytes32) {
     bytes32 structHash = keccak256(abi.encode(
-        INTENT_TYPEHASH,
+        TRAILS_INTENT_TYPEHASH,
         intent.sender,
         intent.token,
         intent.amount,
