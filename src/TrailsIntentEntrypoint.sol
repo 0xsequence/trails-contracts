@@ -20,8 +20,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // Constants
     // -------------------------------------------------------------------------
 
-    bytes32 public constant INTENT_TYPEHASH =
-        keccak256("Intent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce)");
+    bytes32 public constant INTENT_TYPEHASH = keccak256(
+        "Intent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce)"
+    );
     string public constant VERSION = "1";
 
     // -------------------------------------------------------------------------
@@ -50,7 +51,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
 
     /// @notice Tracks whether an intent digest has been consumed to prevent replays.
     mapping(bytes32 => bool) public usedIntents;
-    
+
     /// @notice Tracks nonce for each user to prevent replay attacks.
     mapping(address => uint256) public nonces;
 
@@ -96,7 +97,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
 
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
         require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
-        
+
         // Pay fee if specified (fee token is same as deposit token)
         if (feeAmount > 0 && feeCollector != address(0)) {
             require(IERC20(token).transferFrom(user, feeCollector, feeAmount), "ERC20 fee transferFrom failed");
@@ -123,7 +124,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, nonce, sigV, sigR, sigS);
 
         require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
-        
+
         // Pay fee if specified (fee token is same as deposit token)
         if (feeAmount > 0 && feeCollector != address(0)) {
             require(IERC20(token).transferFrom(user, feeCollector, feeAmount), "ERC20 fee transferFrom failed");
@@ -188,7 +189,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
 
         if (usedIntents[digest]) revert IntentAlreadyUsed();
         usedIntents[digest] = true;
-        
+
         // Increment nonce for the user
         nonces[user]++;
     }
