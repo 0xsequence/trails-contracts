@@ -14,6 +14,13 @@ interface ITrailsIntentEntrypoint {
     /// @param amount The amount of tokens transferred.
     event IntentDeposit(address indexed user, address indexed intentAddress, uint256 amount);
 
+    /// @notice Emitted when a fee is paid.
+    /// @param user The account from which the fee was taken.
+    /// @param feeToken The ERC-20 token used to pay the fee.
+    /// @param feeAmount The amount of the fee paid.
+    /// @param feeCollector The address receiving the fee.
+    event FeePaid(address indexed user, address indexed feeToken, uint256 feeAmount, address indexed feeCollector);
+
     // -------------------------------------------------------------------------
     // Views
     // -------------------------------------------------------------------------
@@ -76,5 +83,32 @@ interface ITrailsIntentEntrypoint {
         uint8 sigV,
         bytes32 sigR,
         bytes32 sigS
+    ) external;
+
+    /// @notice Pays a fee from a user's balance using existing allowance.
+    /// @param user The account paying the fee.
+    /// @param feeToken The ERC-20 token used to pay the fee.
+    /// @param feeAmount The amount of the fee to pay.
+    /// @param feeCollector The recipient of the fee.
+    function payFee(address user, address feeToken, uint256 feeAmount, address feeCollector) external;
+
+    /// @notice Pays a fee from a user's balance using ERC-20 permit to set allowance.
+    /// @param user The account paying the fee.
+    /// @param feeToken The ERC-20 token used to pay the fee.
+    /// @param feeAmount The amount of the fee to pay.
+    /// @param feeCollector The recipient of the fee.
+    /// @param deadline The signature expiration timestamp.
+    /// @param permitV The permit signature recovery id.
+    /// @param permitR The permit signature R value.
+    /// @param permitS The permit signature S value.
+    function payFeeWithPermit(
+        address user,
+        address feeToken,
+        uint256 feeAmount,
+        address feeCollector,
+        uint256 deadline,
+        uint8 permitV,
+        bytes32 permitR,
+        bytes32 permitS
     ) external;
 }

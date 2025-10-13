@@ -162,12 +162,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     }
 
     /// @inheritdoc ITrailsIntentEntrypoint
-    function payFee(
-        address user,
-        address feeToken,
-        uint256 feeAmount,
-        address feeCollector
-    ) external nonReentrant {
+    function payFee(address user, address feeToken, uint256 feeAmount, address feeCollector) external nonReentrant {
         require(feeAmount > 0, "Fee amount must be greater than 0");
         require(feeToken != address(0), "Fee token must not be zero address");
         require(feeCollector != address(0), "Fee collector must not be zero address");
