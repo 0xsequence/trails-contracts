@@ -71,7 +71,12 @@ contract MockTarget {
         shouldRevert = _shouldRevert;
     }
 
-    function deposit(uint256 amount, address /*receiver*/) external {
+    function deposit(
+        uint256 amount,
+        address /*receiver*/
+    )
+        external
+    {
         if (shouldRevert) revert("Target reverted");
         lastAmount = amount;
         if (address(token) != address(0)) {
@@ -89,7 +94,13 @@ contract MockTargetETH {
         shouldRevert = _shouldRevert;
     }
 
-    function depositEth(uint256 amount, address /*receiver*/) external payable {
+    function depositEth(
+        uint256 amount,
+        address /*receiver*/
+    )
+        external
+        payable
+    {
         if (shouldRevert) revert("Target reverted");
         lastAmount = amount;
         receivedEth = msg.value;
