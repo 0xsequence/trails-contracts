@@ -153,7 +153,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             if (_token == address(0)) {
                 _transferNative(_recipient, amount);
             } else {
-                _ensureERC20Approval(_token, amount);
                 _transferERC20(_token, _recipient, amount);
             }
             emit Sweep(_token, _recipient, amount);
@@ -167,11 +166,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         onlyDelegatecall
     {
         uint256 current = _getSelfBalance(_token);
-
-        // For ERC20, approve for the full current balance since we'll transfer all of it
-        if (_token != address(0)) {
-            _ensureERC20Approval(_token, current);
-        }
 
         uint256 actualRefund = _refundAmount > current ? current : _refundAmount;
         if (actualRefund != _refundAmount) {
@@ -272,12 +266,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     function _safeTransferFrom(address token, address from, address to, uint256 amount) internal {
         IERC20 erc20 = IERC20(token);
         SafeERC20.safeTransferFrom(erc20, from, to, amount);
-    }
-
-    /// forge-lint: disable-next-line(mixed-case-function)
-    function _ensureERC20Approval(address _token, uint256 _amount) internal {
-        IERC20 erc20 = IERC20(_token);
-        SafeERC20.forceApprove(erc20, _SELF, _amount);
     }
 
     /// forge-lint: disable-next-line(mixed-case-function)
