@@ -55,7 +55,7 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard, Tstorish {
         // Decode the inner call data and call value forwarded to the router
         (bytes memory inner, uint256 callValue) = abi.decode(data, (bytes, uint256));
 
-        // Validate that only aggregate3() is called
+        // Validate that only aggregate3Value() is called
         _validateRouterCall(inner);
 
         bytes memory routerReturn = _forwardToRouter(inner, callValue);
@@ -83,8 +83,8 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard, Tstorish {
             selector := mload(add(callData, 32))
         }
 
-        // Only allow `aggregate3` calls (0x82ad56cb)
-        if (selector != 0x82ad56cb) {
+        // Only allow `aggregate3Value` calls (0x174dea71)
+        if (selector != 0x174dea71) {
             revert InvalidFunctionSelector(selector);
         }
     }

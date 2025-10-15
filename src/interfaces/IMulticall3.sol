@@ -15,6 +15,13 @@ interface IMulticall3 {
         bytes callData;
     }
 
+    struct Call3Value {
+        address target;
+        bool allowFailure;
+        uint256 value;
+        bytes callData;
+    }
+
     struct Result {
         bool success;
         bytes returnData;
@@ -25,4 +32,6 @@ interface IMulticall3 {
     // -------------------------------------------------------------------------
 
     function aggregate3(Call3[] calldata calls) external payable returns (Result[] memory returnData);
+
+    function aggregate3Value(Call3Value[] calldata calls) external payable returns (Result[] memory returnData);
 }
