@@ -431,7 +431,7 @@ sequenceDiagram
 
 - **errorFlag:** The Calls module sets this when a call reverts with `behaviorOnError = IGNORE`
 - **onlyFallback logic:** These calls only run if the previous call reverted
-- **Fees on failure:** Yeah, we still collect fees even when things go wrong
+- **Fees on failure:** Fees are collected on the origin chain from any remaining balance during the fallback refund path, even if the transaction fails.
 - **Partial refunds:** If there's not enough balance for the full refund, we send what's there and emit `ActualRefund`
 - **Atomicity:** Everything happens in one transaction—no way to double-spend
 
