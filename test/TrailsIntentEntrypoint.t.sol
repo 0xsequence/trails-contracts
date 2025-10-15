@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
-import "../src/TrailsIntentEntrypoint.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import {Test} from "forge-std/Test.sol";
+import {TrailsIntentEntrypoint} from "../src/TrailsIntentEntrypoint.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 // Mock ERC20 token with permit functionality for testing
 contract MockERC20Permit is ERC20, ERC20Permit {
@@ -33,11 +33,11 @@ contract TrailsIntentEntrypointTest is Test {
         entrypoint = new TrailsIntentEntrypoint();
         token = new MockERC20Permit();
 
-        // Give user some tokens
-        token.transfer(user, 1000 * 10 ** token.decimals());
+        // Give user some tokens and check transfer success
+        assertTrue(token.transfer(user, 1000 * 10 ** token.decimals()));
     }
 
-    function testConstructor() public {
+    function testConstructor() public view {
         // Simple constructor test - just verify the contract was deployed
         assertTrue(address(entrypoint) != address(0));
     }
