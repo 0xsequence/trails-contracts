@@ -80,7 +80,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -159,7 +161,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -229,7 +233,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -300,7 +306,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                feeAmount,
+                feeCollector
             )
         );
 
@@ -384,7 +392,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce1
+                nonce1,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -426,7 +436,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce2
+                nonce2,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -484,7 +496,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce1
+                nonce1,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -544,7 +558,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce2
+                nonce2,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -616,7 +632,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce1
+                nonce1,
+                feeAmount,
+                feeCollector
             )
         );
 
@@ -657,7 +675,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce2
+                nonce2,
+                feeAmount,
+                feeCollector
             )
         );
 
@@ -707,7 +727,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -735,7 +757,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -783,7 +807,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -828,7 +854,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -876,7 +904,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -921,7 +951,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -955,7 +987,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -986,7 +1020,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1010,7 +1046,7 @@ contract TrailsIntentEntrypointTest is Test {
 
     function testIntentTypehashConstant() public view {
         bytes32 expectedTypehash = keccak256(
-            "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce)"
+            "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector)"
         );
         assertEq(entrypoint.TRAILS_INTENT_TYPEHASH(), expectedTypehash);
     }
@@ -1034,7 +1070,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonceBefore
+                nonceBefore,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1068,7 +1106,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                wrongNonce
+                wrongNonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1120,7 +1160,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1165,7 +1207,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1218,7 +1262,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1262,7 +1308,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1313,7 +1361,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1380,7 +1430,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1444,7 +1496,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1549,7 +1603,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -1616,7 +1672,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -1657,7 +1715,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 
@@ -1698,7 +1758,9 @@ contract TrailsIntentEntrypointTest is Test {
                 intentAddress,
                 deadline,
                 block.chainid,
-                nonce
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
             )
         );
 

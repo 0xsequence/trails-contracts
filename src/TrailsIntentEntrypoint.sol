@@ -21,7 +21,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
 
     bytes32 public constant TRAILS_INTENT_TYPEHASH = keccak256(
-        "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce)"
+        "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector)"
     );
     string public constant VERSION = "1";
 
@@ -93,7 +93,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         bytes32 sigR,
         bytes32 sigS
     ) external nonReentrant {
-        _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, nonce, sigV, sigR, sigS);
+        _verifyAndMarkIntent(
+            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
+        );
 
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
         require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
@@ -121,7 +123,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         bytes32 sigR,
         bytes32 sigS
     ) external nonReentrant {
-        _verifyAndMarkIntent(user, token, amount, intentAddress, deadline, nonce, sigV, sigR, sigS);
+        _verifyAndMarkIntent(
+            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
+        );
 
         require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
 
@@ -146,6 +150,8 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         address intentAddress,
         uint256 deadline,
         uint256 nonce,
+        uint256 feeAmount,
+        address feeCollector,
         uint8 sigV,
         bytes32 sigR,
         bytes32 sigS
@@ -160,7 +166,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
 
         bytes32 _typehash = TRAILS_INTENT_TYPEHASH;
         bytes32 intentHash;
-        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce));
+        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector));
         assembly {
             let ptr := mload(0x40)
             mstore(ptr, _typehash)
@@ -171,7 +177,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
             mstore(add(ptr, 0xa0), deadline)
             mstore(add(ptr, 0xc0), chainid())
             mstore(add(ptr, 0xe0), nonce)
-            intentHash := keccak256(ptr, 0x100)
+            mstore(add(ptr, 0x100), feeAmount)
+            mstore(add(ptr, 0x120), feeCollector)
+            intentHash := keccak256(ptr, 0x140)
         }
 
         bytes32 _domainSeparator = DOMAIN_SEPARATOR;
