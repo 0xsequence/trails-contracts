@@ -1,6 +1,6 @@
 # Trails Contracts - Technical Flow Diagrams
 
-Technical sequence diagrams documenting Trails contract interactions, prepared for the October 15, 2025 audit call with Tim Sigl, Andy Lin, and Leonardo Passos.
+Technical sequence diagrams documenting Trails contract interactions.
 
 ---
 
@@ -12,7 +12,6 @@ Technical sequence diagrams documenting Trails contract interactions, prepared f
 - Chains differ between origin and destination
 - No protocol interaction on destination (just a simple transfer)
 - User receives bridged tokens directly
-- This is the simplest cross-chain flow
 
 **Scenario Specifics:** Arbitrum USDC → Base USDC (simple receive/pay/fund scenarios)
 
@@ -81,15 +80,13 @@ sequenceDiagram
 
 - **Sentinel lifetime:** Uses `Tstorish` library (tstore on Cancun+, falls back to sstore on older chains)
 - **Fee structure:** Fees are taken on the origin chain from whatever's left after bridging
-- **Relayer trust:** The relayer can't steal funds—it can only execute what's already authorized in the Merkle tree
-- **Why TrailsRouterShim exists:** Quote providers need a fixed "from" address, but we need the quote to construct the address. TrailsRouterShim breaks this circular dependency.
-- **Selector validation:** TrailsRouterShim only allows aggregate3Value (0x174dea71), blocking arbitrary calls
+- **Why TrailsRouterShim exists:** Quote providers need a fixed "from" address, but we need the quote to construct the address. TrailsRouterShim needed to overcome this circular dependency.
 
 ---
 
 ## 2. Cross-Chain Flow WITH Destination Calldata (Balance Injection)
 
-**Core Gist:** User bridges tokens AND executes custom protocol interaction on destination with exact bridged amount
+**Core Gist:** User bridges tokens + executes custom protocol interaction on destination with exact bridged amount
 
 **Key Characteristics:**
 - Cross-chain flow with destination protocol interaction
@@ -183,11 +180,10 @@ sequenceDiagram
 - **Why injection?** The bridge amount isn't known until funds actually arrive (slippage and fees affect the final amount)
 - **Placeholder format:** We use `0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef` as a 32-byte marker
 - **amountOffset:** Backend figures out where in the calldata the placeholder sits (byte offset)
-- **Trust model:** User trusts the backend got the offset right. Wrong offset → `PlaceholderMismatch` → revert → refund
 - **Native ETH:** No injection needed (amountOffset=0, placeholder=0). We just forward msg.value
 - **ERC20 approvals:** `SafeERC20.forceApprove` handles quirky tokens like USDT that need zero approval first
 - **Refund location:** If the protocol call fails, user gets tokens on the destination chain, not origin
-- **No going back:** Once bridged, there's no automatic way to return funds to origin
+- **Refunds on destination chain:** Once bridged, the refunds are handled automatically on the destination chain w/ destination token
 
 ---
 
@@ -262,9 +258,8 @@ sequenceDiagram
 ### Implementation Notes:
 
 - **Atomic:** Everything's in one transaction, no waiting around
-- **Fee timing:** We collect fees before sending swapped tokens to the user
-- **No bridging:** Just DEX interactions, no bridge protocols involved
-- **Simpler:** No balance injection—amounts are known up front
+- **Fee timing:** Collect fees before sending swapped tokens to the user
+- **Simpler:** No balance injection—amounts doesn't exist
 
 ---
 
@@ -345,7 +340,6 @@ sequenceDiagram
 
 - **vs. cross-chain:** Amount is knowable ahead of time (no bridge = no uncertainty)
 - **Optimization:** We skip the `injectAndCall()` wrapper since the amount is predetermined
-- **Backend's job:** Calculate the final post-swap amount correctly (with slippage tolerance)
 - **How we detect this case:** The `wrapCalldataWithTrailsRouterIfNeeded()` function checks if we're on the same chain:
   ```typescript
   if (originChainId === destinationChainId && isSameToken) {
@@ -437,17 +431,9 @@ sequenceDiagram
 
 - **errorFlag:** The Calls module sets this when a call reverts with `behaviorOnError = IGNORE`
 - **onlyFallback logic:** These calls only run if the previous call reverted
-- **Sequence Calls module handles this:**
-  ```solidity
-  if (call.onlyFallback && !errorFlag) {
-    emit CallSkipped(index);
-    continue; // Skip this call
-  }
-  ```
 - **Fees on failure:** Yeah, we still collect fees even when things go wrong
 - **Partial refunds:** If there's not enough balance for the full refund, we send what's there and emit `ActualRefund`
 - **Atomicity:** Everything happens in one transaction—no way to double-spend
-- **Sentinel scope:** The sentinel only lives for the transaction (tstore or sstore, depending on chain)
 
 ---
 
@@ -522,43 +508,6 @@ sequenceDiagram
     end
 
     Note over User: User receives tokens on DESTINATION chain<br/>NOT on origin chain
-```
-
-### Implementation Notes:
-
-- **Where do funds end up?** On the destination chain, not back on origin
-- **No undo button:** Once you've bridged, there's no automatic way back
-- **User's next step:** Manually bridge back if they want funds on origin (costs gas again)
-- **Two layers of success:** Bridge can succeed while protocol fails
-  - Bridge layer (LiFi/Relay): ✅ worked
-  - Protocol layer (Aave/Morpho/NFT): ❌ failed
-- **Testing trick:** Use `0xdeadbeef` as a selector to force protocol failures
-- **Sweep variants:**
-  - Destination: just `sweep()` (send everything)
-  - Origin failure: `refundAndSweep()` (partial refund, then fees)
-- **Fee collection:** Already happened on origin, so we don't collect again on destination
-- **Error handling:** Protocol errors bubble up as `TargetCallFailed(bytes revertData)`
-
----
-
-## Key Contract Addresses & Constants
-
-```solidity
-// Immutable addresses (per chain)
-TrailsRouter: Deterministic via ERC-2470 Singleton Factory
-TrailsRouterShim: Deterministic via ERC-2470 (constructor param: TrailsRouter address)
-Multicall3: 0xcA11bde05977b3631167028862bE2a173976CA11 (same on all chains)
-
-// Constants
-TrailsSentinelLib.SUCCESS_VALUE = 0x0000000000000000000000000000000000000000000000000000000000000001
-TRAILS_ROUTER_PLACEHOLDER_AMOUNT = 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-
-// Selectors
-Multicall3.aggregate3Value: 0x174dea71
-TrailsRouter.injectAndCall: bytes4(keccak256("injectAndCall(address,address,bytes,uint256,bytes32)"))
-TrailsRouter.sweep: bytes4(keccak256("sweep(address,address)"))
-TrailsRouter.refundAndSweep: bytes4(keccak256("refundAndSweep(address,address,uint256,address)"))
-TrailsRouter.validateOpHashAndSweep: bytes4(keccak256("validateOpHashAndSweep(bytes32,address,address)"))
 ```
 
 ---
