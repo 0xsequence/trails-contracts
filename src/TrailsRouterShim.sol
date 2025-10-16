@@ -24,7 +24,6 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard, Tstorish {
 
     error RouterCallFailed(bytes data);
     error ZeroRouterAddress();
-    error InvalidFunctionSelector(bytes4 selector);
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -55,9 +54,7 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard, Tstorish {
         // Decode the inner call data and call value forwarded to the router
         (bytes memory inner, uint256 callValue) = abi.decode(data, (bytes, uint256));
 
-        // Validate that only aggregate3Value() is called
-        _validateRouterCall(inner);
-
+        // Forward the call to the router
         bytes memory routerReturn = _forwardToRouter(inner, callValue);
 
         // Set the success sentinel storage slot for the opHash
@@ -72,22 +69,6 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard, Tstorish {
     // -------------------------------------------------------------------------
     // Internal Helpers
     // -------------------------------------------------------------------------
-
-    /// forge-lint: disable-next-line(mixed-case-function)
-    function _validateRouterCall(bytes memory callData) internal pure {
-        // Extract function selector
-        if (callData.length < 4) revert InvalidFunctionSelector(bytes4(0));
-
-        bytes4 selector;
-        assembly {
-            selector := mload(add(callData, 32))
-        }
-
-        // Only allow `aggregate3Value` calls (0x174dea71)
-        if (selector != 0x174dea71) {
-            revert InvalidFunctionSelector(selector);
-        }
-    }
 
     /// forge-lint: disable-next-line(mixed-case-function)
     function _forwardToRouter(bytes memory forwardData, uint256 callValue) internal returns (bytes memory) {

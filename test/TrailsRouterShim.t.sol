@@ -413,6 +413,17 @@ contract TrailsRouterShimTest is Test {
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, forwardData);
     }
 
+    function test_handleSequenceDelegateCall_allows_arbitrary_selector() public {
+        // No validation is enforced in the shim anymore; arbitrary selector should be forwarded.
+        bytes memory arbitraryCalldata = hex"deadbeef";
+        bytes memory forwardData = abi.encode(arbitraryCalldata, uint256(0));
+
+        vm.expectEmit(true, true, true, true);
+        emit MockAggregate3Router.Forwarded(holder, 0, arbitraryCalldata);
+
+        IMockDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, forwardData);
+    }
+
     function test_handleSequenceDelegateCall_max_call_value() public {
         uint256 maxValue = type(uint256).max;
         vm.deal(holder, maxValue);

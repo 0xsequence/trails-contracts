@@ -32,6 +32,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
     error NativeTransferFailed();
     error InvalidDelegatedSelector(bytes4 selector);
+    error InvalidFunctionSelector(bytes4 selector);
     error SuccessSentinelNotSet();
     error NoEthSent();
     error NoTokensToPull();
@@ -55,6 +56,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
     /// @inheritdoc ITrailsRouter
     function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
+        _validateRouterCall(data);
         (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
         return abi.decode(returnData, (IMulticall3.Result[]));
@@ -66,6 +68,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         payable
         returns (IMulticall3.Result[] memory returnResults)
     {
+        _validateRouterCall(data);
         if (token == address(0)) {
             if (msg.value == 0) revert NoEthSent();
         } else {
@@ -85,6 +88,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         payable
         returns (IMulticall3.Result[] memory returnResults)
     {
+        _validateRouterCall(data);
         if (token == address(0)) {
             if (msg.value < amount) revert InsufficientEth(amount, msg.value);
         } else {
@@ -363,6 +367,22 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             (bool success, bytes memory result) = target.call(callData);
             emit BalanceInjectorCall(token, target, placeholder, callerBalance, amountOffset, success, result);
             if (!success) revert TargetCallFailed(result);
+        }
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _validateRouterCall(bytes memory callData) internal pure {
+        // Extract function selector
+        if (callData.length < 4) revert InvalidFunctionSelector(bytes4(0));
+
+        bytes4 selector;
+        assembly {
+            selector := mload(add(callData, 32))
+        }
+
+        // Only allow `aggregate3Value` calls (0x174dea71)
+        if (selector != 0x174dea71) {
+            revert InvalidFunctionSelector(selector);
         }
     }
 }
