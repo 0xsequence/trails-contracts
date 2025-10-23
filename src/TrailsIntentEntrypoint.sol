@@ -39,6 +39,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     error IntentAlreadyUsed();
     error InvalidChainId();
     error InvalidNonce();
+    error InsufficientPermitAmount();
 
     // -------------------------------------------------------------------------
     // Immutable Variables
@@ -98,6 +99,8 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         _verifyAndMarkIntent(
             user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
         );
+
+        if (permitAmount != amount + feeAmount) revert InsufficientPermitAmount();
 
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
