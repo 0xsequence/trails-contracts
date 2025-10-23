@@ -608,7 +608,21 @@ contract TrailsIntentEntrypointTest is Test {
         (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce1, fee, address(0x9999));
 
         entrypoint.depositToIntentWithPermit(
-            user, address(token), amt, amt + fee, address(0x5678), dl, nonce1, fee, address(0x9999), pv, pr, ps, sv, sr, ss
+            user,
+            address(token),
+            amt,
+            amt + fee,
+            address(0x5678),
+            dl,
+            nonce1,
+            fee,
+            address(0x9999),
+            pv,
+            pr,
+            ps,
+            sv,
+            sr,
+            ss
         );
 
         assertEq(token.balanceOf(address(0x9999)), fee);
@@ -629,7 +643,9 @@ contract TrailsIntentEntrypointTest is Test {
 
         token.approve(address(entrypoint), amt + fee);
 
-        entrypoint.depositToIntent(user, address(token), amt, address(0x5678), dl, nonce, fee, address(0x9999), sv, sr, ss);
+        entrypoint.depositToIntent(
+            user, address(token), amt, address(0x5678), dl, nonce, fee, address(0x9999), sv, sr, ss
+        );
 
         assertEq(token.balanceOf(address(0x9999)), fee);
 
@@ -1955,8 +1971,21 @@ contract TrailsIntentEntrypointTest is Test {
 
         vm.expectRevert(TrailsIntentEntrypoint.InsufficientPermitAmount.selector);
         entrypoint.depositToIntentWithPermit(
-            user, address(token), amt, permitAmt, address(0x5678), dl,
-            nonce, fee, address(0x9999), pv, pr, ps, sv, sr, ss
+            user,
+            address(token),
+            amt,
+            permitAmt,
+            address(0x5678),
+            dl,
+            nonce,
+            fee,
+            address(0x9999),
+            pv,
+            pr,
+            ps,
+            sv,
+            sr,
+            ss
         );
         vm.stopPrank();
     }
@@ -1978,8 +2007,21 @@ contract TrailsIntentEntrypointTest is Test {
 
         vm.expectRevert(TrailsIntentEntrypoint.InsufficientPermitAmount.selector);
         entrypoint.depositToIntentWithPermit(
-            user, address(token), amt, permitAmt, address(0x5678), dl,
-            nonce, fee, address(0x9999), pv, pr, ps, sv, sr, ss
+            user,
+            address(token),
+            amt,
+            permitAmt,
+            address(0x5678),
+            dl,
+            nonce,
+            fee,
+            address(0x9999),
+            pv,
+            pr,
+            ps,
+            sv,
+            sr,
+            ss
         );
         vm.stopPrank();
     }
@@ -2019,7 +2061,16 @@ contract TrailsIntentEntrypointTest is Test {
     ) internal view returns (uint8 v, bytes32 r, bytes32 s) {
         bytes32 hash = keccak256(
             abi.encode(
-                entrypoint.TRAILS_INTENT_TYPEHASH(), usr, address(token), amt, intent, dl, block.chainid, nonce, fee, collector
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                usr,
+                address(token),
+                amt,
+                intent,
+                dl,
+                block.chainid,
+                nonce,
+                fee,
+                collector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), hash));
