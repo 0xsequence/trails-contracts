@@ -33,6 +33,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     error NativeTransferFailed();
     error InvalidDelegatedSelector(bytes4 selector);
     error InvalidFunctionSelector(bytes4 selector);
+    error AllowFailureMustBeFalse(uint256 callIndex);
     error SuccessSentinelNotSet();
     error NoEthSent();
     error NoTokensToPull();
@@ -384,5 +385,24 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         if (selector != 0x174dea71) {
             revert InvalidFunctionSelector(selector);
         }
+
+        // Decode and validate the Call3Value[] array to ensure allowFailure=false for all calls
+        IMulticall3.Call3Value[] memory calls = abi.decode(_sliceCallData(callData, 4), (IMulticall3.Call3Value[]));
+
+        // Iterate through all calls and verify allowFailure is false
+        for (uint256 i = 0; i < calls.length; i++) {
+            if (calls[i].allowFailure) {
+                revert AllowFailureMustBeFalse(i);
+            }
+        }
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _sliceCallData(bytes memory data, uint256 start) internal pure returns (bytes memory) {
+        bytes memory result = new bytes(data.length - start);
+        for (uint256 i = 0; i < result.length; i++) {
+            result[i] = data[start + i];
+        }
+        return result;
     }
 }
