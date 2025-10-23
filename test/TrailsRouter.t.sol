@@ -1170,4 +1170,239 @@ contract TrailsRouterTest is Test {
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.InsufficientEth.selector, requiredAmount, sentAmount));
         router.pullAmountAndExecute{value: sentAmount}(address(0), requiredAmount, callData);
     }
+
+    // =========================================================================
+    // SEQ-3: AllowFailure Validation Tests
+    // =========================================================================
+
+    /**
+     * @notice Test that pullAmountAndExecute reverts when allowFailure is true for a single call
+     * @dev Validates the fix for SEQ-3 - preventing silent execution failures
+     */
+    function test_RevertWhen_allowFailure_true_singleCall() public {
+        erc20.mint(user, 100 ether);
+        vm.startPrank(user);
+        erc20.approve(address(router), 100 ether);
+
+        // Create a call with allowFailure=true (should be rejected)
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: true, // This should cause revert
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        // Should revert with AllowFailureMustBeFalse error for index 0
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that pullAmountAndExecute reverts when allowFailure is true in the first of multiple calls
+     * @dev Verifies that validation catches allowFailure=true at index 0
+     */
+    function test_RevertWhen_allowFailure_true_firstOfMultipleCalls() public {
+        erc20.mint(user, 100 ether);
+        vm.startPrank(user);
+        erc20.approve(address(router), 100 ether);
+
+        // Create multiple calls where the first one has allowFailure=true
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: true, // This should cause revert
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        calls[1] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: false,
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        calls[2] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: false,
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        // Should revert with AllowFailureMustBeFalse error for index 0
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that pullAmountAndExecute reverts when allowFailure is true in the middle of multiple calls
+     * @dev Verifies that validation catches allowFailure=true at index 1
+     */
+    function test_RevertWhen_allowFailure_true_middleOfMultipleCalls() public {
+        erc20.mint(user, 100 ether);
+        vm.startPrank(user);
+        erc20.approve(address(router), 100 ether);
+
+        // Create multiple calls where the second one has allowFailure=true
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: false,
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        calls[1] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: true, // This should cause revert
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        calls[2] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: false,
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        // Should revert with AllowFailureMustBeFalse error for index 1
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 1));
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that pullAmountAndExecute reverts when allowFailure is true in the last of multiple calls
+     * @dev Verifies that validation catches allowFailure=true at index 2
+     */
+    function test_RevertWhen_allowFailure_true_lastOfMultipleCalls() public {
+        erc20.mint(user, 100 ether);
+        vm.startPrank(user);
+        erc20.approve(address(router), 100 ether);
+
+        // Create multiple calls where the last one has allowFailure=true
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: false,
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        calls[1] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: false,
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        calls[2] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: true, // This should cause revert
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        // Should revert with AllowFailureMustBeFalse error for index 2
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 2));
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that pullAmountAndExecute reverts when all calls have allowFailure=true
+     * @dev Verifies that validation catches the first allowFailure=true at index 0
+     */
+    function test_RevertWhen_allowFailure_true_allCalls() public {
+        erc20.mint(user, 100 ether);
+        vm.startPrank(user);
+        erc20.approve(address(router), 100 ether);
+
+        // Create multiple calls where all have allowFailure=true
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: true, // This should cause revert
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        calls[1] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: true,
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        calls[2] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: true,
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        // Should revert with AllowFailureMustBeFalse error for index 0 (first occurrence)
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that pullAndExecute also validates allowFailure flag
+     * @dev Ensures the validation applies to pullAndExecute as well
+     */
+    function test_RevertWhen_pullAndExecute_allowFailure_true() public {
+        erc20.mint(user, 100 ether);
+        vm.startPrank(user);
+        erc20.approve(address(router), 100 ether);
+
+        // Create a call with allowFailure=true
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: true, // This should cause revert
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        // Should revert with AllowFailureMustBeFalse error for index 0
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
+        router.pullAndExecute(address(erc20), callData);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that execute with ETH validates allowFailure flag
+     * @dev Ensures the validation applies to all execution paths
+     */
+    function test_RevertWhen_execute_withETH_allowFailure_true() public {
+        // Create a call with allowFailure=true
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(getter),
+            allowFailure: true, // This should cause revert
+            value: 0,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        // Should revert with AllowFailureMustBeFalse error for index 0
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
+        router.pullAmountAndExecute{value: 1 ether}(address(0), 1 ether, callData);
+    }
 }
