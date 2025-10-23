@@ -187,8 +187,8 @@ All contracts are deployed via ERC-2470 Singleton Factory for deterministic addr
 
 | Contract | Address |
 |----------|---------|
-| TrailsIntentEntrypoint | 0xF1Cb5D0E6197adF31c969a595f1Fc23F6A4124b5 |
 | TrailsRouter | 0x76E9d622347689053d96B9b79bB54CDFb5839C88 |
+| TrailsIntentEntrypoint | 0xF1Cb5D0E6197adF31c969a595f1Fc23F6A4124b5 |
 | TrailsRouterShim | 0x5D4C6AF414c1f9cE650b08D528ef678d2C266a58 |
 
 **Note:** TrailsRouter consolidates the functionality of TrailsTokenSweeper, TrailsBalanceInjector, and TrailsMulticall3Router into a single deployment.
