@@ -1220,16 +1220,10 @@ contract TrailsRouterTest is Test {
             callData: abi.encodeWithSignature("getSender()")
         });
         calls[1] = IMulticall3.Call3Value({
-            target: address(getter),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("getSender()")
+            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
         });
         calls[2] = IMulticall3.Call3Value({
-            target: address(getter),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("getSender()")
+            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
         });
 
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
@@ -1253,10 +1247,7 @@ contract TrailsRouterTest is Test {
         // Create multiple calls where the second one has allowFailure=true
         IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
         calls[0] = IMulticall3.Call3Value({
-            target: address(getter),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("getSender()")
+            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
         });
         calls[1] = IMulticall3.Call3Value({
             target: address(getter),
@@ -1265,10 +1256,7 @@ contract TrailsRouterTest is Test {
             callData: abi.encodeWithSignature("getSender()")
         });
         calls[2] = IMulticall3.Call3Value({
-            target: address(getter),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("getSender()")
+            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
         });
 
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
@@ -1292,16 +1280,10 @@ contract TrailsRouterTest is Test {
         // Create multiple calls where the last one has allowFailure=true
         IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
         calls[0] = IMulticall3.Call3Value({
-            target: address(getter),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("getSender()")
+            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
         });
         calls[1] = IMulticall3.Call3Value({
-            target: address(getter),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("getSender()")
+            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
         });
         calls[2] = IMulticall3.Call3Value({
             target: address(getter),
@@ -1337,16 +1319,10 @@ contract TrailsRouterTest is Test {
             callData: abi.encodeWithSignature("getSender()")
         });
         calls[1] = IMulticall3.Call3Value({
-            target: address(getter),
-            allowFailure: true,
-            value: 0,
-            callData: abi.encodeWithSignature("getSender()")
+            target: address(getter), allowFailure: true, value: 0, callData: abi.encodeWithSignature("getSender()")
         });
         calls[2] = IMulticall3.Call3Value({
-            target: address(getter),
-            allowFailure: true,
-            value: 0,
-            callData: abi.encodeWithSignature("getSender()")
+            target: address(getter), allowFailure: true, value: 0, callData: abi.encodeWithSignature("getSender()")
         });
 
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
