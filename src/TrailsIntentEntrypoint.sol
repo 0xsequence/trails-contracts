@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ITrailsIntentEntrypoint} from "./interfaces/ITrailsIntentEntrypoint.sol";
@@ -15,6 +16,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // Libraries
     // -------------------------------------------------------------------------
     using ECDSA for bytes32;
+    using SafeERC20 for IERC20;
 
     // -------------------------------------------------------------------------
     // Constants
@@ -98,11 +100,11 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         );
 
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
-        require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
+        IERC20(token).safeTransferFrom(user, intentAddress, amount);
 
         // Pay fee if specified (fee token is same as deposit token)
         if (feeAmount > 0 && feeCollector != address(0)) {
-            require(IERC20(token).transferFrom(user, feeCollector, feeAmount), "ERC20 fee transferFrom failed");
+            IERC20(token).safeTransferFrom(user, feeCollector, feeAmount);
             emit FeePaid(user, token, feeAmount, feeCollector);
         }
 
@@ -127,11 +129,11 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
             user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
         );
 
-        require(IERC20(token).transferFrom(user, intentAddress, amount), "ERC20 transferFrom failed");
+        IERC20(token).safeTransferFrom(user, intentAddress, amount);
 
         // Pay fee if specified (fee token is same as deposit token)
         if (feeAmount > 0 && feeCollector != address(0)) {
-            require(IERC20(token).transferFrom(user, feeCollector, feeAmount), "ERC20 fee transferFrom failed");
+            IERC20(token).safeTransferFrom(user, feeCollector, feeAmount);
             emit FeePaid(user, token, feeAmount, feeCollector);
         }
 
