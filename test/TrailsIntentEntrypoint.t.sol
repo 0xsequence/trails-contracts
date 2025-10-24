@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {TrailsIntentEntrypoint} from "../src/TrailsIntentEntrypoint.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import {MockNonStandardERC20} from "./mocks/MockNonStandardERC20.sol";
 
 // Mock ERC20 token with permit functionality for testing
 contract MockERC20Permit is ERC20, ERC20Permit {
@@ -1777,6 +1778,218 @@ contract TrailsIntentEntrypointTest is Test {
 
         // Verify the intent was processed correctly
         assertTrue(entrypoint.usedIntents(intentDigest));
+
+        vm.stopPrank();
+    }
+
+    // =========================================================================
+    // SEQ-2: Non-Standard ERC20 Token Tests (SafeERC20 Implementation)
+    // =========================================================================
+
+    /**
+     * @notice Test depositToIntent with non-standard ERC20 token (like USDT)
+     * @dev Verifies SafeERC20.safeTransferFrom works with tokens that don't return boolean
+     */
+    function testDepositToIntent_WithNonStandardERC20_Success() public {
+        // Deploy non-standard ERC20 token
+        MockNonStandardERC20 nonStandardToken = new MockNonStandardERC20(1000000 * 10 ** 6);
+
+        // Transfer tokens to user
+        nonStandardToken.transfer(user, 1000 * 10 ** 6);
+
+        vm.startPrank(user);
+
+        address intentAddress = address(0x5678);
+        uint256 amount = 50 * 10 ** 6; // 50 tokens with 6 decimals
+        uint256 deadline = block.timestamp + 3600;
+        uint256 nonce = entrypoint.nonces(user);
+
+        bytes32 intentHash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                user,
+                address(nonStandardToken),
+                amount,
+                intentAddress,
+                deadline,
+                block.chainid,
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
+            )
+        );
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+        // Approve entrypoint to spend non-standard tokens
+        nonStandardToken.approve(address(entrypoint), amount);
+
+        uint256 userBalBefore = nonStandardToken.balanceOf(user);
+        uint256 intentBalBefore = nonStandardToken.balanceOf(intentAddress);
+
+        // This should succeed with SafeERC20 even though token doesn't return boolean
+        entrypoint.depositToIntent(
+            user, address(nonStandardToken), amount, intentAddress, deadline, nonce, 0, address(0), v, r, s
+        );
+
+        // Verify balances updated correctly
+        assertEq(nonStandardToken.balanceOf(user), userBalBefore - amount);
+        assertEq(nonStandardToken.balanceOf(intentAddress), intentBalBefore + amount);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test depositToIntent with non-standard ERC20 token and fee
+     * @dev Verifies SafeERC20.safeTransferFrom handles both deposit and fee transfers correctly
+     */
+    function testDepositToIntent_WithNonStandardERC20AndFee_Success() public {
+        // Deploy non-standard ERC20 token
+        MockNonStandardERC20 nonStandardToken = new MockNonStandardERC20(1000000 * 10 ** 6);
+
+        // Transfer tokens to user
+        nonStandardToken.transfer(user, 1000 * 10 ** 6);
+
+        vm.startPrank(user);
+
+        address intentAddress = address(0x5678);
+        address feeCollector = address(0x9999);
+        uint256 amount = 50 * 10 ** 6; // 50 tokens with 6 decimals
+        uint256 feeAmount = 5 * 10 ** 6; // 5 tokens fee
+        uint256 totalAmount = amount + feeAmount;
+        uint256 deadline = block.timestamp + 3600;
+        uint256 nonce = entrypoint.nonces(user);
+
+        bytes32 intentHash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                user,
+                address(nonStandardToken),
+                amount,
+                intentAddress,
+                deadline,
+                block.chainid,
+                nonce,
+                feeAmount,
+                feeCollector
+            )
+        );
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+        // Approve entrypoint to spend non-standard tokens (total amount + fee)
+        nonStandardToken.approve(address(entrypoint), totalAmount);
+
+        uint256 userBalBefore = nonStandardToken.balanceOf(user);
+        uint256 intentBalBefore = nonStandardToken.balanceOf(intentAddress);
+        uint256 feeCollectorBalBefore = nonStandardToken.balanceOf(feeCollector);
+
+        // This should succeed with SafeERC20 for both transfers
+        entrypoint.depositToIntent(
+            user, address(nonStandardToken), amount, intentAddress, deadline, nonce, feeAmount, feeCollector, v, r, s
+        );
+
+        // Verify all balances updated correctly
+        assertEq(nonStandardToken.balanceOf(user), userBalBefore - totalAmount);
+        assertEq(nonStandardToken.balanceOf(intentAddress), intentBalBefore + amount);
+        assertEq(nonStandardToken.balanceOf(feeCollector), feeCollectorBalBefore + feeAmount);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test depositToIntent with non-standard ERC20 when transfer fails
+     * @dev Verifies SafeERC20.safeTransferFrom properly reverts when non-standard token transfer fails
+     */
+    function testDepositToIntent_WithNonStandardERC20_InsufficientBalance_Reverts() public {
+        // Deploy non-standard ERC20 token
+        MockNonStandardERC20 nonStandardToken = new MockNonStandardERC20(1000000 * 10 ** 6);
+
+        // Give user very small amount
+        nonStandardToken.transfer(user, 10 * 10 ** 6);
+
+        vm.startPrank(user);
+
+        address intentAddress = address(0x5678);
+        uint256 amount = 100 * 10 ** 6; // More than user has
+        uint256 deadline = block.timestamp + 3600;
+        uint256 nonce = entrypoint.nonces(user);
+
+        bytes32 intentHash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                user,
+                address(nonStandardToken),
+                amount,
+                intentAddress,
+                deadline,
+                block.chainid,
+                nonce,
+                0,
+                address(0)
+            )
+        );
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+        nonStandardToken.approve(address(entrypoint), amount);
+
+        // Should revert because user has insufficient balance
+        vm.expectRevert("Insufficient balance");
+        entrypoint.depositToIntent(
+            user, address(nonStandardToken), amount, intentAddress, deadline, nonce, 0, address(0), v, r, s
+        );
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test depositToIntent with non-standard ERC20 when allowance is insufficient
+     * @dev Verifies SafeERC20.safeTransferFrom properly reverts when allowance is too low
+     */
+    function testDepositToIntent_WithNonStandardERC20_InsufficientAllowance_Reverts() public {
+        // Deploy non-standard ERC20 token
+        MockNonStandardERC20 nonStandardToken = new MockNonStandardERC20(1000000 * 10 ** 6);
+
+        // Transfer tokens to user
+        nonStandardToken.transfer(user, 1000 * 10 ** 6);
+
+        vm.startPrank(user);
+
+        address intentAddress = address(0x5678);
+        uint256 amount = 50 * 10 ** 6;
+        uint256 deadline = block.timestamp + 3600;
+        uint256 nonce = entrypoint.nonces(user);
+
+        bytes32 intentHash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                user,
+                address(nonStandardToken),
+                amount,
+                intentAddress,
+                deadline,
+                block.chainid,
+                nonce,
+                0,
+                address(0)
+            )
+        );
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+        // Approve less than amount needed
+        nonStandardToken.approve(address(entrypoint), amount - 1);
+
+        // Should revert because allowance is insufficient
+        vm.expectRevert("Insufficient allowance");
+        entrypoint.depositToIntent(
+            user, address(nonStandardToken), amount, intentAddress, deadline, nonce, 0, address(0), v, r, s
+        );
 
         vm.stopPrank();
     }

@@ -296,6 +296,21 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     }
 
     /// forge-lint: disable-next-line(mixed-case-function)
+    function _nativeBalance() internal view returns (uint256) {
+        return address(this).balance;
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _erc20Balance(address _token) internal view returns (uint256) {
+        return IERC20(_token).balanceOf(address(this));
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _erc20BalanceOf(address _token, address _account) internal view returns (uint256) {
+        return IERC20(_token).balanceOf(_account);
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
     function _injectAndCallDelegated(
         address token,
         address target,
