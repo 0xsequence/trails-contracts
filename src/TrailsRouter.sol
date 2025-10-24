@@ -69,16 +69,18 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         payable
         returns (IMulticall3.Result[] memory returnResults)
     {
-        uint256 amount;
+        _validateRouterCall(data);
         if (token == address(0)) {
             if (msg.value == 0) revert NoEthSent();
-            amount = msg.value;
         } else {
-            amount = _getBalance(token, msg.sender);
+            uint256 amount = _getBalance(token, msg.sender);
             if (amount == 0) revert NoTokensToPull();
+            _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
-        return pullAmountAndExecute(token, amount, data);
+        (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
+        if (!success) revert TargetCallFailed(returnData);
+        return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
     /// @inheritdoc ITrailsRouter
@@ -291,6 +293,21 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     /// forge-lint: disable-next-line(mixed-case-function)
     function _getSelfBalance(address token) internal view returns (uint256) {
         return _getBalance(token, address(this));
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _nativeBalance() internal view returns (uint256) {
+        return address(this).balance;
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _erc20Balance(address _token) internal view returns (uint256) {
+        return IERC20(_token).balanceOf(address(this));
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _erc20BalanceOf(address _token, address _account) internal view returns (uint256) {
+        return IERC20(_token).balanceOf(_account);
     }
 
     /// forge-lint: disable-next-line(mixed-case-function)
