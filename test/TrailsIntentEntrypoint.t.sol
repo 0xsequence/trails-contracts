@@ -360,9 +360,9 @@ contract TrailsIntentEntrypointTest is Test {
         address intentAddress = address(0x5678);
         uint256 amount = 50 * 10 ** token.decimals();
         uint256 deadline = block.timestamp + 3600;
-        uint256 infiniteAmount = type(uint256).max;
+        uint256 permitAmount = amount; // Exact amount (no fee)
 
-        // First deposit with infinite approval
+        // First deposit with permit
         uint256 nonce1 = entrypoint.nonces(user);
 
         bytes32 permitHash = keccak256(
@@ -374,7 +374,7 @@ contract TrailsIntentEntrypointTest is Test {
                         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
                         user,
                         address(entrypoint),
-                        infiniteAmount,
+                        permitAmount,
                         token.nonces(user),
                         deadline
                     )
@@ -407,7 +407,7 @@ contract TrailsIntentEntrypointTest is Test {
             user,
             address(token),
             amount,
-            infiniteAmount,
+            permitAmount,
             intentAddress,
             deadline,
             nonce1,
@@ -421,8 +421,8 @@ contract TrailsIntentEntrypointTest is Test {
             sigS1
         );
 
-        // Verify allowance is still high (infinite - amount)
-        assertGt(token.allowance(user, address(entrypoint)), amount * 100);
+        // Verify allowance is consumed
+        assertEq(token.allowance(user, address(entrypoint)), 0);
 
         // Second deposit without permit
         uint256 nonce2 = entrypoint.nonces(user);
@@ -448,6 +448,9 @@ contract TrailsIntentEntrypointTest is Test {
         (uint8 sigV2, bytes32 sigR2, bytes32 sigS2) = vm.sign(userPrivateKey, intentDigest2);
 
         uint256 userBalBefore = token.balanceOf(user);
+
+        // Approve for second deposit since exact permit was consumed by first deposit
+        token.approve(address(entrypoint), amount);
 
         entrypoint.depositToIntent(
             user, address(token), amount, intentAddress, deadline, nonce2, 0, address(0), sigV2, sigR2, sigS2
@@ -592,106 +595,59 @@ contract TrailsIntentEntrypointTest is Test {
         vm.stopPrank();
     }
 
-    // Test: Fee collector receives fees on both deposit methods
+    // Test: Fee collector receives fees with permit
     function testFeeCollectorReceivesFees() public {
         vm.startPrank(user);
 
-        address intentAddress = address(0x5678);
-        address feeCollector = address(0x9999);
-        uint256 amount = 50 * 10 ** token.decimals();
-        uint256 feeAmount = 5 * 10 ** token.decimals();
-        uint256 deadline = block.timestamp + 3600;
-
-        // Use infinite approval
+        uint256 amt = 50e18;
+        uint256 fee = 5e18;
+        uint256 dl = block.timestamp + 1 hours;
         uint256 nonce1 = entrypoint.nonces(user);
 
-        bytes32 permitHash = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                token.DOMAIN_SEPARATOR(),
-                keccak256(
-                    abi.encode(
-                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
-                        user,
-                        address(entrypoint),
-                        type(uint256).max,
-                        token.nonces(user),
-                        deadline
-                    )
-                )
-            )
-        );
+        (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, amt + fee, dl);
+        (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce1, fee, address(0x9999));
 
-        (uint8 permitV, bytes32 permitR, bytes32 permitS) = vm.sign(userPrivateKey, permitHash);
-
-        bytes32 intentHash1 = keccak256(
-            abi.encode(
-                entrypoint.TRAILS_INTENT_TYPEHASH(),
-                user,
-                address(token),
-                amount,
-                intentAddress,
-                deadline,
-                block.chainid,
-                nonce1,
-                feeAmount,
-                feeCollector
-            )
-        );
-
-        bytes32 intentDigest1 = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash1));
-
-        (uint8 sigV1, bytes32 sigR1, bytes32 sigS1) = vm.sign(userPrivateKey, intentDigest1);
-
-        // First deposit with fee via permit
         entrypoint.depositToIntentWithPermit(
             user,
             address(token),
-            amount,
-            type(uint256).max,
-            intentAddress,
-            deadline,
+            amt,
+            amt + fee,
+            address(0x5678),
+            dl,
             nonce1,
-            feeAmount,
-            feeCollector,
-            permitV,
-            permitR,
-            permitS,
-            sigV1,
-            sigR1,
-            sigS1
+            fee,
+            address(0x9999),
+            pv,
+            pr,
+            ps,
+            sv,
+            sr,
+            ss
         );
 
-        assertEq(token.balanceOf(feeCollector), feeAmount);
+        assertEq(token.balanceOf(address(0x9999)), fee);
 
-        // Second deposit with fee without permit
-        uint256 nonce2 = entrypoint.nonces(user);
+        vm.stopPrank();
+    }
 
-        bytes32 intentHash2 = keccak256(
-            abi.encode(
-                entrypoint.TRAILS_INTENT_TYPEHASH(),
-                user,
-                address(token),
-                amount,
-                intentAddress,
-                deadline,
-                block.chainid,
-                nonce2,
-                feeAmount,
-                feeCollector
-            )
-        );
+    // Test: Fee collector receives fees without permit
+    function testFeeCollectorReceivesFeesWithoutPermit() public {
+        vm.startPrank(user);
 
-        bytes32 intentDigest2 = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash2));
+        uint256 amt = 50e18;
+        uint256 fee = 5e18;
+        uint256 dl = block.timestamp + 1 hours;
+        uint256 nonce = entrypoint.nonces(user);
 
-        (uint8 sigV2, bytes32 sigR2, bytes32 sigS2) = vm.sign(userPrivateKey, intentDigest2);
+        (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
+
+        token.approve(address(entrypoint), amt + fee);
 
         entrypoint.depositToIntent(
-            user, address(token), amount, intentAddress, deadline, nonce2, feeAmount, feeCollector, sigV2, sigR2, sigS2
+            user, address(token), amt, address(0x5678), dl, nonce, fee, address(0x9999), sv, sr, ss
         );
 
-        // Total fees collected
-        assertEq(token.balanceOf(feeCollector), feeAmount * 2);
+        assertEq(token.balanceOf(address(0x9999)), fee);
 
         vm.stopPrank();
     }
@@ -1992,5 +1948,132 @@ contract TrailsIntentEntrypointTest is Test {
         );
 
         vm.stopPrank();
+    }
+
+    // =========================================================================
+    // SEQ-1: Permit Amount Validation Tests (Additional Safety Check)
+    // =========================================================================
+
+    /**
+     * @notice Test that depositToIntentWithPermit reverts when permit amount is insufficient
+     * @dev Validates permitAmount != amount + feeAmount check (insufficient case)
+     */
+    function testPermitAmountInsufficientWithFee() public {
+        vm.startPrank(user);
+        uint256 amt = 50e18;
+        uint256 fee = 10e18;
+        uint256 permitAmt = amt + fee - 1; // Insufficient by 1
+        uint256 dl = block.timestamp + 1 hours;
+        uint256 nonce = entrypoint.nonces(user);
+
+        (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
+        (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
+
+        vm.expectRevert(TrailsIntentEntrypoint.PermitAmountMismatch.selector);
+        entrypoint.depositToIntentWithPermit(
+            user,
+            address(token),
+            amt,
+            permitAmt,
+            address(0x5678),
+            dl,
+            nonce,
+            fee,
+            address(0x9999),
+            pv,
+            pr,
+            ps,
+            sv,
+            sr,
+            ss
+        );
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that depositToIntentWithPermit reverts when permit amount exceeds required
+     * @dev Validates permitAmount != amount + feeAmount check (excess case)
+     */
+    function testPermitAmountExcessiveWithFee() public {
+        vm.startPrank(user);
+        uint256 amt = 50e18;
+        uint256 fee = 10e18;
+        uint256 permitAmt = amt + fee + 1; // Excess by 1
+        uint256 dl = block.timestamp + 1 hours;
+        uint256 nonce = entrypoint.nonces(user);
+
+        (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
+        (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
+
+        vm.expectRevert(TrailsIntentEntrypoint.PermitAmountMismatch.selector);
+        entrypoint.depositToIntentWithPermit(
+            user,
+            address(token),
+            amt,
+            permitAmt,
+            address(0x5678),
+            dl,
+            nonce,
+            fee,
+            address(0x9999),
+            pv,
+            pr,
+            ps,
+            sv,
+            sr,
+            ss
+        );
+        vm.stopPrank();
+    }
+
+    function _signPermit(address owner, uint256 permitAmount, uint256 deadline)
+        internal
+        view
+        returns (uint8 v, bytes32 r, bytes32 s)
+    {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                token.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        owner,
+                        address(entrypoint),
+                        permitAmount,
+                        token.nonces(owner),
+                        deadline
+                    )
+                )
+            )
+        );
+        return vm.sign(userPrivateKey, hash);
+    }
+
+    function _signIntent2(
+        address usr,
+        uint256 amt,
+        address intent,
+        uint256 dl,
+        uint256 nonce,
+        uint256 fee,
+        address collector
+    ) internal view returns (uint8 v, bytes32 r, bytes32 s) {
+        bytes32 hash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                usr,
+                address(token),
+                amt,
+                intent,
+                dl,
+                block.chainid,
+                nonce,
+                fee,
+                collector
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), hash));
+        return vm.sign(userPrivateKey, digest);
     }
 }
