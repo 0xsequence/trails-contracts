@@ -1953,7 +1953,7 @@ contract TrailsIntentEntrypointTest is Test {
         (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
         (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
 
-        vm.expectRevert(TrailsIntentEntrypoint.InsufficientPermitAmount.selector);
+        vm.expectRevert(TrailsIntentEntrypoint.PermitAmountMismatch.selector);
         entrypoint.depositToIntentWithPermit(
             user, address(token), amt, permitAmt, address(0x5678), dl,
             nonce, fee, address(0x9999), pv, pr, ps, sv, sr, ss
@@ -1976,7 +1976,7 @@ contract TrailsIntentEntrypointTest is Test {
         (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
         (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
 
-        vm.expectRevert(TrailsIntentEntrypoint.InsufficientPermitAmount.selector);
+        vm.expectRevert(TrailsIntentEntrypoint.PermitAmountMismatch.selector);
         entrypoint.depositToIntentWithPermit(
             user, address(token), amt, permitAmt, address(0x5678), dl,
             nonce, fee, address(0x9999), pv, pr, ps, sv, sr, ss
