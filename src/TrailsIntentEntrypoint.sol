@@ -102,9 +102,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
 
         // Validate permitAmount exactly matches the total required amount (deposit + fee)
         // This prevents permit/approval mismatches that could cause DoS or unexpected behavior
-        unchecked {
-            if (permitAmount != amount + feeAmount) revert PermitAmountMismatch();
-        }
+        if (permitAmount != amount + feeAmount) revert PermitAmountMismatch();
 
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
