@@ -69,18 +69,16 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         payable
         returns (IMulticall3.Result[] memory returnResults)
     {
-        _validateRouterCall(data);
+        uint256 amount;
         if (token == address(0)) {
             if (msg.value == 0) revert NoEthSent();
+            amount = msg.value;
         } else {
-            uint256 amount = _getBalance(token, msg.sender);
+            amount = _getBalance(token, msg.sender);
             if (amount == 0) revert NoTokensToPull();
-            _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
-        (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
-        if (!success) revert TargetCallFailed(returnData);
-        return abi.decode(returnData, (IMulticall3.Result[]));
+        return pullAmountAndExecute(token, amount, data);
     }
 
     /// @inheritdoc ITrailsRouter
