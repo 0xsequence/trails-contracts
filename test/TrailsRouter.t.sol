@@ -110,7 +110,13 @@ contract MockWallet {
         bytes32 placeholder
     ) external payable returns (bool success, bytes memory result) {
         bytes memory data = abi.encodeWithSignature(
-            "injectAndCall(address,address,bytes,uint256,bytes32)", token, target, callData, amountOffset, placeholder
+            "injectAndCall(address,address,bytes,uint256,bytes32,bytes32)",
+            token,
+            target,
+            callData,
+            amountOffset,
+            placeholder,
+            bytes32(0)
         );
         return router.delegatecall(data);
     }
@@ -235,7 +241,7 @@ contract TrailsRouterTest is Test {
 
         vm.prank(eoa);
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
-        router.execute(callData);
+        router.execute(callData, bytes32(0));
     }
 
     function test_Execute_FromContract_ShouldPreserveContractAsSender() public {
@@ -245,7 +251,7 @@ contract TrailsRouterTest is Test {
         });
 
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
-        router.execute(callData);
+        router.execute(callData, bytes32(0));
     }
 
     function test_Execute_WithMultipleCalls() public {
@@ -258,7 +264,7 @@ contract TrailsRouterTest is Test {
         });
 
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
-        router.execute(callData);
+        router.execute(callData, bytes32(0));
     }
 
     function test_pullAmountAndExecute_WithValidToken_ShouldTransferAndExecute() public {
@@ -275,7 +281,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
         vm.prank(user);
-        router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
+        router.pullAmountAndExecute(address(mockToken), transferAmount, callData, bytes32(0));
 
         assertEq(mockToken.balanceOf(address(router)), transferAmount);
         assertEq(mockToken.balanceOf(user), 1000e18 - transferAmount);
@@ -295,7 +301,7 @@ contract TrailsRouterTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(router), 0, transferAmount)
         );
-        router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
+        router.pullAmountAndExecute(address(mockToken), transferAmount, callData, bytes32(0));
     }
 
     function test_pullAndExecute_WithValidToken_ShouldTransferFullBalanceAndExecute() public {
@@ -312,7 +318,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
         vm.prank(user);
-        router.pullAndExecute(address(mockToken), callData);
+        router.pullAndExecute(address(mockToken), callData, bytes32(0));
 
         assertEq(mockToken.balanceOf(address(router)), userBalance);
         assertEq(mockToken.balanceOf(user), 0);
@@ -332,7 +338,7 @@ contract TrailsRouterTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(router), 0, userBalance)
         );
-        router.pullAndExecute(address(mockToken), callData);
+        router.pullAndExecute(address(mockToken), callData, bytes32(0));
     }
 
     function test_ReceiveETH_ShouldAcceptETH() public {
@@ -424,14 +430,14 @@ contract TrailsRouterTest is Test {
 
         vm.prank(holder);
         vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
-        TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER);
+        TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER, bytes32(0));
     }
 
     function testRevertWhen_injectAndCall_NoEthAvailable() public {
         bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
-        TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER);
+        TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER, bytes32(0));
     }
 
     // -------------------------------------------------------------------------
@@ -446,7 +452,7 @@ contract TrailsRouterTest is Test {
 
         vm.expectEmit(true, true, false, false);
         emit Sweep(address(0), recipient, amount);
-        TrailsRouter(holder).sweep(address(0), recipient);
+        TrailsRouter(holder).sweep(address(0), recipient, bytes32(0));
         uint256 recipientBalanceAfter = recipient.balance;
 
         assertEq(holder.balance, 0);
@@ -460,7 +466,7 @@ contract TrailsRouterTest is Test {
 
         vm.expectEmit(true, true, false, false);
         emit Sweep(address(erc20), recipient, amount);
-        TrailsRouter(holder).sweep(address(erc20), recipient);
+        TrailsRouter(holder).sweep(address(erc20), recipient, bytes32(0));
         uint256 recipientBalanceAfter = erc20.balanceOf(recipient);
 
         assertEq(erc20.balanceOf(holder), 0);
@@ -481,7 +487,7 @@ contract TrailsRouterTest is Test {
         vm.expectEmit(true, true, false, false);
         emit RefundAndSweep(address(0), refundRecipient, 1 ether, sweepRecipient, 1 ether, 2 ether);
 
-        TrailsRouter(holder).refundAndSweep(address(0), refundRecipient, 1 ether, sweepRecipient);
+        TrailsRouter(holder).refundAndSweep(address(0), refundRecipient, 1 ether, sweepRecipient, bytes32(0));
 
         assertEq(holder.balance, 0);
         assertEq(refundRecipient.balance, 1 ether);
@@ -503,7 +509,7 @@ contract TrailsRouterTest is Test {
         vm.expectEmit(true, true, false, false);
         emit RefundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient, refund, amount - refund);
 
-        TrailsRouter(holder).refundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient);
+        TrailsRouter(holder).refundAndSweep(address(erc20), refundRecipient, refund, sweepRecipient, bytes32(0));
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(refundRecipient), refund);
@@ -544,7 +550,7 @@ contract TrailsRouterTest is Test {
         vm.etch(holder, routerCode);
 
         bytes memory data =
-            abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
+            abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient, bytes32(0));
         vm.expectEmit(true, true, false, false);
         emit Sweep(address(0), recipient, 1 ether);
         IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
@@ -571,7 +577,7 @@ contract TrailsRouterTest is Test {
 
         // Act via delegated entrypoint
         bytes memory data =
-            abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
+            abi.encodeWithSelector(TrailsRouter.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient, bytes32(0));
         vm.expectEmit(true, true, false, false);
         emit Sweep(address(0), recipient, 1 ether);
         IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, data);
@@ -592,7 +598,7 @@ contract TrailsRouterTest is Test {
         uint256 amount = 1 ether;
         vm.deal(holder, amount);
 
-        bytes memory data = abi.encodeWithSelector(TrailsRouter.sweep.selector, address(0), recipient);
+        bytes memory data = abi.encodeWithSelector(TrailsRouter.sweep.selector, address(0), recipient, bytes32(0));
 
         vm.expectEmit(true, true, false, false);
         emit Sweep(address(0), recipient, amount);
@@ -612,7 +618,7 @@ contract TrailsRouterTest is Test {
 
     function test_direct_sweep_reverts_not_delegatecall() public {
         vm.expectRevert(DelegatecallGuard.NotDelegateCall.selector);
-        router.sweep(address(0), recipient);
+        router.sweep(address(0), recipient, bytes32(0));
     }
 
     function test_native_transfer_failed() public {
@@ -654,13 +660,13 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
         vm.expectRevert(TrailsRouter.NoTokensToPull.selector);
-        router.pullAndExecute(token, callData);
+        router.pullAndExecute(token, callData, bytes32(0));
     }
 
     function test_no_tokens_to_sweep() public {
         address token = address(new MockERC20("Test", "TST", 18)); // New token, contract has 0 balance
         MockTarget mockTarget = new MockTarget(address(token));
-        bytes memory callData = abi.encodeWithSelector(mockTarget.deposit.selector, 100, address(0));
+        bytes memory callData = abi.encodeWithSelector(mockTarget.deposit.selector, 100, bytes32(0));
 
         vm.expectRevert(TrailsRouter.NoTokensToSweep.selector);
         // Call through holder to simulate delegatecall context
@@ -696,7 +702,7 @@ contract TrailsRouterTest is Test {
         // Create callData with wrong placeholder
         bytes32 wrongPlaceholder = bytes32(uint256(0x12345678));
         bytes32 expectedPlaceholder = bytes32(uint256(0xdeadbeef));
-        bytes memory callData = abi.encodeWithSelector(mockTarget.deposit.selector, wrongPlaceholder, address(0));
+        bytes memory callData = abi.encodeWithSelector(mockTarget.deposit.selector, wrongPlaceholder, bytes32(0));
 
         vm.expectRevert(TrailsRouter.PlaceholderMismatch.selector);
         // Call through holder to simulate delegatecall context
@@ -720,7 +726,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
         vm.prank(user);
-        router.pullAndExecute{value: ethAmount}(address(0), callData);
+        router.pullAndExecute{value: ethAmount}(address(0), callData, bytes32(0));
 
         assertEq(address(router).balance, ethAmount);
         assertEq(user.balance, 0);
@@ -736,7 +742,7 @@ contract TrailsRouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert(TrailsRouter.NoEthSent.selector);
-        router.pullAndExecute(address(0), callData);
+        router.pullAndExecute(address(0), callData, bytes32(0));
     }
 
     function test_pullAmountAndExecute_WithETH_ShouldTransferAndExecute() public {
@@ -751,7 +757,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
         vm.prank(user);
-        router.pullAmountAndExecute{value: ethAmount}(address(0), ethAmount, callData);
+        router.pullAmountAndExecute{value: ethAmount}(address(0), ethAmount, callData, bytes32(0));
 
         assertEq(address(router).balance, ethAmount);
         assertEq(user.balance, 0);
@@ -770,7 +776,7 @@ contract TrailsRouterTest is Test {
 
         vm.prank(user);
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.InsufficientEth.selector, requiredAmount, sentAmount));
-        router.pullAmountAndExecute{value: sentAmount}(address(0), requiredAmount, callData);
+        router.pullAmountAndExecute{value: sentAmount}(address(0), requiredAmount, callData, bytes32(0));
     }
 
     function test_pullAmountAndExecute_WithToken_ShouldTransferAndExecute() public {
@@ -787,7 +793,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
         vm.prank(user);
-        router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
+        router.pullAmountAndExecute(address(mockToken), transferAmount, callData, bytes32(0));
 
         assertEq(mockToken.balanceOf(address(router)), transferAmount);
         assertEq(mockToken.balanceOf(user), 1000e18 - transferAmount);
@@ -821,7 +827,7 @@ contract TrailsRouterTest is Test {
                 abi.encodeWithSignature("Error(string)", "MockMulticall3: forced failure")
             )
         );
-        router.execute(callData);
+        router.execute(callData, bytes32(0));
 
         // Restore original code
         vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, originalCode);
@@ -857,7 +863,7 @@ contract TrailsRouterTest is Test {
                 abi.encodeWithSignature("Error(string)", "MockMulticall3: forced failure")
             )
         );
-        router.pullAndExecute(address(mockToken), callData);
+        router.pullAndExecute(address(mockToken), callData, bytes32(0));
 
         // Restore original code
         vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, originalCode);
@@ -872,7 +878,7 @@ contract TrailsRouterTest is Test {
 
     function testInjectSweepAndCall_WithToken_ZeroBalance() public {
         MockERC20 zeroToken = new MockERC20("Zero", "ZERO", 18);
-        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0));
+        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, bytes32(0));
 
         vm.expectRevert(TrailsRouter.NoTokensToSweep.selector);
         router.injectSweepAndCall(address(zeroToken), address(target), callData, 4, PLACEHOLDER);
@@ -883,16 +889,16 @@ contract TrailsRouterTest is Test {
 
         vm.prank(holder);
         vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
-        TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER);
+        TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER, bytes32(0));
     }
 
     function testInjectAndCall_WithTokenZeroBalance() public {
         MockERC20 zeroToken = new MockERC20("Zero", "ZERO", 18);
-        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0));
+        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, bytes32(0));
 
         vm.prank(holder);
         vm.expectRevert(TrailsRouter.NoTokensToSweep.selector);
-        TrailsRouter(holder).injectAndCall(address(zeroToken), address(target), callData, 4, PLACEHOLDER);
+        TrailsRouter(holder).injectAndCall(address(zeroToken), address(target), callData, 4, PLACEHOLDER, bytes32(0));
     }
 
     function testInjectSweepAndCall_WithETH_TargetCallFails() public {
@@ -944,7 +950,7 @@ contract TrailsRouterTest is Test {
         vm.expectEmit(true, true, false, false);
         emit RefundAndSweep(address(0), refundRecipient, amount, sweepRecipient, amount, 0);
 
-        TrailsRouter(holder).refundAndSweep(address(0), refundRecipient, amount, sweepRecipient);
+        TrailsRouter(holder).refundAndSweep(address(0), refundRecipient, amount, sweepRecipient, bytes32(0));
 
         assertEq(holder.balance, 0);
         assertEq(refundRecipient.balance, amount);
@@ -966,7 +972,7 @@ contract TrailsRouterTest is Test {
         vm.expectEmit(true, true, false, false);
         emit RefundAndSweep(address(erc20), refundRecipient, refundRequested, sweepRecipient, amount, 0);
 
-        TrailsRouter(holder).refundAndSweep(address(erc20), refundRecipient, refundRequested, sweepRecipient);
+        TrailsRouter(holder).refundAndSweep(address(erc20), refundRecipient, refundRequested, sweepRecipient, bytes32(0));
 
         assertEq(erc20.balanceOf(holder), 0);
         assertEq(erc20.balanceOf(refundRecipient), amount);
@@ -986,7 +992,7 @@ contract TrailsRouterTest is Test {
         vm.expectEmit(true, true, false, false);
         emit RefundAndSweep(address(0), refundRecipient, refundRequested, sweepRecipient, 0, amount);
 
-        TrailsRouter(holder).refundAndSweep(address(0), refundRecipient, refundRequested, sweepRecipient);
+        TrailsRouter(holder).refundAndSweep(address(0), refundRecipient, refundRequested, sweepRecipient, bytes32(0));
 
         assertEq(holder.balance, 0);
         assertEq(refundRecipient.balance, 0);
@@ -1025,7 +1031,7 @@ contract TrailsRouterTest is Test {
         uint256 amount = 1 ether;
         vm.deal(holder, amount);
 
-        bytes memory innerData = abi.encodeWithSelector(router.sweep.selector, address(0), recipient);
+        bytes memory innerData = abi.encodeWithSelector(router.sweep.selector, address(0), recipient, bytes32(0));
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, innerData);
 
@@ -1041,7 +1047,7 @@ contract TrailsRouterTest is Test {
         vm.deal(holder, amount);
 
         bytes memory innerData = abi.encodeWithSelector(
-            router.refundAndSweep.selector, address(0), refundRecipient, uint256(1 ether), sweepRecipient
+            router.refundAndSweep.selector, address(0), refundRecipient, uint256(1 ether), sweepRecipient, bytes32(0)
         );
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, innerData);
@@ -1069,7 +1075,7 @@ contract TrailsRouterTest is Test {
         vm.etch(holder, routerCode);
 
         bytes memory innerData =
-            abi.encodeWithSelector(router.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient);
+            abi.encodeWithSelector(router.validateOpHashAndSweep.selector, bytes32(0), address(0), recipient, bytes32(0));
 
         IDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, innerData);
 
@@ -1091,7 +1097,7 @@ contract TrailsRouterTest is Test {
 
         // Event is emitted during the call
 
-        TrailsRouter(holder).injectAndCall(address(testToken), address(testTarget), callData, amountOffset, placeholder);
+        TrailsRouter(holder).injectAndCall(address(testToken), address(testTarget), callData, amountOffset, placeholder, bytes32(0));
 
         assertEq(testTarget.lastAmount(), tokenBalance); // Should use the replaced value
         assertEq(testToken.balanceOf(holder), 0);
@@ -1114,7 +1120,7 @@ contract TrailsRouterTest is Test {
             address(testToken), address(testTarget), placeholder, tokenBalance, amountOffset, true, ""
         );
 
-        TrailsRouter(holder).injectAndCall(address(testToken), address(testTarget), callData, amountOffset, placeholder);
+        TrailsRouter(holder).injectAndCall(address(testToken), address(testTarget), callData, amountOffset, placeholder, bytes32(0));
 
         assertEq(testTarget.lastAmount(), tokenBalance);
         assertEq(testToken.balanceOf(holder), 0);
@@ -1153,7 +1159,7 @@ contract TrailsRouterTest is Test {
 
         // This should exercise the _transferNative function and cause NativeTransferFailed
         vm.expectRevert(TrailsRouter.NativeTransferFailed.selector);
-        TrailsRouter(holder).sweep(address(0), address(revertingReceiver));
+        TrailsRouter(holder).sweep(address(0), address(revertingReceiver), bytes32(0));
     }
 
     function testInsufficientEthValidation() public {
@@ -1168,7 +1174,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.InsufficientEth.selector, requiredAmount, sentAmount));
-        router.pullAmountAndExecute{value: sentAmount}(address(0), requiredAmount, callData);
+        router.pullAmountAndExecute{value: sentAmount}(address(0), requiredAmount, callData, bytes32(0));
     }
 
     // =========================================================================
@@ -1197,7 +1203,7 @@ contract TrailsRouterTest is Test {
 
         // Should revert with AllowFailureMustBeFalse error for index 0
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
-        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData, bytes32(0));
 
         vm.stopPrank();
     }
@@ -1230,7 +1236,7 @@ contract TrailsRouterTest is Test {
 
         // Should revert with AllowFailureMustBeFalse error for index 0
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
-        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData, bytes32(0));
 
         vm.stopPrank();
     }
@@ -1263,7 +1269,7 @@ contract TrailsRouterTest is Test {
 
         // Should revert with AllowFailureMustBeFalse error for index 1
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 1));
-        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData, bytes32(0));
 
         vm.stopPrank();
     }
@@ -1296,7 +1302,7 @@ contract TrailsRouterTest is Test {
 
         // Should revert with AllowFailureMustBeFalse error for index 2
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 2));
-        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData, bytes32(0));
 
         vm.stopPrank();
     }
@@ -1329,7 +1335,7 @@ contract TrailsRouterTest is Test {
 
         // Should revert with AllowFailureMustBeFalse error for index 0 (first occurrence)
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
-        router.pullAmountAndExecute(address(erc20), 10 ether, callData);
+        router.pullAmountAndExecute(address(erc20), 10 ether, callData, bytes32(0));
 
         vm.stopPrank();
     }
@@ -1356,7 +1362,7 @@ contract TrailsRouterTest is Test {
 
         // Should revert with AllowFailureMustBeFalse error for index 0
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
-        router.pullAndExecute(address(erc20), callData);
+        router.pullAndExecute(address(erc20), callData, bytes32(0));
 
         vm.stopPrank();
     }
@@ -1379,6 +1385,6 @@ contract TrailsRouterTest is Test {
 
         // Should revert with AllowFailureMustBeFalse error for index 0
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
-        router.pullAmountAndExecute{value: 1 ether}(address(0), 1 ether, callData);
+        router.pullAmountAndExecute{value: 1 ether}(address(0), 1 ether, callData, bytes32(0));
     }
 }

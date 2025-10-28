@@ -31,6 +31,7 @@ interface ITrailsRouter is IDelegatedExtension {
         uint256 remaining
     );
     event ActualRefund(address indexed token, address indexed recipient, uint256 expected, uint256 actual);
+    event TrailsIntent(bytes32 indexed intentId);
 
     // ---------------------------------------------------------------------
     // Multicall Operations
@@ -39,15 +40,20 @@ interface ITrailsRouter is IDelegatedExtension {
     /// @notice Delegates to Multicall3 to preserve msg.sender context.
     /// @dev Delegates to Multicall3 to preserve msg.sender context.
     /// @param data The data to execute.
+    /// @param intentId The deterministic IntentID for this execution.
     /// @return returnResults The result of the execution.
-    function execute(bytes calldata data) external payable returns (IMulticall3.Result[] memory returnResults);
+    function execute(bytes calldata data, bytes32 intentId)
+        external
+        payable
+        returns (IMulticall3.Result[] memory returnResults);
 
     /// @notice Pull ERC20 from msg.sender, then delegatecall into Multicall3.
     /// @dev Requires prior approval to this router.
     /// @param token The ERC20 token to pull, or address(0) for ETH.
     /// @param data The calldata for Multicall3.
+    /// @param intentId The deterministic IntentID for this execution.
     /// @return returnResults The result of the execution.
-    function pullAndExecute(address token, bytes calldata data)
+    function pullAndExecute(address token, bytes calldata data, bytes32 intentId)
         external
         payable
         returns (IMulticall3.Result[] memory returnResults);
@@ -57,8 +63,9 @@ interface ITrailsRouter is IDelegatedExtension {
     /// @param token The ERC20 token to pull, or address(0) for ETH.
     /// @param amount The amount to pull.
     /// @param data The calldata for Multicall3.
+    /// @param intentId The deterministic IntentID for this execution.
     /// @return returnResults The result of the execution.
-    function pullAmountAndExecute(address token, uint256 amount, bytes calldata data)
+    function pullAmountAndExecute(address token, uint256 amount, bytes calldata data, bytes32 intentId)
         external
         payable
         returns (IMulticall3.Result[] memory returnResults);
@@ -89,12 +96,14 @@ interface ITrailsRouter is IDelegatedExtension {
     /// @param callData The original calldata (must include a 32-byte placeholder).
     /// @param amountOffset The byte offset in calldata where the placeholder is located.
     /// @param placeholder The 32-byte placeholder that will be replaced with balance.
+    /// @param intentId The deterministic IntentID for this execution.
     function injectAndCall(
         address token,
         address target,
         bytes calldata callData,
         uint256 amountOffset,
-        bytes32 placeholder
+        bytes32 placeholder,
+        bytes32 intentId
     ) external payable;
 
     /// @notice Validates that the success sentinel for an opHash is set, then sweeps tokens.
@@ -102,7 +111,10 @@ interface ITrailsRouter is IDelegatedExtension {
     /// @param opHash The operation hash to validate.
     /// @param token The token to sweep.
     /// @param recipient The recipient of the sweep.
-    function validateOpHashAndSweep(bytes32 opHash, address token, address recipient) external payable;
+    /// @param intentId The deterministic IntentID for this execution.
+    function validateOpHashAndSweep(bytes32 opHash, address token, address recipient, bytes32 intentId)
+        external
+        payable;
 
     // ---------------------------------------------------------------------
     // Sweeper
@@ -112,7 +124,8 @@ interface ITrailsRouter is IDelegatedExtension {
     /// @dev For delegatecall context. Approval is set for `SELF` on the wallet.
     /// @param token The address of the token to sweep. Use address(0) for the native token.
     /// @param recipient The address to send the swept tokens to.
-    function sweep(address token, address recipient) external payable;
+    /// @param intentId The deterministic IntentID for this execution.
+    function sweep(address token, address recipient, bytes32 intentId) external payable;
 
     /// @notice Refunds up to `_refundAmount` to `_refundRecipient`, then sweeps any remaining balance to `_sweepRecipient`.
     /// @dev For delegatecall context.
@@ -120,9 +133,14 @@ interface ITrailsRouter is IDelegatedExtension {
     /// @param refundRecipient Address receiving the refund portion.
     /// @param refundAmount Maximum amount to refund.
     /// @param sweepRecipient Address receiving the remaining balance.
-    function refundAndSweep(address token, address refundRecipient, uint256 refundAmount, address sweepRecipient)
-        external
-        payable;
+    /// @param intentId The deterministic IntentID for this execution.
+    function refundAndSweep(
+        address token,
+        address refundRecipient,
+        uint256 refundAmount,
+        address sweepRecipient,
+        bytes32 intentId
+    ) external payable;
 
     // ---------------------------------------------------------------------
     // Delegate Entry

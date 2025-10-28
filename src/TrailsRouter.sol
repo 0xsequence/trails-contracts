@@ -56,15 +56,25 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ITrailsRouter
-    function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
+    function execute(bytes calldata data, bytes32 intentId)
+        public
+        payable
+        returns (IMulticall3.Result[] memory returnResults)
+    {
         _validateRouterCall(data);
         (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
+
+        // Emit TrailsIntent event if intentId is provided
+        if (intentId != bytes32(0)) {
+            emit TrailsIntent(intentId);
+        }
+
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
     /// @inheritdoc ITrailsRouter
-    function pullAndExecute(address token, bytes calldata data)
+    function pullAndExecute(address token, bytes calldata data, bytes32 intentId)
         public
         payable
         returns (IMulticall3.Result[] memory returnResults)
@@ -78,11 +88,11 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             if (amount == 0) revert NoTokensToPull();
         }
 
-        return pullAmountAndExecute(token, amount, data);
+        return pullAmountAndExecute(token, amount, data, intentId);
     }
 
     /// @inheritdoc ITrailsRouter
-    function pullAmountAndExecute(address token, uint256 amount, bytes calldata data)
+    function pullAmountAndExecute(address token, uint256 amount, bytes calldata data, bytes32 intentId)
         public
         payable
         returns (IMulticall3.Result[] memory returnResults)
@@ -96,6 +106,12 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
         (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
+
+        // Emit TrailsIntent event if intentId is provided
+        if (intentId != bytes32(0)) {
+            emit TrailsIntent(intentId);
+        }
+
         return abi.decode(returnData, (IMulticall3.Result[]));
     }
 
@@ -131,7 +147,8 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         address target,
         bytes calldata callData,
         uint256 amountOffset,
-        bytes32 placeholder
+        bytes32 placeholder,
+        bytes32 intentId
     ) public payable {
         uint256 callerBalance = _getSelfBalance(token);
         if (callerBalance == 0) {
@@ -143,6 +160,11 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         }
 
         _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
+
+        // Emit TrailsIntent event if intentId is provided
+        if (intentId != bytes32(0)) {
+            emit TrailsIntent(intentId);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -150,7 +172,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ITrailsRouter
-    function sweep(address _token, address _recipient) public payable onlyDelegatecall {
+    function sweep(address _token, address _recipient, bytes32 intentId) public payable onlyDelegatecall {
         uint256 amount = _getSelfBalance(_token);
         if (amount > 0) {
             if (_token == address(0)) {
@@ -160,14 +182,21 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             }
             emit Sweep(_token, _recipient, amount);
         }
+
+        // Emit TrailsIntent event if intentId is provided
+        if (intentId != bytes32(0)) {
+            emit TrailsIntent(intentId);
+        }
     }
 
     /// @inheritdoc ITrailsRouter
-    function refundAndSweep(address _token, address _refundRecipient, uint256 _refundAmount, address _sweepRecipient)
-        public
-        payable
-        onlyDelegatecall
-    {
+    function refundAndSweep(
+        address _token,
+        address _refundRecipient,
+        uint256 _refundAmount,
+        address _sweepRecipient,
+        bytes32 intentId
+    ) public payable onlyDelegatecall {
         uint256 current = _getSelfBalance(_token);
 
         uint256 actualRefund = _refundAmount > current ? current : _refundAmount;
@@ -193,10 +222,15 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             emit Sweep(_token, _sweepRecipient, remaining);
         }
         emit RefundAndSweep(_token, _refundRecipient, _refundAmount, _sweepRecipient, actualRefund, remaining);
+
+        // Emit TrailsIntent event if intentId is provided
+        if (intentId != bytes32(0)) {
+            emit TrailsIntent(intentId);
+        }
     }
 
     /// @inheritdoc ITrailsRouter
-    function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient)
+    function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient, bytes32 intentId)
         public
         payable
         onlyDelegatecall
@@ -205,7 +239,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         if (_getTstorish(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
             revert SuccessSentinelNotSet();
         }
-        sweep(_token, _recipient);
+        sweep(_token, _recipient, intentId);
     }
 
     // -------------------------------------------------------------------------
@@ -232,29 +266,30 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
         // Balance Injection selectors
         if (selector == this.injectAndCall.selector) {
-            (address token, address target, bytes memory callData, uint256 amountOffset, bytes32 placeholder) =
-                abi.decode(_data[4:], (address, address, bytes, uint256, bytes32));
-            _injectAndCallDelegated(token, target, callData, amountOffset, placeholder);
+            (address token, address target, bytes memory callData, uint256 amountOffset, bytes32 placeholder, bytes32 intentId)
+            = abi.decode(_data[4:], (address, address, bytes, uint256, bytes32, bytes32));
+            _injectAndCallDelegated(token, target, callData, amountOffset, placeholder, intentId);
             return;
         }
 
         // Token Sweeper selectors
         if (selector == this.sweep.selector) {
-            (address token, address recipient) = abi.decode(_data[4:], (address, address));
-            sweep(token, recipient);
+            (address token, address recipient, bytes32 intentId) = abi.decode(_data[4:], (address, address, bytes32));
+            sweep(token, recipient, intentId);
             return;
         }
 
         if (selector == this.refundAndSweep.selector) {
-            (address token, address refundRecipient, uint256 refundAmount, address sweepRecipient) =
-                abi.decode(_data[4:], (address, address, uint256, address));
-            refundAndSweep(token, refundRecipient, refundAmount, sweepRecipient);
+            (address token, address refundRecipient, uint256 refundAmount, address sweepRecipient, bytes32 intentId) =
+                abi.decode(_data[4:], (address, address, uint256, address, bytes32));
+            refundAndSweep(token, refundRecipient, refundAmount, sweepRecipient, intentId);
             return;
         }
 
         if (selector == this.validateOpHashAndSweep.selector) {
-            (, address token, address recipient) = abi.decode(_data[4:], (bytes32, address, address));
-            validateOpHashAndSweep(_opHash, token, recipient);
+            (, address token, address recipient, bytes32 intentId) =
+                abi.decode(_data[4:], (bytes32, address, address, bytes32));
+            validateOpHashAndSweep(_opHash, token, recipient, intentId);
             return;
         }
 
@@ -314,7 +349,8 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         address target,
         bytes memory callData,
         uint256 amountOffset,
-        bytes32 placeholder
+        bytes32 placeholder,
+        bytes32 intentId
     ) internal {
         uint256 callerBalance = _getSelfBalance(token);
         if (callerBalance == 0) {
@@ -326,6 +362,11 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         }
 
         _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
+
+        // Emit TrailsIntent event if intentId is provided
+        if (intentId != bytes32(0)) {
+            emit TrailsIntent(intentId);
+        }
     }
 
     /// forge-lint: disable-next-line(mixed-case-function)
