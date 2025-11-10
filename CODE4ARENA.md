@@ -19,14 +19,10 @@ These contracts are used with **Trails** (https://docs.trails.build/) and Sequen
 - **Conditional fee sweeps.** `validateOpHashAndSweep(opHash, token, feeCollector)` should only fire when the success sentinel was set by the shim; verify there’s no path to set the sentinel on partial/incorrect success. Ensure `refundAndSweep` cannot under‑refund the user or over‑sweep to fees when origin calls fail.  
 - **Destination failures.** When destination protocol calls fail, the intended behavior is to sweep funds to the user *on the destination chain* (no “undo bridge”). Validate this always occurs and can’t be front‑run/griefed into a stuck state.
 
-### D. Entrypoint contracts (two surfaces)
+### D. Entrypoint contracts
 - **`TrailsIntentEntrypoint` (EIP‑712 deposits + optional permits).** Review replay protection, deadline checks, nonces, and the “leftover allowance → `payFee` / `payFeeWithPermit`” pattern so fee collection can’t exceed expectations or happen without user intent. Check reentrancy guard coverage.  
-- **`TrailsEntrypointV2` (“transfer‑first”, commit‑prove‑execute).** UX hinges on: (1) extracting the intent hash from the last 32 bytes of calldata on ETH deposits, (2) validating proof/commitment linkage, (3) correct status transitions (`Pending` → `Proven` → `Executed/Failed`). Audit proof validators and signature decoding, expiry logic, and emergency withdrawal gating.
 
-### E. Sapient Signer modules (wallet‑side attestation)
-- **Target pinning & `imageHash` matching.** For LiFi, calls must target the immutable `TARGET_LIFI_DIAMOND` and the attestation‑derived `lifiIntentHash` must match the leaf’s `imageHash`. Validate decoding and signer recovery over `payload.hashFor(address(0))`. Any bypass → arbitrary call authorization.
-
-### F. Cross‑chain assumptions
+### E. Cross‑chain assumptions
 - **Non‑atomicity & monitoring.** Origin/destination legs are decoupled by bridges/relayers. Stress timing windows, reorgs around proofing, dust handling, token decimal mismatches, and MEV on destination protocol interactions (especially with balance injection).
 
 ---
@@ -50,24 +46,11 @@ These contracts are used with **Trails** (https://docs.trails.build/) and Sequen
 - Deposits (`depositToIntent` / `…WithPermit`) **must** match signed EIP‑712 intent (user, token, amount, intentAddress, deadline), with replay blocked by tracked intent hashes and deadline enforced. Reentrancy is guarded.  
 - Fee payments (`payFee`, `payFeeWithPermit`) can only move `feeAmount` from the user to `feeCollector` when there is sufficient allowance **or** a valid ERC‑2612 permit for that exact amount by the deadline.
 
-**`TrailsEntrypointV2` invariants**
-- **ETH deposits** pull the intent hash from the last 32 bytes of calldata; the committed intent must match sender/token/amount/nonce and be within deadline before proofing. Status transitions are linear: `Pending → Proven → Executed/Failed`. Emergency withdraw is restricted to the deposit owner in Failed/expired states. All state changers are `nonReentrant`.
-
-**Sapient Signer (wallet) invariants**
-- For LiFi operations, **every call target** must equal the immutable `TARGET_LIFI_DIAMOND`; recovered attestation signer + decoded LiFi data must hash to the leaf’s `imageHash` for weight to count. Any mismatch rejects the signature.
-
 ---
 
 ## 3) Trusted roles
 
-> Protocol is **not** fully permissionless. These are the explicit trust/authority points for the in‑scope contracts.
-
-| Role | Surface | Authority / Notes |
-|---|---|---|
-| **Owner** | `TrailsEntrypointV2` | Admin actions incl. `pause`/`unpause` and ownership transfer; emergency/expiry rules enforced at function level. Public flows otherwise permissionless with validation. |
-| **Deposit owner (user)** | `TrailsEntrypointV2` | Can `emergencyWithdraw(intentHash)` only when status is Failed or expired; cannot override happy‑path execution. |
-| **Relayers / operators** | `TrailsEntrypointV2` | Call `commitIntent`, `prove*Deposit`, `executeIntent`. Unprivileged (validations gate success) but control **liveness/censorship** by choosing to act or not. |
-| **Sapient signer keys** | Wallet side | Off‑chain keys that produce attestations. Trust is in correct wallet configuration (`imageHash`) and key custody; module pins LiFi diamond target. |
+| Protocol is **fully permissionless** for the in-scope contracts, with all flows gated by cryptographic validations (EIP-712 signatures, nonces, deadlines). No explicit admin or owner roles are present.
 
 *(`TrailsRouter` / `TrailsRouterShim` execute under Sequence v3 wallet authority via `delegatecall`; there’s no standalone admin role on these stateless extensions.)*
 
@@ -84,6 +67,6 @@ forge test
 ---
 
 ## Scope notes for Code4rena
-- **In‑scope contracts:** `TrailsRouter`, `TrailsRouterShim`, `TrailsIntentEntrypoint`, `TrailsEntrypointV2`, and their libraries. Auditors can interact via the same public API patterns documented (multicall, sweep, injection, EIP‑712 deposit/permit, transfer‑suffix path).  
+- **In‑scope contracts:** `TrailsRouter`, `TrailsRouterShim`, `TrailsIntentEntrypoint`, and their libraries. Auditors can interact via the same public API patterns documented (multicall, sweep, injection, EIP‑712 deposit/permit).  
 - **Out of scope:** The closed‑source **Intent Machine** (backend), while auditors can still hit the **public API interfaces** and simulate the flows described in the flow docs.  
-- **Context coupling:** These contracts are meant to operate with **Sequence v3 Sapient Signer wallets** (delegatecall extensions; attestation‑based validation); reviewers should model threats with that in mind.
+- **Context coupling:** These contracts are meant to operate with **Sequence v3 wallets** (delegatecall extensions); reviewers should model threats with that in mind.
