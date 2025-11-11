@@ -270,7 +270,3 @@ The Trails API backend (written in Go) orchestrates intent execution using these
 5. **Fee Collection** - Uses `validateOpHashAndSweep()` for conditional fee sweeps
 
 See [`trails-api/lib/intentmachine`](https://github.com/0xsequence/trails-api/tree/master/lib/intentmachine) for backend implementation.
-
-## License
-
-MIT
