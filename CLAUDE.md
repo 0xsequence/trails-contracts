@@ -34,55 +34,35 @@ Deployment scripts are in `script/` directory. Required environment variables:
 
 ### Core Components
 
-This is a Solidity project implementing **Sapient Signer modules** for Sequence v3 wallets, focusing on cross-chain payment and bridging functionality through LiFi and relay protocols.
+This is a Solidity project implementing cross-chain payment and bridging functionality through TrailsRouter and TrailsIntentEntrypoint for Sequence v3 wallets.
 
 #### Primary Contracts
-- **TrailsLiFiSapientSigner** (`src/TrailsLiFiSapientSigner.sol`) - Validates LiFi protocol operations (swaps/bridges) via off-chain attestations. Targets a specific immutable `TARGET_LIFI_DIAMOND` address for security.
-- **TrailsRelaySapientSigner** (`src/TrailsRelaySapientSigner.sol`) - Validates relay operations through similar attestation mechanism.
-- **TrailsTokenSweeper** (`src/TrailsTokenSweeper.sol`) - Utility contract for token recovery operations.
+- **TrailsRouter** (`src/TrailsRouter.sol`) - Consolidated router contract combining multicall routing, balance injection, and token sweeping functionality. Executes via delegatecall from Sequence v3 wallets.
+- **TrailsRouterShim** (`src/TrailsRouterShim.sol`) - Lightweight shim that wraps router calls and records execution success using storage sentinels.
+- **TrailsIntentEntrypoint** (`src/TrailsIntentEntrypoint.sol`) - EIP-712 signature-based entrypoint for depositing tokens to intent addresses with user authorization.
 
 #### Library Architecture
 The project uses a modular library approach under `src/libraries/`:
 
-**Execution Info Management:**
-- `TrailsExecutionInfoInterpreter.sol` - Standardizes cross-chain execution data
-- `TrailsExecutionInfoParams.sol` - Parameter handling for execution info
-
-**LiFi Integration:**
-- `TrailsLiFiFlagDecoder.sol` - Decodes LiFi call data using flag-based strategies
-- `TrailsLiFiInterpreter.sol` - Interprets and validates LiFi operations
-- `TrailsLiFiValidator.sol` - Validation logic for LiFi transactions
-
-**Relay Integration:**
-- `TrailsRelayDecoder.sol` - Decodes relay call data
-- `TrailsRelayInterpreter.sol` - Interprets relay operations
-- `TrailsRelayValidator.sol` - Validation logic for relay transactions
-- `TrailsRelayParams.sol` - Parameter handling for relay operations
-
-#### Interface Definitions
-- `TrailsExecutionInfo.sol` - Core execution info structure
-- `TrailsLiFi.sol` - LiFi-specific interfaces and decoding strategies
-- `TrailsRelay.sol` - Relay-specific interfaces
+**Sentinel Management:**
+- `TrailsSentinelLib.sol` - Manages storage sentinels for conditional execution tracking using tstore/sstore
 
 ### Key Architecture Patterns
 
-**Sapient Signer Integration:** Both main contracts implement `ISapient` interface and integrate with Sequence wallet configuration trees as "Sapient Signer Leaves". They validate off-chain attestations to authorize operations without requiring direct wallet pre-approval.
+**Delegatecall-Only Execution:** TrailsRouter and TrailsRouterShim are designed to execute only via delegatecall from Sequence v3 wallets. Direct calls are blocked via `onlyDelegatecall` modifier.
 
-**Validation Flow:**
-1. Contract receives payload and encoded signature (attestation)
-2. Validates target addresses match immutable contract addresses
-3. Recovers attestation signer from signature
-4. Decodes and interprets operation data using libraries
-5. Computes intent hash from operations + signer
-6. Returns hash for comparison against wallet's configured `imageHash`
+**Success Sentinel Pattern:** Operations track success/failure via storage sentinels keyed by `opHash`. This enables conditional fee collection and fallback refund logic.
 
-**Security Model:** Each contract is deployed with immutable target addresses to prevent authorization of calls to arbitrary contracts. All validation is stateless and deterministic.
+**Balance Injection:** Runtime balance injection allows protocols to receive exact token amounts when bridge amounts are unknown beforehand (due to slippage and fees).
+
+**EIP-712 Intent Authorization:** TrailsIntentEntrypoint uses EIP-712 signatures to authorize deposits to intent addresses, preventing replay attacks via nonce tracking.
+
 
 ### External Dependencies
-- **Sequence Wallet v3** - Core wallet infrastructure and payload handling
-- **OpenZeppelin** - Cryptographic utilities (ECDSA, MessageHashUtils)
-- **LiFi Protocol** - Cross-chain bridge/swap interfaces
-- **ERC2470** - Singleton deployment pattern
+- **Sequence Wallet v3** (`wallet-contracts-v3`) - Core wallet infrastructure and payload handling (`IDelegatedExtension`)
+- **OpenZeppelin** (`openzeppelin-contracts`) - Token standards (IERC20, IERC20Permit), SafeERC20, cryptographic utilities (ECDSA), and security (ReentrancyGuard)
+- **Tstorish** (`tstorish`) - Storage library for tstore/sstore operations
+- **ERC2470** (`erc2470-libs`) - Singleton deployment pattern for deterministic addresses
 
 ### Testing Structure
 Tests mirror the source structure with unit tests for libraries and integration tests for main contracts. Mock contracts in `test/mocks/` simulate external protocol interactions.

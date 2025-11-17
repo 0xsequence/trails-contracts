@@ -1,6 +1,6 @@
 # Trails Contracts — Code4rena Audit Prep
 
-These contracts are used with **Trails** (https://docs.trails.build/) and Sequence v3 **sapient signer** wallets. The closed‑source **Intent Machine** is **out of scope** for this audit, but auditors can exercise public API interfaces that drive the on‑chain flows.
+These contracts are used with **Trails** (https://docs.trails.build/) and Sequence v3 wallets. The closed‑source **Intent Machine** is **out of scope** for this audit, but auditors can exercise public API interfaces that drive the on‑chain flows.
 
 ---
 
