@@ -23,7 +23,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
 
     bytes32 public constant TRAILS_INTENT_TYPEHASH = keccak256(
-        "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector)"
+        "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector,string description)"
     );
     string public constant VERSION = "1";
 
@@ -89,24 +89,25 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        uint8 permitV,
-        bytes32 permitR,
-        bytes32 permitS,
-        uint8 sigV,
-        bytes32 sigR,
-        bytes32 sigS
+        string calldata description,
+        ITrailsIntentEntrypoint.Signature calldata permitSig,
+        ITrailsIntentEntrypoint.Signature calldata intentSig
     ) external nonReentrant {
-        _verifyAndMarkIntent(
-            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
-        );
-
         // Validate permitAmount exactly matches the total required amount (deposit + fee)
         // This prevents permit/approval mismatches that could cause DoS or unexpected behavior
         unchecked {
             if (permitAmount != amount + feeAmount) revert PermitAmountMismatch();
         }
 
-        IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
+        // Execute permit and scope variables to avoid stack too deep
+        {
+            IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitSig.v, permitSig.r, permitSig.s);
+        }
+
+        _verifyAndMarkIntent(
+            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, description, intentSig.v, intentSig.r, intentSig.s
+        );
+
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
 
         // Pay fee if specified (fee token is same as deposit token)
@@ -128,12 +129,11 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        uint8 sigV,
-        bytes32 sigR,
-        bytes32 sigS
+        string calldata description,
+        ITrailsIntentEntrypoint.Signature calldata intentSig
     ) external nonReentrant {
         _verifyAndMarkIntent(
-            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
+            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, description, intentSig.v, intentSig.r, intentSig.s
         );
 
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
@@ -161,6 +161,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
+        string calldata description,
         uint8 sigV,
         bytes32 sigR,
         bytes32 sigS
@@ -174,8 +175,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         if (nonce != nonces[user]) revert InvalidNonce();
 
         bytes32 _typehash = TRAILS_INTENT_TYPEHASH;
+        bytes32 descriptionHash = keccak256(bytes(description));
         bytes32 intentHash;
-        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector));
+        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector, keccak256(bytes(description))));
         assembly {
             let ptr := mload(0x40)
             mstore(ptr, _typehash)
@@ -188,7 +190,8 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
             mstore(add(ptr, 0xe0), nonce)
             mstore(add(ptr, 0x100), feeAmount)
             mstore(add(ptr, 0x120), feeCollector)
-            intentHash := keccak256(ptr, 0x140)
+            mstore(add(ptr, 0x140), descriptionHash)
+            intentHash := keccak256(ptr, 0x160)
         }
 
         bytes32 _domainSeparator = DOMAIN_SEPARATOR;
