@@ -6,7 +6,7 @@ import {TrailsRouter} from "src/TrailsRouter.sol";
 import {DelegatecallGuard} from "src/guards/DelegatecallGuard.sol";
 import {MockSenderGetter} from "test/mocks/MockSenderGetter.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
-import {MockMulticall3} from "test/mocks/MockMulticall3.sol";
+import {MockMulticall3, MULTICALL3_ADDRESS} from "test/mocks/MockMulticall3.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
@@ -197,9 +197,9 @@ contract TrailsRouterTest is Test {
     function setUp() public {
         // Deploy mock multicall3 at the expected address
         MockMulticall3 mockMulticall3 = new MockMulticall3();
-        vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, address(mockMulticall3).code);
+        vm.etch(MULTICALL3_ADDRESS, address(mockMulticall3).code);
 
-        router = new TrailsRouter();
+        router = new TrailsRouter(MULTICALL3_ADDRESS);
         getter = new MockSenderGetter();
         mockToken = new MockERC20("MockToken", "MTK", 18);
         failingToken = new FailingToken();
@@ -346,7 +346,7 @@ contract TrailsRouterTest is Test {
     }
 
     function test_Multicall3Address_IsCorrect() public view {
-        assertEq(router.MULTICALL3(), 0xcA11bde05977b3631167028862bE2a173976CA11);
+        assertEq(router.MULTICALL3(), MULTICALL3_ADDRESS);
     }
 
     // -------------------------------------------------------------------------
@@ -795,14 +795,14 @@ contract TrailsRouterTest is Test {
 
     function testExecute_WithFailingMulticall() public {
         // Save original multicall code
-        bytes memory originalCode = 0xcA11bde05977b3631167028862bE2a173976CA11.code;
+        bytes memory originalCode = MULTICALL3_ADDRESS.code;
 
         // Deploy and etch failing multicall
         MockMulticall3 failingMulticall = new MockMulticall3();
-        vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, address(failingMulticall).code);
+        vm.etch(MULTICALL3_ADDRESS, address(failingMulticall).code);
 
         // Verify the etch worked
-        assertEq(keccak256(0xcA11bde05977b3631167028862bE2a173976CA11.code), keccak256(address(failingMulticall).code));
+        assertEq(keccak256(MULTICALL3_ADDRESS.code), keccak256(address(failingMulticall).code));
 
         // Set the failure flag directly in storage since delegatecall uses caller's storage
         // The shouldFail variable is at slot 0 in MockMulticall3
@@ -824,18 +824,18 @@ contract TrailsRouterTest is Test {
         router.execute(callData);
 
         // Restore original code
-        vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, originalCode);
+        vm.etch(MULTICALL3_ADDRESS, originalCode);
     }
 
     function test_pullAndExecute_WithFailingMulticall() public {
         uint256 transferAmount = 100e18;
 
         // Save original multicall code
-        bytes memory originalCode = 0xcA11bde05977b3631167028862bE2a173976CA11.code;
+        bytes memory originalCode = MULTICALL3_ADDRESS.code;
 
         // Mock multicall3 to return failure
         MockMulticall3 failingMulticall = new MockMulticall3();
-        vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, address(failingMulticall).code);
+        vm.etch(MULTICALL3_ADDRESS, address(failingMulticall).code);
 
         // Set the failure flag directly in storage since delegatecall uses caller's storage
         vm.store(address(router), bytes32(0), bytes32(uint256(1))); // Set shouldFail = true in router's storage
@@ -860,7 +860,7 @@ contract TrailsRouterTest is Test {
         router.pullAndExecute(address(mockToken), callData);
 
         // Restore original code
-        vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, originalCode);
+        vm.etch(MULTICALL3_ADDRESS, originalCode);
     }
 
     function testInjectSweepAndCall_WithETH_ZeroBalance() public {

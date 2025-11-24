@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {Deploy as TrailsRouterDeploy} from "script/TrailsRouter.s.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
 import {Create2Utils} from "../utils/Create2Utils.sol";
+import {MULTICALL3_ADDRESS} from "../mocks/MockMulticall3.sol";
 
 // -----------------------------------------------------------------------------
 // Test Contract
@@ -25,8 +26,10 @@ contract TrailsRouterDeploymentTest is Test {
     // -------------------------------------------------------------------------
 
     // Expected predetermined address (calculated using CREATE2)
-    function expectedRouterAddress() internal pure returns (address payable) {
-        return Create2Utils.calculateCreate2Address(type(TrailsRouter).creationCode, Create2Utils.standardSalt());
+    function expectedRouterAddress(address multicall3) internal pure returns (address payable) {
+        return Create2Utils.calculateCreate2Address(
+            abi.encodePacked(type(TrailsRouter).creationCode, abi.encode(multicall3)), Create2Utils.standardSalt()
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -52,7 +55,7 @@ contract TrailsRouterDeploymentTest is Test {
         _deployScript.run();
 
         // Verify TrailsRouter was deployed at the expected address
-        address payable expectedAddr = expectedRouterAddress();
+        address payable expectedAddr = expectedRouterAddress(MULTICALL3_ADDRESS);
         assertEq(expectedAddr.code.length > 0, true, "TrailsRouter should be deployed");
 
         // Verify the deployed contract is functional
@@ -68,7 +71,7 @@ contract TrailsRouterDeploymentTest is Test {
         _deployScript.run();
 
         // Verify first deployment address
-        address payable expectedAddr = expectedRouterAddress();
+        address payable expectedAddr = expectedRouterAddress(MULTICALL3_ADDRESS);
         assertEq(expectedAddr.code.length > 0, true, "First deployment: TrailsRouter deployed");
 
         // Re-set the PRIVATE_KEY for second deployment
@@ -89,7 +92,7 @@ contract TrailsRouterDeploymentTest is Test {
         _deployScript.run();
 
         // Get reference to deployed contract
-        address payable expectedAddr = expectedRouterAddress();
+        address payable expectedAddr = expectedRouterAddress(MULTICALL3_ADDRESS);
         TrailsRouter router = TrailsRouter(expectedAddr);
 
         // Verify contract is deployed and functional

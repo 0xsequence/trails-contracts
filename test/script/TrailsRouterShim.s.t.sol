@@ -6,6 +6,7 @@ import {Deploy as TrailsRouterShimDeploy} from "script/TrailsRouterShim.s.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
 import {Create2Utils} from "../utils/Create2Utils.sol";
+import {MULTICALL3_ADDRESS} from "../mocks/MockMulticall3.sol";
 
 // -----------------------------------------------------------------------------
 // Test Contract
@@ -26,12 +27,14 @@ contract TrailsRouterShimDeploymentTest is Test {
     // -------------------------------------------------------------------------
 
     // Expected predetermined addresses (calculated using CREATE2)
-    function expectedRouterAddress() internal pure returns (address payable) {
-        return Create2Utils.calculateCreate2Address(type(TrailsRouter).creationCode, Create2Utils.standardSalt());
+    function expectedRouterAddress(address multicall3) internal pure returns (address payable) {
+        return Create2Utils.calculateCreate2Address(
+            abi.encodePacked(type(TrailsRouter).creationCode, abi.encode(multicall3)), Create2Utils.standardSalt()
+        );
     }
 
     function expectedShimAddress() internal pure returns (address payable) {
-        address routerAddr = expectedRouterAddress();
+        address routerAddr = expectedRouterAddress(MULTICALL3_ADDRESS);
         bytes memory shimInitCode = abi.encodePacked(type(TrailsRouterShim).creationCode, abi.encode(routerAddr));
         return Create2Utils.calculateCreate2Address(shimInitCode, Create2Utils.standardSalt());
     }

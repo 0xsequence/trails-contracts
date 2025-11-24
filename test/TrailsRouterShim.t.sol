@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
+import {MULTICALL3_ADDRESS} from "test/mocks/MockMulticall3.sol";
 import {TrailsRouterShim} from "src/TrailsRouterShim.sol";
 import {DelegatecallGuard} from "src/guards/DelegatecallGuard.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
@@ -253,7 +254,7 @@ contract TrailsRouterShimTest is Test {
 
         // Verify sentinel by re-etching TrailsRouter and validating via delegated entrypoint
         bytes memory original = address(shimImpl).code;
-        vm.etch(holder, address(new TrailsRouter()).code);
+        vm.etch(holder, address(new TrailsRouter(MULTICALL3_ADDRESS)).code);
 
         address payable recipient = payable(address(0x111));
         vm.deal(holder, callValue);
@@ -309,7 +310,7 @@ contract TrailsRouterShimTest is Test {
 
         // Verify via TrailsRouter delegated validation
         bytes memory original = address(shimImpl).code;
-        vm.etch(holder, address(new TrailsRouter()).code);
+        vm.etch(holder, address(new TrailsRouter(MULTICALL3_ADDRESS)).code);
         address payable recipient = payable(address(0x112));
         vm.deal(holder, 1 ether);
         bytes memory data =
