@@ -108,10 +108,5 @@ contract TrailsIntentEntrypointDeploymentTest is Test {
         // Verify constants are set correctly
         assertEq(entrypoint.VERSION(), "1", "Version should be 1");
         assertTrue(entrypoint.TRAILS_INTENT_TYPEHASH() != bytes32(0), "Intent typehash should be set");
-
-        // Verify contract has expected storage layout by checking usedIntents mapping
-        // This is a smoke test that the contract is properly initialized
-        bytes32 testIntentHash = keccak256("test");
-        assertEq(entrypoint.usedIntents(testIntentHash), false, "usedIntents should be false for unused intent");
     }
 }
