@@ -23,7 +23,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
 
     bytes32 public constant TRAILS_INTENT_TYPEHASH = keccak256(
-        "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector,string description)"
+        "TrailsIntent(string description,address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector)"
     );
     string public constant VERSION = "1";
 
@@ -177,20 +177,20 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         bytes32 _typehash = TRAILS_INTENT_TYPEHASH;
         bytes32 descriptionHash = keccak256(bytes(description));
         bytes32 intentHash;
-        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector, keccak256(bytes(description))));
+        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, keccak256(bytes(description)), user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector));
         assembly {
             let ptr := mload(0x40)
             mstore(ptr, _typehash)
-            mstore(add(ptr, 0x20), user)
-            mstore(add(ptr, 0x40), token)
-            mstore(add(ptr, 0x60), amount)
-            mstore(add(ptr, 0x80), intentAddress)
-            mstore(add(ptr, 0xa0), deadline)
-            mstore(add(ptr, 0xc0), chainid())
-            mstore(add(ptr, 0xe0), nonce)
-            mstore(add(ptr, 0x100), feeAmount)
-            mstore(add(ptr, 0x120), feeCollector)
-            mstore(add(ptr, 0x140), descriptionHash)
+            mstore(add(ptr, 0x20), descriptionHash)
+            mstore(add(ptr, 0x40), user)
+            mstore(add(ptr, 0x60), token)
+            mstore(add(ptr, 0x80), amount)
+            mstore(add(ptr, 0xa0), intentAddress)
+            mstore(add(ptr, 0xc0), deadline)
+            mstore(add(ptr, 0xe0), chainid())
+            mstore(add(ptr, 0x100), nonce)
+            mstore(add(ptr, 0x120), feeAmount)
+            mstore(add(ptr, 0x140), feeCollector)
             intentHash := keccak256(ptr, 0x160)
         }
 

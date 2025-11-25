@@ -77,6 +77,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes(description)),
                 user,
                 address(token),
                 amount,
@@ -85,8 +86,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes(description))
+                address(0) // feeCollector
             )
         );
 
@@ -156,6 +156,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -164,8 +165,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -226,6 +226,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -234,8 +235,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -297,6 +297,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -305,8 +306,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 feeAmount,
-                feeCollector,
-                keccak256(bytes("Transfer tokens"))
+                feeCollector
             )
         );
 
@@ -381,6 +381,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash1 = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -389,8 +390,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce1,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -423,6 +423,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash2 = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -431,8 +432,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce2,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -487,6 +487,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash1 = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -495,8 +496,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce1,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -547,6 +547,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash2 = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -555,8 +556,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce2,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -666,6 +666,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -674,8 +675,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -697,6 +697,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -705,8 +706,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -748,6 +748,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -756,8 +757,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -793,6 +793,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(0),
                 amount,
@@ -801,8 +802,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -844,6 +844,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(0),
                 amount,
@@ -852,8 +853,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -890,6 +890,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -898,8 +899,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -927,6 +927,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -935,8 +936,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -961,6 +961,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -969,8 +970,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -994,7 +994,7 @@ contract TrailsIntentEntrypointTest is Test {
 
     function testIntentTypehashConstant() public view {
         bytes32 expectedTypehash = keccak256(
-            "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector,string description)"
+            "TrailsIntent(string description,address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector)"
         );
         assertEq(entrypoint.TRAILS_INTENT_TYPEHASH(), expectedTypehash);
     }
@@ -1012,6 +1012,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1020,8 +1021,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonceBefore,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1049,6 +1049,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1057,8 +1058,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 wrongNonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1104,6 +1104,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1112,8 +1113,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1150,6 +1150,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1158,8 +1159,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1206,6 +1206,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1214,8 +1215,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1250,6 +1250,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1258,8 +1259,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1304,6 +1304,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1312,8 +1313,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1371,6 +1371,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1379,8 +1380,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1435,6 +1435,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1443,8 +1444,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
         bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
@@ -1537,6 +1537,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1545,8 +1546,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -1602,6 +1602,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1610,8 +1611,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -1646,6 +1646,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1654,8 +1655,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -1690,6 +1690,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -1698,8 +1699,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -1745,6 +1745,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(nonStandardToken),
                 amount,
@@ -1753,8 +1754,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0, // feeAmount
-                address(0), // feeCollector
-                keccak256(bytes("Transfer tokens"))
+                address(0) // feeCollector
             )
         );
 
@@ -1803,6 +1803,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(nonStandardToken),
                 amount,
@@ -1811,8 +1812,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 feeAmount,
-                feeCollector,
-                keccak256(bytes("Transfer tokens"))
+                feeCollector
             )
         );
 
@@ -1860,6 +1860,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(nonStandardToken),
                 amount,
@@ -1868,8 +1869,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0,
-                address(0),
-                keccak256(bytes("Transfer tokens"))
+                address(0)
             )
         );
 
@@ -1908,6 +1908,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(nonStandardToken),
                 amount,
@@ -1916,8 +1917,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 0,
-                address(0),
-                keccak256(bytes("Transfer tokens"))
+                address(0)
             )
         );
 
@@ -2043,6 +2043,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 hash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes(description)),
                 usr,
                 address(token),
                 amt,
@@ -2051,8 +2052,7 @@ contract TrailsIntentEntrypointTest is Test {
                 block.chainid,
                 nonce,
                 fee,
-                collector,
-                keccak256(bytes(description))
+                collector
             )
         );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), hash));
