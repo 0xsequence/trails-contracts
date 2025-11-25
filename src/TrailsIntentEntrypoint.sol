@@ -96,11 +96,23 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
 
         // Execute permit and scope variables to avoid stack too deep
         {
-            IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitSig.v, permitSig.r, permitSig.s);
+            IERC20Permit(token)
+                .permit(user, address(this), permitAmount, deadline, permitSig.v, permitSig.r, permitSig.s);
         }
 
         _verifyAndMarkIntent(
-            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, description, intentSig.v, intentSig.r, intentSig.s
+            user,
+            token,
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            feeAmount,
+            feeCollector,
+            description,
+            intentSig.v,
+            intentSig.r,
+            intentSig.s
         );
 
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
@@ -128,7 +140,18 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         ITrailsIntentEntrypoint.Signature calldata intentSig
     ) external nonReentrant {
         _verifyAndMarkIntent(
-            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, description, intentSig.v, intentSig.r, intentSig.s
+            user,
+            token,
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            feeAmount,
+            feeCollector,
+            description,
+            intentSig.v,
+            intentSig.r,
+            intentSig.s
         );
 
         IERC20(token).safeTransferFrom(user, intentAddress, amount);

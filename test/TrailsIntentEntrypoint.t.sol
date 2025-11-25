@@ -446,7 +446,16 @@ contract TrailsIntentEntrypointTest is Test {
         token.approve(address(entrypoint), amount);
 
         entrypoint.depositToIntent(
-            user, address(token), amount, intentAddress, deadline, nonce2, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(sigV2, sigR2, sigS2)
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce2,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(sigV2, sigR2, sigS2)
         );
 
         assertEq(token.balanceOf(user), userBalBefore - amount);
@@ -632,7 +641,16 @@ contract TrailsIntentEntrypointTest is Test {
         token.approve(address(entrypoint), amt + fee);
 
         entrypoint.depositToIntent(
-            user, address(token), amt, address(0x5678), dl, nonce, fee, address(0x9999), description, ITrailsIntentEntrypoint.Signature(sv, sr, ss)
+            user,
+            address(token),
+            amt,
+            address(0x5678),
+            dl,
+            nonce,
+            fee,
+            address(0x9999),
+            description,
+            ITrailsIntentEntrypoint.Signature(sv, sr, ss)
         );
 
         assertEq(token.balanceOf(address(0x9999)), fee);
@@ -682,7 +700,18 @@ contract TrailsIntentEntrypointTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
 
         vm.expectRevert(TrailsIntentEntrypoint.InvalidIntentAddress.selector);
-        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
         vm.stopPrank();
     }
 
@@ -713,7 +742,18 @@ contract TrailsIntentEntrypointTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
 
         vm.expectRevert(TrailsIntentEntrypoint.InvalidAmount.selector);
-        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
 
         vm.stopPrank();
     }
@@ -809,7 +849,18 @@ contract TrailsIntentEntrypointTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
 
         vm.expectRevert(TrailsIntentEntrypoint.InvalidToken.selector);
-        entrypoint.depositToIntent(user, address(0), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(0),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
 
         vm.stopPrank();
     }
@@ -908,7 +959,18 @@ contract TrailsIntentEntrypointTest is Test {
         token.approve(address(entrypoint), amount);
 
         vm.expectRevert(TrailsIntentEntrypoint.IntentExpired.selector);
-        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
 
         vm.stopPrank();
     }
@@ -945,7 +1007,18 @@ contract TrailsIntentEntrypointTest is Test {
         token.approve(address(entrypoint), amount);
 
         vm.expectRevert(TrailsIntentEntrypoint.InvalidIntentSignature.selector);
-        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
 
         vm.stopPrank();
     }
@@ -979,11 +1052,33 @@ contract TrailsIntentEntrypointTest is Test {
         token.approve(address(entrypoint), amount * 2); // Approve for both calls
 
         // First call should succeed
-        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
 
         // Second call with same digest should fail (nonce has incremented)
         vm.expectRevert(TrailsIntentEntrypoint.InvalidNonce.selector);
-        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
 
         vm.stopPrank();
     }
@@ -1029,7 +1124,16 @@ contract TrailsIntentEntrypointTest is Test {
 
         token.approve(address(entrypoint), amount);
         entrypoint.depositToIntent(
-            user, address(token), amount, intentAddress, deadline, nonceBefore, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s)
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonceBefore,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
         );
 
         uint256 nonceAfter = entrypoint.nonces(user);
@@ -1068,7 +1172,16 @@ contract TrailsIntentEntrypointTest is Test {
 
         vm.expectRevert(TrailsIntentEntrypoint.InvalidNonce.selector);
         entrypoint.depositToIntent(
-            user, address(token), amount, intentAddress, deadline, wrongNonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s)
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            wrongNonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
         );
 
         vm.stopPrank();
@@ -1167,11 +1280,33 @@ contract TrailsIntentEntrypointTest is Test {
 
         token.approve(address(entrypoint), amount);
 
-        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
 
         // Nonce has incremented, so reusing the same digest/nonce will fail with InvalidNonce
         vm.expectRevert(TrailsIntentEntrypoint.InvalidNonce.selector);
-        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
 
         vm.stopPrank();
     }
@@ -1267,7 +1402,18 @@ contract TrailsIntentEntrypointTest is Test {
 
         // Don't approve tokens, so transferFrom should fail
         vm.expectRevert();
-        entrypoint.depositToIntent(user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s));
+        entrypoint.depositToIntent(
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
+        );
 
         vm.stopPrank();
     }
@@ -1623,13 +1769,31 @@ contract TrailsIntentEntrypointTest is Test {
 
         // First call should succeed
         entrypoint.depositToIntent(
-            user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(sigV, sigR, sigS)
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(sigV, sigR, sigS)
         );
 
         // Second call should fail due to InvalidNonce (nonce has incremented)
         vm.expectRevert(TrailsIntentEntrypoint.InvalidNonce.selector);
         entrypoint.depositToIntent(
-            user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(sigV, sigR, sigS)
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(sigV, sigR, sigS)
         );
 
         vm.stopPrank();
@@ -1667,7 +1831,16 @@ contract TrailsIntentEntrypointTest is Test {
 
         // This should execute the assembly code in _verifyAndMarkIntent
         entrypoint.depositToIntent(
-            user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(sigV, sigR, sigS)
+            user,
+            address(token),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(sigV, sigR, sigS)
         );
 
         vm.stopPrank();
@@ -1722,7 +1895,16 @@ contract TrailsIntentEntrypointTest is Test {
 
         // This should succeed with SafeERC20 even though token doesn't return boolean
         entrypoint.depositToIntent(
-            user, address(nonStandardToken), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s)
+            user,
+            address(nonStandardToken),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
         );
 
         // Verify balances updated correctly
@@ -1781,7 +1963,16 @@ contract TrailsIntentEntrypointTest is Test {
 
         // This should succeed with SafeERC20 for both transfers
         entrypoint.depositToIntent(
-            user, address(nonStandardToken), amount, intentAddress, deadline, nonce, feeAmount, feeCollector, "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s)
+            user,
+            address(nonStandardToken),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            feeAmount,
+            feeCollector,
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
         );
 
         // Verify all balances updated correctly
@@ -1834,7 +2025,16 @@ contract TrailsIntentEntrypointTest is Test {
         // Should revert because user has insufficient balance
         vm.expectRevert("Insufficient balance");
         entrypoint.depositToIntent(
-            user, address(nonStandardToken), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s)
+            user,
+            address(nonStandardToken),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
         );
 
         vm.stopPrank();
@@ -1883,7 +2083,16 @@ contract TrailsIntentEntrypointTest is Test {
         // Should revert because allowance is insufficient
         vm.expectRevert("Insufficient allowance");
         entrypoint.depositToIntent(
-            user, address(nonStandardToken), amount, intentAddress, deadline, nonce, 0, address(0), "Transfer tokens", ITrailsIntentEntrypoint.Signature(v, r, s)
+            user,
+            address(nonStandardToken),
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            0,
+            address(0),
+            "Transfer tokens",
+            ITrailsIntentEntrypoint.Signature(v, r, s)
         );
 
         vm.stopPrank();
