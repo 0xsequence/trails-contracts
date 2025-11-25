@@ -382,7 +382,9 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, 0, incorrectValue));
-        router.injectSweepAndCall{value: incorrectValue}(address(testToken), address(testTarget), callData, 4, PLACEHOLDER);
+        router.injectSweepAndCall{value: incorrectValue}(
+            address(testToken), address(testTarget), callData, 4, PLACEHOLDER
+        );
     }
 
     function testSweepAndCallETH() public {
