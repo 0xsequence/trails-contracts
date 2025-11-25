@@ -37,7 +37,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     error IntentExpired();
     error InvalidIntentSignature();
     error IntentAlreadyUsed();
-    error InvalidChainId();
     error InvalidNonce();
     error PermitAmountMismatch();
 
