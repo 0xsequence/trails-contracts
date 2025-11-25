@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 import {Tstorish} from "tstorish/Tstorish.sol";
 import {IMulticall3} from "./interfaces/IMulticall3.sol";
@@ -13,7 +14,7 @@ import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 /// @author Miguel Mota, Shun Kakinoki
 /// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
 /// @dev Can be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
-contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
+contract TrailsRouter is IDelegatedExtension, ITrailsRouter, ReentrancyGuard, Tstorish {
     // -------------------------------------------------------------------------
     // Libraries
     // -------------------------------------------------------------------------
@@ -55,7 +56,12 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ITrailsRouter
-    function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
+    function execute(bytes calldata data)
+        public
+        payable
+        nonReentrant
+        returns (IMulticall3.Result[] memory returnResults)
+    {
         _validateRouterCall(data);
         (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
@@ -66,6 +72,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
     function pullAndExecute(address token, bytes calldata data)
         public
         payable
+        nonReentrant
         returns (IMulticall3.Result[] memory returnResults)
     {
         uint256 amount;
@@ -77,13 +84,22 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
             if (amount == 0) revert NoTokensToPull();
         }
 
-        return pullAmountAndExecute(token, amount, data);
+        return _pullAmountAndExecute(token, amount, data);
     }
 
     /// @inheritdoc ITrailsRouter
     function pullAmountAndExecute(address token, uint256 amount, bytes calldata data)
         public
         payable
+        nonReentrant
+        returns (IMulticall3.Result[] memory returnResults)
+    {
+        return _pullAmountAndExecute(token, amount, data);
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _pullAmountAndExecute(address token, uint256 amount, bytes memory data)
+        internal
         returns (IMulticall3.Result[] memory returnResults)
     {
         _validateRouterCall(data);
@@ -109,7 +125,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
         bytes calldata callData,
         uint256 amountOffset,
         bytes32 placeholder
-    ) external payable {
+    ) external payable nonReentrant {
         uint256 callerBalance;
 
         if (token == address(0)) {
@@ -131,7 +147,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
         bytes calldata callData,
         uint256 amountOffset,
         bytes32 placeholder
-    ) public payable {
+    ) public payable nonReentrant {
         uint256 callerBalance = _getSelfBalance(token);
         if (callerBalance == 0) {
             if (token == address(0)) {
@@ -149,7 +165,12 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ITrailsRouter
-    function sweep(address _token, address _recipient) public payable {
+    function sweep(address _token, address _recipient) public payable nonReentrant {
+        _sweep(_token, _recipient);
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _sweep(address _token, address _recipient) internal {
         uint256 amount = _getSelfBalance(_token);
         if (amount > 0) {
             if (_token == address(0)) {
@@ -165,6 +186,14 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
     function refundAndSweep(address _token, address _refundRecipient, uint256 _refundAmount, address _sweepRecipient)
         public
         payable
+        nonReentrant
+    {
+        _refundAndSweep(_token, _refundRecipient, _refundAmount, _sweepRecipient);
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _refundAndSweep(address _token, address _refundRecipient, uint256 _refundAmount, address _sweepRecipient)
+        internal
     {
         uint256 current = _getSelfBalance(_token);
 
@@ -194,12 +223,17 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
     }
 
     /// @inheritdoc ITrailsRouter
-    function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient) public payable {
+    function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient) public payable nonReentrant {
+        _validateOpHashAndSweep(opHash, _token, _recipient);
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    function _validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient) internal {
         uint256 slot = TrailsSentinelLib.successSlot(opHash);
         if (_getTstorish(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
             revert SuccessSentinelNotSet();
         }
-        sweep(_token, _recipient);
+        _sweep(_token, _recipient);
     }
 
     // -------------------------------------------------------------------------
@@ -234,20 +268,20 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
         // Token Sweeper selectors
         if (selector == this.sweep.selector) {
             (address token, address recipient) = abi.decode(_data[4:], (address, address));
-            sweep(token, recipient);
+            _sweep(token, recipient);
             return;
         }
 
         if (selector == this.refundAndSweep.selector) {
             (address token, address refundRecipient, uint256 refundAmount, address sweepRecipient) =
                 abi.decode(_data[4:], (address, address, uint256, address));
-            refundAndSweep(token, refundRecipient, refundAmount, sweepRecipient);
+            _refundAndSweep(token, refundRecipient, refundAmount, sweepRecipient);
             return;
         }
 
         if (selector == this.validateOpHashAndSweep.selector) {
             (, address token, address recipient) = abi.decode(_data[4:], (bytes32, address, address));
-            validateOpHashAndSweep(_opHash, token, recipient);
+            _validateOpHashAndSweep(_opHash, token, recipient);
             return;
         }
 
