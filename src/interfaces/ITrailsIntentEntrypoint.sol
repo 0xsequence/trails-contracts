@@ -37,10 +37,6 @@ interface ITrailsIntentEntrypoint {
     /// forge-lint: disable-next-line(mixed-case-function)
     function VERSION() external view returns (string memory);
 
-    /// @notice Returns whether an intent digest has already been consumed.
-    /// @param digest The EIP-712 digest of the intent message.
-    function usedIntents(bytes32 digest) external view returns (bool);
-
     /// @notice Returns the current nonce for a given user.
     /// @param user The user address to query.
     function nonces(address user) external view returns (uint256);

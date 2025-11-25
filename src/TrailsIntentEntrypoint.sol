@@ -36,7 +36,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     error InvalidIntentAddress();
     error IntentExpired();
     error InvalidIntentSignature();
-    error IntentAlreadyUsed();
     error InvalidNonce();
     error PermitAmountMismatch();
 
@@ -50,9 +49,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
     // State Variables
     // -------------------------------------------------------------------------
-
-    /// @notice Tracks whether an intent digest has been consumed to prevent replays.
-    mapping(bytes32 => bool) public usedIntents;
 
     /// @notice Tracks nonce for each user to prevent replay attacks.
     mapping(address => uint256) public nonces;
@@ -202,9 +198,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         }
         address recovered = ECDSA.recover(digest, sigV, sigR, sigS);
         if (recovered != user) revert InvalidIntentSignature();
-
-        if (usedIntents[digest]) revert IntentAlreadyUsed();
-        usedIntents[digest] = true;
 
         // Increment nonce for the user
         nonces[user]++;

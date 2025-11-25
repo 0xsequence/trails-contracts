@@ -1655,49 +1655,6 @@ contract TrailsIntentEntrypointTest is Test {
         vm.stopPrank();
     }
 
-    function testUsedIntentsMapping() public {
-        vm.startPrank(user);
-
-        address intentAddress = address(0x5678);
-        uint256 amount = 50 * 10 ** token.decimals();
-        uint256 deadline = block.timestamp + 3600;
-        uint256 nonce = entrypoint.nonces(user);
-
-        bytes32 intentHash = keccak256(
-            abi.encode(
-                entrypoint.TRAILS_INTENT_TYPEHASH(),
-                user,
-                address(token),
-                amount,
-                intentAddress,
-                deadline,
-                block.chainid,
-                nonce,
-                0, // feeAmount
-                address(0) // feeCollector
-            )
-        );
-
-        bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
-
-        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(userPrivateKey, intentDigest);
-
-        token.approve(address(entrypoint), amount);
-
-        // Check that intent is not used initially
-        assertFalse(entrypoint.usedIntents(intentDigest));
-
-        // Execute intent
-        entrypoint.depositToIntent(
-            user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), sigV, sigR, sigS
-        );
-
-        // Check that intent is now marked as used
-        assertTrue(entrypoint.usedIntents(intentDigest));
-
-        vm.stopPrank();
-    }
-
     function testAssemblyCodeExecution() public {
         vm.startPrank(user);
 
@@ -1731,9 +1688,6 @@ contract TrailsIntentEntrypointTest is Test {
         entrypoint.depositToIntent(
             user, address(token), amount, intentAddress, deadline, nonce, 0, address(0), sigV, sigR, sigS
         );
-
-        // Verify the intent was processed correctly
-        assertTrue(entrypoint.usedIntents(intentDigest));
 
         vm.stopPrank();
     }
