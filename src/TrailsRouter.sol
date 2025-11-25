@@ -37,7 +37,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     error SuccessSentinelNotSet();
     error NoEthSent();
     error NoTokensToPull();
-    error InsufficientEth(uint256 required, uint256 received);
+    error IncorrectValue(uint256 required, uint256 received);
     error NoTokensToSweep();
     error NoEthAvailable();
     error AmountOffsetOutOfBounds();
@@ -89,7 +89,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     {
         _validateRouterCall(data);
         if (token == address(0)) {
-            if (msg.value < amount) revert InsufficientEth(amount, msg.value);
+            if (msg.value != amount) revert IncorrectValue(amount, msg.value);
         } else {
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }

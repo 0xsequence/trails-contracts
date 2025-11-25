@@ -419,7 +419,7 @@ contract TrailsRouterTest is Test {
         assertEq(address(wallet).balance, 0, "Wallet should be swept empty");
     }
 
-    function testRevertWhen_injectAndCall_InsufficientEth() public {
+    function testRevertWhen_injectAndCall_IncorrectValue() public {
         bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.prank(holder);
@@ -757,7 +757,7 @@ contract TrailsRouterTest is Test {
         assertEq(user.balance, 0);
     }
 
-    function test_pullAmountAndExecute_WithETH_InsufficientEthSent() public {
+    function test_pullAmountAndExecute_WithETH_IncorrectValue() public {
         uint256 requiredAmount = 1 ether;
         uint256 sentAmount = 0.5 ether;
 
@@ -769,7 +769,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.InsufficientEth.selector, requiredAmount, sentAmount));
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, requiredAmount, sentAmount));
         router.pullAmountAndExecute{value: sentAmount}(address(0), requiredAmount, callData);
     }
 
@@ -1156,7 +1156,7 @@ contract TrailsRouterTest is Test {
         TrailsRouter(holder).sweep(address(0), address(revertingReceiver));
     }
 
-    function testInsufficientEthValidation() public {
+    function testIncorrectValueValidation() public {
         uint256 requiredAmount = 2 ether;
         uint256 sentAmount = 1 ether;
 
@@ -1167,7 +1167,7 @@ contract TrailsRouterTest is Test {
 
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
-        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.InsufficientEth.selector, requiredAmount, sentAmount));
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, requiredAmount, sentAmount));
         router.pullAmountAndExecute{value: sentAmount}(address(0), requiredAmount, callData);
     }
 
