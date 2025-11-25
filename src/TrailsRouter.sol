@@ -96,7 +96,18 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
         (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
-        return abi.decode(returnData, (IMulticall3.Result[]));
+        returnResults = abi.decode(returnData, (IMulticall3.Result[]));
+
+        // Sweep any remaining balance back to msg.sender
+        uint256 remaining = _getSelfBalance(token);
+        if (remaining > 0) {
+            if (token == address(0)) {
+                _transferNative(msg.sender, remaining);
+            } else {
+                _transferERC20(token, msg.sender, remaining);
+            }
+            emit Sweep(token, msg.sender, remaining);
+        }
     }
 
     // -------------------------------------------------------------------------
