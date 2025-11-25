@@ -35,11 +35,10 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     error InvalidFunctionSelector(bytes4 selector);
     error AllowFailureMustBeFalse(uint256 callIndex);
     error SuccessSentinelNotSet();
-    error NoEthSent();
+    error NoValueAvailable();
     error NoTokensToPull();
     error IncorrectValue(uint256 required, uint256 received);
     error NoTokensToSweep();
-    error NoEthAvailable();
     error AmountOffsetOutOfBounds();
     error PlaceholderMismatch();
     error TargetCallFailed(bytes revertData);
@@ -71,7 +70,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     {
         uint256 amount;
         if (token == address(0)) {
-            if (msg.value == 0) revert NoEthSent();
+            if (msg.value == 0) revert NoValueAvailable();
             amount = msg.value;
         } else {
             amount = _getBalance(token, msg.sender);
@@ -115,7 +114,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
         if (token == address(0)) {
             callerBalance = msg.value;
-            if (callerBalance == 0) revert NoEthSent();
+            if (callerBalance == 0) revert NoValueAvailable();
         } else {
             if (msg.value != 0) revert IncorrectValue(0, msg.value);
             callerBalance = _getBalance(token, msg.sender);
@@ -141,7 +140,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         uint256 callerBalance = _getSelfBalance(token);
         if (callerBalance == 0) {
             if (token == address(0)) {
-                revert NoEthAvailable();
+                revert NoValueAvailable();
             } else {
                 revert NoTokensToSweep();
             }
@@ -309,7 +308,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         uint256 callerBalance = _getSelfBalance(token);
         if (callerBalance == 0) {
             if (token == address(0)) {
-                revert NoEthAvailable();
+                revert NoValueAvailable();
             } else {
                 revert NoTokensToSweep();
             }

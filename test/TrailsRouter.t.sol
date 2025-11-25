@@ -394,11 +394,11 @@ contract TrailsRouterTest is Test {
         router.injectSweepAndCall(address(mockToken), address(target), callData, 4, PLACEHOLDER);
     }
 
-    function testRevertWhen_injectSweepAndCall_NoEthSent() public {
+    function testRevertWhen_injectSweepAndCall_NoValueAvailable() public {
         bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.prank(user);
-        vm.expectRevert(TrailsRouter.NoEthSent.selector);
+        vm.expectRevert(TrailsRouter.NoValueAvailable.selector);
         router.injectSweepAndCall{value: 0}(address(0), address(targetEth), callData, 4, PLACEHOLDER);
     }
 
@@ -419,18 +419,19 @@ contract TrailsRouterTest is Test {
         assertEq(address(wallet).balance, 0, "Wallet should be swept empty");
     }
 
-    function testRevertWhen_injectAndCall_IncorrectValue() public {
+    function testRevertWhen_injectAndCall_UnexpectedValue() public {
         bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
+        vm.deal(holder, 1 ether);
         vm.prank(holder);
-        vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
-        TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER);
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, 0, 1 ether));
+        TrailsRouter(holder).injectAndCall{value: 1 ether}(address(0), address(targetEth), callData, 4, PLACEHOLDER);
     }
 
-    function testRevertWhen_injectAndCall_NoEthAvailable() public {
+    function testRevertWhen_injectAndCall_NoValueAvailable() public {
         bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
-        vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
+        vm.expectRevert(TrailsRouter.NoValueAvailable.selector);
         TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER);
     }
 
@@ -726,7 +727,7 @@ contract TrailsRouterTest is Test {
         assertEq(user.balance, 0);
     }
 
-    function test_pullAndExecute_WithETH_NoEthSent() public {
+    function test_pullAndExecute_WithETH_NoValueAvailable() public {
         IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
         calls[0] = IMulticall3.Call3Value({
             target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
@@ -735,7 +736,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
         vm.prank(user);
-        vm.expectRevert(TrailsRouter.NoEthSent.selector);
+        vm.expectRevert(TrailsRouter.NoValueAvailable.selector);
         router.pullAndExecute(address(0), callData);
     }
 
@@ -866,7 +867,7 @@ contract TrailsRouterTest is Test {
     function testInjectSweepAndCall_WithETH_ZeroBalance() public {
         bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
-        vm.expectRevert(TrailsRouter.NoEthSent.selector);
+        vm.expectRevert(TrailsRouter.NoValueAvailable.selector);
         router.injectSweepAndCall{value: 0}(address(0), address(targetEth), callData, 4, PLACEHOLDER);
     }
 
@@ -882,7 +883,7 @@ contract TrailsRouterTest is Test {
         bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
         vm.prank(holder);
-        vm.expectRevert(TrailsRouter.NoEthAvailable.selector);
+        vm.expectRevert(TrailsRouter.NoValueAvailable.selector);
         TrailsRouter(holder).injectAndCall(address(0), address(targetEth), callData, 4, PLACEHOLDER);
     }
 
