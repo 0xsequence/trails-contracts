@@ -610,11 +610,6 @@ contract TrailsRouterTest is Test {
         IDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
     }
 
-    function test_direct_sweep_reverts_not_delegatecall() public {
-        vm.expectRevert(DelegatecallGuard.NotDelegateCall.selector);
-        router.sweep(address(0), recipient);
-    }
-
     function test_native_transfer_failed() public {
         RevertingReceiver revertingReceiver = new RevertingReceiver();
 

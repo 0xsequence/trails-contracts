@@ -5,7 +5,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 import {Tstorish} from "tstorish/Tstorish.sol";
-import {DelegatecallGuard} from "./guards/DelegatecallGuard.sol";
 import {IMulticall3} from "./interfaces/IMulticall3.sol";
 import {ITrailsRouter} from "./interfaces/ITrailsRouter.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
@@ -13,8 +12,8 @@ import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 /// @title TrailsRouter
 /// @author Miguel Mota, Shun Kakinoki
 /// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
-/// @dev Must be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
-contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, Tstorish {
+/// @dev Can be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
+contract TrailsRouter is IDelegatedExtension, ITrailsRouter, Tstorish {
     // -------------------------------------------------------------------------
     // Libraries
     // -------------------------------------------------------------------------
@@ -150,7 +149,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ITrailsRouter
-    function sweep(address _token, address _recipient) public payable onlyDelegatecall {
+    function sweep(address _token, address _recipient) public payable {
         uint256 amount = _getSelfBalance(_token);
         if (amount > 0) {
             if (_token == address(0)) {
@@ -166,7 +165,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     function refundAndSweep(address _token, address _refundRecipient, uint256 _refundAmount, address _sweepRecipient)
         public
         payable
-        onlyDelegatecall
     {
         uint256 current = _getSelfBalance(_token);
 
@@ -196,11 +194,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     }
 
     /// @inheritdoc ITrailsRouter
-    function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient)
-        public
-        payable
-        onlyDelegatecall
-    {
+    function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient) public payable {
         uint256 slot = TrailsSentinelLib.successSlot(opHash);
         if (_getTstorish(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
             revert SuccessSentinelNotSet();
@@ -223,7 +217,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     )
         external
         override(IDelegatedExtension, ITrailsRouter)
-        onlyDelegatecall
     {
         bytes4 selector;
         if (_data.length >= 4) {
