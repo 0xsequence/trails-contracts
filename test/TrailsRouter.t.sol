@@ -370,6 +370,21 @@ contract TrailsRouterTest is Test {
         assertEq(testToken.balanceOf(address(testTarget)), tokenBalance);
     }
 
+    function testInjectSweepAndCall_WithToken_IncorrectValue() public {
+        MockERC20 testToken = new MockERC20("Test", "TST", 18);
+        MockTarget testTarget = new MockTarget(address(testToken));
+
+        uint256 tokenBalance = 1000e18;
+        uint256 incorrectValue = 1 ether;
+        testToken.mint(address(this), tokenBalance);
+        testToken.approve(address(router), tokenBalance);
+
+        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
+
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, 0, incorrectValue));
+        router.injectSweepAndCall{value: incorrectValue}(address(testToken), address(testTarget), callData, 4, PLACEHOLDER);
+    }
+
     function testSweepAndCallETH() public {
         uint256 ethAmount = 1 ether;
 
@@ -740,6 +755,26 @@ contract TrailsRouterTest is Test {
         router.pullAndExecute(address(0), callData);
     }
 
+    function test_pullAndExecute_WithToken_IncorrectValue() public {
+        uint256 transferAmount = 100e18;
+        uint256 incorrectValue = 1 ether;
+
+        vm.prank(user);
+        mockToken.approve(address(router), transferAmount);
+
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        vm.deal(user, incorrectValue);
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, 0, incorrectValue));
+        router.pullAndExecute{value: incorrectValue}(address(mockToken), callData);
+    }
+
     function test_pullAmountAndExecute_WithETH_ShouldTransferAndExecute() public {
         uint256 ethAmount = 1 ether;
         vm.deal(user, ethAmount);
@@ -792,6 +827,26 @@ contract TrailsRouterTest is Test {
 
         assertEq(mockToken.balanceOf(address(router)), transferAmount);
         assertEq(mockToken.balanceOf(user), 1000e18 - transferAmount);
+    }
+
+    function test_pullAmountAndExecute_WithToken_IncorrectValue() public {
+        uint256 transferAmount = 100e18;
+        uint256 incorrectValue = 1 ether;
+
+        vm.prank(user);
+        mockToken.approve(address(router), transferAmount);
+
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        vm.deal(user, incorrectValue);
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, 0, incorrectValue));
+        router.pullAmountAndExecute{value: incorrectValue}(address(mockToken), transferAmount, callData);
     }
 
     function testExecute_WithFailingMulticall() public {

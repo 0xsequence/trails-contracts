@@ -90,6 +90,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         if (token == address(0)) {
             if (msg.value != amount) revert IncorrectValue(amount, msg.value);
         } else {
+            if (msg.value != 0) revert IncorrectValue(0, msg.value);
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
