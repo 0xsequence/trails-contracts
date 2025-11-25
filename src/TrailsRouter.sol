@@ -98,7 +98,8 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         if (!success) revert TargetCallFailed(returnData);
         returnResults = abi.decode(returnData, (IMulticall3.Result[]));
 
-        // Sweep any remaining balance back to msg.sender
+        // Sweep remaining balance back to msg.sender to prevent dust from EXACT_OUTPUT swaps getting stuck.
+        // We sweep the full balance (not tracking initial) since TrailsRouter is stateless by design.
         uint256 remaining = _getSelfBalance(token);
         if (remaining > 0) {
             if (token == address(0)) {
