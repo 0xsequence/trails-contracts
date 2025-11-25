@@ -117,6 +117,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             callerBalance = msg.value;
             if (callerBalance == 0) revert NoEthSent();
         } else {
+            if (msg.value != 0) revert IncorrectValue(0, msg.value);
             callerBalance = _getBalance(token, msg.sender);
             if (callerBalance == 0) revert NoTokensToSweep();
             _safeTransferFrom(token, msg.sender, address(this), callerBalance);
@@ -133,6 +134,10 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         uint256 amountOffset,
         bytes32 placeholder
     ) public payable {
+        if (token == address(0) && msg.value != 0) {
+            revert IncorrectValue(0, msg.value);
+        }
+
         uint256 callerBalance = _getSelfBalance(token);
         if (callerBalance == 0) {
             if (token == address(0)) {
