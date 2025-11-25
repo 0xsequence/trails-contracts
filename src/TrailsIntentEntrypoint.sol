@@ -37,6 +37,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     error IntentExpired();
     error InvalidIntentSignature();
     error InvalidNonce();
+    error InvalidFeeParameters();
     error PermitAmountMismatch();
 
     // -------------------------------------------------------------------------
@@ -102,15 +103,8 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         }
 
         IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
-        IERC20(token).safeTransferFrom(user, intentAddress, amount);
 
-        // Pay fee if specified (fee token is same as deposit token)
-        if (feeAmount > 0 && feeCollector != address(0)) {
-            IERC20(token).safeTransferFrom(user, feeCollector, feeAmount);
-            emit FeePaid(user, token, feeAmount, feeCollector);
-        }
-
-        emit IntentDeposit(user, intentAddress, amount);
+        _processDeposit(user, token, amount, intentAddress, feeAmount, feeCollector);
     }
 
     /// @inheritdoc ITrailsIntentEntrypoint
@@ -130,11 +124,27 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         _verifyAndMarkIntent(
             user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
         );
+        _processDeposit(user, token, amount, intentAddress, feeAmount, feeCollector);
+    }
 
+    function _processDeposit(
+        address user,
+        address token,
+        uint256 amount,
+        address intentAddress,
+        uint256 feeAmount,
+        address feeCollector
+    ) internal {
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
 
         // Pay fee if specified (fee token is same as deposit token)
-        if (feeAmount > 0 && feeCollector != address(0)) {
+        bool feeAmountSupplied = feeAmount > 0;
+        bool feeCollectorSupplied = feeCollector != address(0);
+        if (feeAmountSupplied != feeCollectorSupplied) {
+            // Must supply both feeAmount and feeCollector, or neither
+            revert InvalidFeeParameters();
+        }
+        if (feeAmountSupplied && feeCollectorSupplied) {
             IERC20(token).safeTransferFrom(user, feeCollector, feeAmount);
             emit FeePaid(user, token, feeAmount, feeCollector);
         }
