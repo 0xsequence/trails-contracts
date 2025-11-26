@@ -77,7 +77,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
-                keccak256(bytes(description)),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -156,6 +156,7 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
+                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
