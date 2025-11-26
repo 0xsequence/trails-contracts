@@ -277,8 +277,10 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
 
-        assertEq(mockToken.balanceOf(address(router)), transferAmount);
-        assertEq(mockToken.balanceOf(user), 1000e18 - transferAmount);
+        // Router should have no remaining balance (swept back to user)
+        assertEq(mockToken.balanceOf(address(router)), 0);
+        // User gets their tokens back since multicall didn't consume them
+        assertEq(mockToken.balanceOf(user), 1000e18);
     }
 
     function test_RevertWhen_pullAmountAndExecute_InsufficientAllowance() public {
@@ -314,8 +316,10 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         router.pullAndExecute(address(mockToken), callData);
 
-        assertEq(mockToken.balanceOf(address(router)), userBalance);
-        assertEq(mockToken.balanceOf(user), 0);
+        // Router should have no remaining balance (dust refunded back to user)
+        assertEq(mockToken.balanceOf(address(router)), 0);
+        // User gets their tokens back since multicall didn't consume them
+        assertEq(mockToken.balanceOf(user), userBalance);
     }
 
     function test_RevertWhen_pullAndExecute_InsufficientAllowance() public {
@@ -722,8 +726,10 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         router.pullAndExecute{value: ethAmount}(address(0), callData);
 
-        assertEq(address(router).balance, ethAmount);
-        assertEq(user.balance, 0);
+        // Router should have no remaining balance (dust refunded back to user)
+        assertEq(address(router).balance, 0);
+        // User gets their ETH back since multicall didn't consume it
+        assertEq(user.balance, ethAmount);
     }
 
     function test_pullAndExecute_WithETH_NoEthSent() public {
@@ -753,8 +759,10 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         router.pullAmountAndExecute{value: ethAmount}(address(0), ethAmount, callData);
 
-        assertEq(address(router).balance, ethAmount);
-        assertEq(user.balance, 0);
+        // Router should have no remaining balance (swept back to user)
+        assertEq(address(router).balance, 0);
+        // User gets their ETH back since multicall didn't consume it
+        assertEq(user.balance, ethAmount);
     }
 
     function test_pullAmountAndExecute_WithETH_InsufficientEthSent() public {
@@ -789,8 +797,10 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
 
-        assertEq(mockToken.balanceOf(address(router)), transferAmount);
-        assertEq(mockToken.balanceOf(user), 1000e18 - transferAmount);
+        // Router should have no remaining balance (dust refunded back to user)
+        assertEq(mockToken.balanceOf(address(router)), 0);
+        // User gets their tokens back since multicall didn't consume them
+        assertEq(mockToken.balanceOf(user), 1000e18);
     }
 
     function testExecute_WithFailingMulticall() public {
