@@ -23,7 +23,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
 
     bytes32 public constant TRAILS_INTENT_TYPEHASH = keccak256(
-        "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector)"
+        "TrailsIntent(string description,address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector)"
     );
     string public constant VERSION = "1";
 
@@ -36,8 +36,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     error InvalidIntentAddress();
     error IntentExpired();
     error InvalidIntentSignature();
-    error IntentAlreadyUsed();
-    error InvalidChainId();
     error InvalidNonce();
     error PermitAmountMismatch();
 
@@ -51,9 +49,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
     // State Variables
     // -------------------------------------------------------------------------
-
-    /// @notice Tracks whether an intent digest has been consumed to prevent replays.
-    mapping(bytes32 => bool) public usedIntents;
 
     /// @notice Tracks nonce for each user to prevent replay attacks.
     mapping(address => uint256) public nonces;
@@ -89,24 +84,37 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        uint8 permitV,
-        bytes32 permitR,
-        bytes32 permitS,
-        uint8 sigV,
-        bytes32 sigR,
-        bytes32 sigS
+        string calldata description,
+        ITrailsIntentEntrypoint.Signature calldata permitSig,
+        ITrailsIntentEntrypoint.Signature calldata intentSig
     ) external nonReentrant {
-        _verifyAndMarkIntent(
-            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
-        );
-
         // Validate permitAmount exactly matches the total required amount (deposit + fee)
         // This prevents permit/approval mismatches that could cause DoS or unexpected behavior
         unchecked {
             if (permitAmount != amount + feeAmount) revert PermitAmountMismatch();
         }
 
-        IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
+        // Execute permit and scope variables to avoid stack too deep
+        {
+            IERC20Permit(token)
+                .permit(user, address(this), permitAmount, deadline, permitSig.v, permitSig.r, permitSig.s);
+        }
+
+        _verifyAndMarkIntent(
+            user,
+            token,
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            feeAmount,
+            feeCollector,
+            description,
+            intentSig.v,
+            intentSig.r,
+            intentSig.s
+        );
+
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
 
         // Pay fee if specified (fee token is same as deposit token)
@@ -128,12 +136,22 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        uint8 sigV,
-        bytes32 sigR,
-        bytes32 sigS
+        string calldata description,
+        ITrailsIntentEntrypoint.Signature calldata intentSig
     ) external nonReentrant {
         _verifyAndMarkIntent(
-            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
+            user,
+            token,
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            feeAmount,
+            feeCollector,
+            description,
+            intentSig.v,
+            intentSig.r,
+            intentSig.s
         );
 
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
@@ -161,6 +179,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
+        string calldata description,
         uint8 sigV,
         bytes32 sigR,
         bytes32 sigS
@@ -174,21 +193,23 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         if (nonce != nonces[user]) revert InvalidNonce();
 
         bytes32 _typehash = TRAILS_INTENT_TYPEHASH;
+        bytes32 descriptionHash = keccak256(bytes(description));
         bytes32 intentHash;
-        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector));
+        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, keccak256(bytes(description)), user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector));
         assembly {
             let ptr := mload(0x40)
             mstore(ptr, _typehash)
-            mstore(add(ptr, 0x20), user)
-            mstore(add(ptr, 0x40), token)
-            mstore(add(ptr, 0x60), amount)
-            mstore(add(ptr, 0x80), intentAddress)
-            mstore(add(ptr, 0xa0), deadline)
-            mstore(add(ptr, 0xc0), chainid())
-            mstore(add(ptr, 0xe0), nonce)
-            mstore(add(ptr, 0x100), feeAmount)
-            mstore(add(ptr, 0x120), feeCollector)
-            intentHash := keccak256(ptr, 0x140)
+            mstore(add(ptr, 0x20), descriptionHash)
+            mstore(add(ptr, 0x40), user)
+            mstore(add(ptr, 0x60), token)
+            mstore(add(ptr, 0x80), amount)
+            mstore(add(ptr, 0xa0), intentAddress)
+            mstore(add(ptr, 0xc0), deadline)
+            mstore(add(ptr, 0xe0), chainid())
+            mstore(add(ptr, 0x100), nonce)
+            mstore(add(ptr, 0x120), feeAmount)
+            mstore(add(ptr, 0x140), feeCollector)
+            intentHash := keccak256(ptr, 0x160)
         }
 
         bytes32 _domainSeparator = DOMAIN_SEPARATOR;
@@ -203,9 +224,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         }
         address recovered = ECDSA.recover(digest, sigV, sigR, sigS);
         if (recovered != user) revert InvalidIntentSignature();
-
-        if (usedIntents[digest]) revert IntentAlreadyUsed();
-        usedIntents[digest] = true;
 
         // Increment nonce for the user
         nonces[user]++;
