@@ -102,8 +102,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         }
 
         // Execute permit with try-catch to handle potential frontrunning, and scope variables to avoid stack too deep
-        try IERC20Permit(token)
-            .permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS) {
+        try IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS) {
         // Permit succeeded
         }
             catch {
