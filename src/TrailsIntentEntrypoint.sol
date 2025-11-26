@@ -102,7 +102,13 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
             if (permitAmount != amount + feeAmount) revert PermitAmountMismatch();
         }
 
-        IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS);
+        // Execute permit with try-catch to handle potential frontrunning, and scope variables to avoid stack too deep
+        try IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS) {
+        // Permit succeeded
+        }
+            catch {
+            // Permit may have been frontrun. Continue with transferFrom attempt.
+        }
 
         _processDeposit(user, token, amount, intentAddress, feeAmount, feeCollector);
     }

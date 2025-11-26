@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 import {TrailsIntentEntrypoint} from "../src/TrailsIntentEntrypoint.sol";
@@ -96,6 +96,90 @@ contract TrailsIntentEntrypointTest is Test {
         uint256 intentBalanceBefore = token.balanceOf(intentAddress);
 
         // Execute intent with permit
+        entrypoint.depositToIntentWithPermit(
+            user,
+            address(token),
+            amount,
+            amount, // permitAmount - same as amount for this test
+            intentAddress,
+            deadline,
+            nonce,
+            0, // no fee amount
+            address(0), // no fee collector
+            permitV,
+            permitR,
+            permitS,
+            sigV,
+            sigR,
+            sigS
+        );
+
+        // Check balances after
+        uint256 userBalanceAfter = token.balanceOf(user);
+        uint256 intentBalanceAfter = token.balanceOf(intentAddress);
+
+        assertEq(userBalanceAfter, userBalanceBefore - amount);
+        assertEq(intentBalanceAfter, intentBalanceBefore + amount);
+
+        vm.stopPrank();
+    }
+
+    function testExecuteIntentWithPermit_permit_frontrun() public {
+        vm.startPrank(user);
+
+        address intentAddress = address(0x5678);
+        uint256 amount = 50 * 10 ** token.decimals();
+        uint256 deadline = block.timestamp + 3600;
+        uint256 nonce = entrypoint.nonces(user);
+
+        // Create permit signature
+        bytes32 permitHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                token.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        user,
+                        address(entrypoint),
+                        amount,
+                        token.nonces(user),
+                        deadline
+                    )
+                )
+            )
+        );
+
+        (uint8 permitV, bytes32 permitR, bytes32 permitS) = vm.sign(userPrivateKey, permitHash);
+
+        // Create intent signature
+        bytes32 intentHash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                user,
+                address(token),
+                amount,
+                intentAddress,
+                deadline,
+                block.chainid,
+                nonce,
+                0, // feeAmount
+                address(0) // feeCollector
+            )
+        );
+
+        bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(userPrivateKey, intentDigest);
+
+        // FRONTRUN: Call permit directly before depositToIntentWithPermit
+        token.permit(user, address(entrypoint), amount, deadline, permitV, permitR, permitS);
+
+        // Record balances before
+        uint256 userBalanceBefore = token.balanceOf(user);
+        uint256 intentBalanceBefore = token.balanceOf(intentAddress);
+
+        // Execute intent with permit - should still succeed due to try/catch
         entrypoint.depositToIntentWithPermit(
             user,
             address(token),
