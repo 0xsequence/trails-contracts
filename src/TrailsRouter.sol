@@ -96,7 +96,19 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
         (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
-        return abi.decode(returnData, (IMulticall3.Result[]));
+        returnResults = abi.decode(returnData, (IMulticall3.Result[]));
+
+        // Sweep remaining balance back to msg.sender to prevent dust from EXACT_OUTPUT swaps getting stuck.
+        // We sweep the full balance (not tracking initial) since TrailsRouter is stateless by design.
+        uint256 remaining = _getSelfBalance(token);
+        if (remaining > 0) {
+            if (token == address(0)) {
+                _transferNative(msg.sender, remaining);
+            } else {
+                _transferERC20(token, msg.sender, remaining);
+            }
+            emit Sweep(token, msg.sender, remaining);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -366,19 +378,29 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
         bytes4 selector = bytes4(callData[0:4]);
 
-        // Only allow `aggregate3Value` calls (0x174dea71)
-        if (selector != 0x174dea71) {
-            revert InvalidFunctionSelector(selector);
-        }
+        // Only allow `aggregate3Value` or `aggregate3` (0x174dea71 or 0x82ad56cb)
+        if (selector == 0x174dea71) {
+            // Decode and validate the Call3Value[] array to ensure allowFailure=false for all calls
+            IMulticall3.Call3Value[] memory calls = abi.decode(callData[4:], (IMulticall3.Call3Value[]));
 
-        // Decode and validate the Call3Value[] array to ensure allowFailure=false for all calls
-        IMulticall3.Call3Value[] memory calls = abi.decode(callData[4:], (IMulticall3.Call3Value[]));
-
-        // Iterate through all calls and verify allowFailure is false
-        for (uint256 i = 0; i < calls.length; i++) {
-            if (calls[i].allowFailure) {
-                revert AllowFailureMustBeFalse(i);
+            // Iterate through all calls and verify allowFailure is false
+            for (uint256 i = 0; i < calls.length; i++) {
+                if (calls[i].allowFailure) {
+                    revert AllowFailureMustBeFalse(i);
+                }
             }
+        } else if (selector == 0x82ad56cb) {
+            // Decode and validate the Call3[] array to ensure allowFailure=false for all calls
+            IMulticall3.Call3[] memory calls = abi.decode(callData[4:], (IMulticall3.Call3[]));
+
+            // Iterate through all calls and verify allowFailure is false
+            for (uint256 i = 0; i < calls.length; i++) {
+                if (calls[i].allowFailure) {
+                    revert AllowFailureMustBeFalse(i);
+                }
+            }
+        } else {
+            revert InvalidFunctionSelector(selector);
         }
     }
 }

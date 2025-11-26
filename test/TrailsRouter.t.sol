@@ -228,36 +228,36 @@ contract TrailsRouterTest is Test {
     function test_Execute_FromEOA_ShouldPreserveEOAAsSender() public {
         address eoa = makeAddr("eoa");
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
         vm.prank(eoa);
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
         router.execute(callData);
     }
 
     function test_Execute_FromContract_ShouldPreserveContractAsSender() public {
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
         router.execute(callData);
     }
 
     function test_Execute_WithMultipleCalls() public {
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](2);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](2);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
-        calls[1] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        calls[1] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
         router.execute(callData);
     }
 
@@ -267,29 +267,31 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         mockToken.approve(address(router), transferAmount);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
         router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
 
-        assertEq(mockToken.balanceOf(address(router)), transferAmount);
-        assertEq(mockToken.balanceOf(user), 1000e18 - transferAmount);
+        // Router should have no remaining balance (swept back to user)
+        assertEq(mockToken.balanceOf(address(router)), 0);
+        // User gets their tokens back since multicall didn't consume them
+        assertEq(mockToken.balanceOf(user), 1000e18);
     }
 
     function test_RevertWhen_pullAmountAndExecute_InsufficientAllowance() public {
         uint256 transferAmount = 100e18;
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
         vm.expectRevert(
@@ -304,29 +306,31 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         mockToken.approve(address(router), userBalance);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
         router.pullAndExecute(address(mockToken), callData);
 
-        assertEq(mockToken.balanceOf(address(router)), userBalance);
-        assertEq(mockToken.balanceOf(user), 0);
+        // Router should have no remaining balance (dust refunded back to user)
+        assertEq(mockToken.balanceOf(address(router)), 0);
+        // User gets their tokens back since multicall didn't consume them
+        assertEq(mockToken.balanceOf(user), userBalance);
     }
 
     function test_RevertWhen_pullAndExecute_InsufficientAllowance() public {
         uint256 userBalance = mockToken.balanceOf(user);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
         vm.expectRevert(
@@ -664,12 +668,12 @@ contract TrailsRouterTest is Test {
     function test_no_tokens_to_pull() public {
         address token = address(new MockERC20("Test", "TST", 18)); // New token, caller has 0 balance
 
-        // Use a valid aggregate3Value call so selector validation passes and we hit NoTokensToPull
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        // Use a valid aggregate3 call so selector validation passes and we hit NoTokensToPull
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.expectRevert(TrailsRouter.NoTokensToPull.selector);
         router.pullAndExecute(token, callData);
@@ -730,27 +734,29 @@ contract TrailsRouterTest is Test {
         uint256 ethAmount = 1 ether;
         vm.deal(user, ethAmount);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
         router.pullAndExecute{value: ethAmount}(address(0), callData);
 
-        assertEq(address(router).balance, ethAmount);
-        assertEq(user.balance, 0);
+        // Router should have no remaining balance (dust refunded back to user)
+        assertEq(address(router).balance, 0);
+        // User gets their ETH back since multicall didn't consume it
+        assertEq(user.balance, ethAmount);
     }
 
-    function test_pullAndExecute_WithETH_NoValueAvailable() public {
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+    function test_pullAndExecute_WithETH_NoEthSent() public {
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
         vm.expectRevert(TrailsRouter.NoValueAvailable.selector);
@@ -781,30 +787,32 @@ contract TrailsRouterTest is Test {
         uint256 ethAmount = 1 ether;
         vm.deal(user, ethAmount);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
         router.pullAmountAndExecute{value: ethAmount}(address(0), ethAmount, callData);
 
-        assertEq(address(router).balance, ethAmount);
-        assertEq(user.balance, 0);
+        // Router should have no remaining balance (swept back to user)
+        assertEq(address(router).balance, 0);
+        // User gets their ETH back since multicall didn't consume it
+        assertEq(user.balance, ethAmount);
     }
 
     function test_pullAmountAndExecute_WithETH_IncorrectValue() public {
         uint256 requiredAmount = 1 ether;
         uint256 sentAmount = 0.5 ether;
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, requiredAmount, sentAmount));
@@ -817,18 +825,20 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         mockToken.approve(address(router), transferAmount);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.prank(user);
         router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
 
-        assertEq(mockToken.balanceOf(address(router)), transferAmount);
-        assertEq(mockToken.balanceOf(user), 1000e18 - transferAmount);
+        // Router should have no remaining balance (dust refunded back to user)
+        assertEq(mockToken.balanceOf(address(router)), 0);
+        // User gets their tokens back since multicall didn't consume them
+        assertEq(mockToken.balanceOf(user), 1000e18);
     }
 
     function test_pullAmountAndExecute_WithToken_IncorrectValue() public {
@@ -866,12 +876,12 @@ contract TrailsRouterTest is Test {
         // The shouldFail variable is at slot 0 in MockMulticall3
         vm.store(address(router), bytes32(0), bytes32(uint256(1))); // Set shouldFail = true in router's storage
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -898,12 +908,12 @@ contract TrailsRouterTest is Test {
         // Set the failure flag directly in storage since delegatecall uses caller's storage
         vm.store(address(router), bytes32(0), bytes32(uint256(1))); // Set shouldFail = true in router's storage
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         // Give tokens to the test contract (which will be msg.sender) and approve
         mockToken.mint(address(this), transferAmount);
@@ -1218,12 +1228,12 @@ contract TrailsRouterTest is Test {
         uint256 requiredAmount = 2 ether;
         uint256 sentAmount = 1 ether;
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, requiredAmount, sentAmount));
         router.pullAmountAndExecute{value: sentAmount}(address(0), requiredAmount, callData);
@@ -1243,15 +1253,14 @@ contract TrailsRouterTest is Test {
         erc20.approve(address(router), 100 ether);
 
         // Create a call with allowFailure=true (should be rejected)
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
             target: address(getter),
             allowFailure: true, // This should cause revert
-            value: 0,
             callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         // Should revert with AllowFailureMustBeFalse error for index 0
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
@@ -1270,21 +1279,20 @@ contract TrailsRouterTest is Test {
         erc20.approve(address(router), 100 ether);
 
         // Create multiple calls where the first one has allowFailure=true
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
-        calls[0] = IMulticall3.Call3Value({
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](3);
+        calls[0] = IMulticall3.Call3({
             target: address(getter),
             allowFailure: true, // This should cause revert
-            value: 0,
             callData: abi.encodeWithSignature("getSender()")
         });
-        calls[1] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        calls[1] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
-        calls[2] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        calls[2] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         // Should revert with AllowFailureMustBeFalse error for index 0
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
@@ -1303,21 +1311,20 @@ contract TrailsRouterTest is Test {
         erc20.approve(address(router), 100 ether);
 
         // Create multiple calls where the second one has allowFailure=true
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](3);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
-        calls[1] = IMulticall3.Call3Value({
+        calls[1] = IMulticall3.Call3({
             target: address(getter),
             allowFailure: true, // This should cause revert
-            value: 0,
             callData: abi.encodeWithSignature("getSender()")
         });
-        calls[2] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        calls[2] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         // Should revert with AllowFailureMustBeFalse error for index 1
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 1));
@@ -1336,21 +1343,20 @@ contract TrailsRouterTest is Test {
         erc20.approve(address(router), 100 ether);
 
         // Create multiple calls where the last one has allowFailure=true
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](3);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
-        calls[1] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        calls[1] = IMulticall3.Call3({
+            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
         });
-        calls[2] = IMulticall3.Call3Value({
+        calls[2] = IMulticall3.Call3({
             target: address(getter),
             allowFailure: true, // This should cause revert
-            value: 0,
             callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         // Should revert with AllowFailureMustBeFalse error for index 2
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 2));
@@ -1369,21 +1375,20 @@ contract TrailsRouterTest is Test {
         erc20.approve(address(router), 100 ether);
 
         // Create multiple calls where all have allowFailure=true
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](3);
-        calls[0] = IMulticall3.Call3Value({
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](3);
+        calls[0] = IMulticall3.Call3({
             target: address(getter),
             allowFailure: true, // This should cause revert
-            value: 0,
             callData: abi.encodeWithSignature("getSender()")
         });
-        calls[1] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: true, value: 0, callData: abi.encodeWithSignature("getSender()")
+        calls[1] = IMulticall3.Call3({
+            target: address(getter), allowFailure: true, callData: abi.encodeWithSignature("getSender()")
         });
-        calls[2] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: true, value: 0, callData: abi.encodeWithSignature("getSender()")
+        calls[2] = IMulticall3.Call3({
+            target: address(getter), allowFailure: true, callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         // Should revert with AllowFailureMustBeFalse error for index 0 (first occurrence)
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
@@ -1402,15 +1407,14 @@ contract TrailsRouterTest is Test {
         erc20.approve(address(router), 100 ether);
 
         // Create a call with allowFailure=true
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
             target: address(getter),
             allowFailure: true, // This should cause revert
-            value: 0,
             callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         // Should revert with AllowFailureMustBeFalse error for index 0
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
@@ -1425,15 +1429,14 @@ contract TrailsRouterTest is Test {
      */
     function test_RevertWhen_execute_withETH_allowFailure_true() public {
         // Create a call with allowFailure=true
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
             target: address(getter),
             allowFailure: true, // This should cause revert
-            value: 0,
             callData: abi.encodeWithSignature("getSender()")
         });
 
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
 
         // Should revert with AllowFailureMustBeFalse error for index 0
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
