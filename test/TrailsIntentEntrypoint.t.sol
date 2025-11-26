@@ -2114,4 +2114,241 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), hash));
         return vm.sign(userPrivateKey, digest);
     }
+
+    // =========================================================================
+    // Fee Parameter Validation Tests
+    // =========================================================================
+
+    /**
+     * @notice Test that depositToIntent reverts when feeAmount is provided but feeCollector is not
+     * @dev Validates InvalidFeeParameters error when feeAmount > 0 but feeCollector == address(0)
+     */
+    function testDepositToIntentWithFeeAmountButNoCollector_Reverts() public {
+        vm.startPrank(user);
+
+        address intentAddress = address(0x5678);
+        uint256 amount = 50 * 10 ** token.decimals();
+        uint256 feeAmount = 5 * 10 ** token.decimals(); // Fee amount provided
+        uint256 deadline = block.timestamp + 3600;
+        uint256 nonce = entrypoint.nonces(user);
+
+        bytes32 intentHash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                user,
+                address(token),
+                amount,
+                intentAddress,
+                deadline,
+                block.chainid,
+                nonce,
+                feeAmount,
+                address(0) // No fee collector
+            )
+        );
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+        token.approve(address(entrypoint), amount + feeAmount);
+
+        vm.expectRevert(TrailsIntentEntrypoint.InvalidFeeParameters.selector);
+        entrypoint.depositToIntent(
+            user, address(token), amount, intentAddress, deadline, nonce, feeAmount, address(0), v, r, s
+        );
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that depositToIntent reverts when feeCollector is provided but feeAmount is not
+     * @dev Validates InvalidFeeParameters error when feeAmount == 0 but feeCollector != address(0)
+     */
+    function testDepositToIntentWithFeeCollectorButNoAmount_Reverts() public {
+        vm.startPrank(user);
+
+        address intentAddress = address(0x5678);
+        address feeCollector = address(0x9999); // Fee collector provided
+        uint256 amount = 50 * 10 ** token.decimals();
+        uint256 feeAmount = 0; // No fee amount
+        uint256 deadline = block.timestamp + 3600;
+        uint256 nonce = entrypoint.nonces(user);
+
+        bytes32 intentHash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                user,
+                address(token),
+                amount,
+                intentAddress,
+                deadline,
+                block.chainid,
+                nonce,
+                feeAmount,
+                feeCollector
+            )
+        );
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+        token.approve(address(entrypoint), amount);
+
+        vm.expectRevert(TrailsIntentEntrypoint.InvalidFeeParameters.selector);
+        entrypoint.depositToIntent(
+            user, address(token), amount, intentAddress, deadline, nonce, feeAmount, feeCollector, v, r, s
+        );
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that depositToIntentWithPermit reverts when feeAmount is provided but feeCollector is not
+     * @dev Validates InvalidFeeParameters error when feeAmount > 0 but feeCollector == address(0)
+     */
+    function testDepositToIntentWithPermitWithFeeAmountButNoCollector_Reverts() public {
+        vm.startPrank(user);
+
+        address intentAddress = address(0x5678);
+        uint256 amount = 50 * 10 ** token.decimals();
+        uint256 feeAmount = 5 * 10 ** token.decimals(); // Fee amount provided
+        uint256 totalAmount = amount + feeAmount;
+        uint256 deadline = block.timestamp + 3600;
+        uint256 nonce = entrypoint.nonces(user);
+
+        // Create permit signature for total amount (deposit + fee)
+        bytes32 permitHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                token.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        user,
+                        address(entrypoint),
+                        totalAmount,
+                        token.nonces(user),
+                        deadline
+                    )
+                )
+            )
+        );
+
+        (uint8 permitV, bytes32 permitR, bytes32 permitS) = vm.sign(userPrivateKey, permitHash);
+
+        // Create intent signature
+        bytes32 intentHash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                user,
+                address(token),
+                amount,
+                intentAddress,
+                deadline,
+                block.chainid,
+                nonce,
+                feeAmount,
+                address(0) // No fee collector
+            )
+        );
+
+        bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(userPrivateKey, intentDigest);
+
+        vm.expectRevert(TrailsIntentEntrypoint.InvalidFeeParameters.selector);
+        entrypoint.depositToIntentWithPermit(
+            user,
+            address(token),
+            amount,
+            totalAmount,
+            intentAddress,
+            deadline,
+            nonce,
+            feeAmount,
+            address(0), // No fee collector
+            permitV,
+            permitR,
+            permitS,
+            sigV,
+            sigR,
+            sigS
+        );
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test that depositToIntentWithPermit reverts when feeCollector is provided but feeAmount is not
+     * @dev Validates InvalidFeeParameters error when feeAmount == 0 but feeCollector != address(0)
+     */
+    function testDepositToIntentWithPermitWithFeeCollectorButNoAmount_Reverts() public {
+        vm.startPrank(user);
+
+        address intentAddress = address(0x5678);
+        address feeCollector = address(0x9999); // Fee collector provided
+        uint256 amount = 50 * 10 ** token.decimals();
+        uint256 feeAmount = 0; // No fee amount
+        uint256 deadline = block.timestamp + 3600;
+        uint256 nonce = entrypoint.nonces(user);
+
+        // Create permit signature for just the amount (no fee)
+        bytes32 permitHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                token.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        user,
+                        address(entrypoint),
+                        amount,
+                        token.nonces(user),
+                        deadline
+                    )
+                )
+            )
+        );
+
+        (uint8 permitV, bytes32 permitR, bytes32 permitS) = vm.sign(userPrivateKey, permitHash);
+
+        // Create intent signature
+        bytes32 intentHash = keccak256(
+            abi.encode(
+                entrypoint.TRAILS_INTENT_TYPEHASH(),
+                user,
+                address(token),
+                amount,
+                intentAddress,
+                deadline,
+                block.chainid,
+                nonce,
+                feeAmount,
+                feeCollector
+            )
+        );
+
+        bytes32 intentDigest = keccak256(abi.encodePacked("\x19\x01", entrypoint.DOMAIN_SEPARATOR(), intentHash));
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(userPrivateKey, intentDigest);
+
+        vm.expectRevert(TrailsIntentEntrypoint.InvalidFeeParameters.selector);
+        entrypoint.depositToIntentWithPermit(
+            user,
+            address(token),
+            amount,
+            amount,
+            intentAddress,
+            deadline,
+            nonce,
+            feeAmount,
+            feeCollector, // Fee collector provided with no fee amount
+            permitV,
+            permitR,
+            permitS,
+            sigV,
+            sigR,
+            sigS
+        );
+
+        vm.stopPrank();
+    }
 }
