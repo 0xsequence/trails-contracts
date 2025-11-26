@@ -1,19 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity ^0.8.20;
 
 /// @title ITrailsIntentEntrypoint
 /// @notice Interface for the TrailsIntentEntrypoint contract
 interface ITrailsIntentEntrypoint {
-    // -------------------------------------------------------------------------
-    // Types
-    // -------------------------------------------------------------------------
-
-    struct Signature {
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-    }
-
     // -------------------------------------------------------------------------
     // Events
     // -------------------------------------------------------------------------
@@ -65,9 +55,12 @@ interface ITrailsIntentEntrypoint {
     /// @param nonce The nonce for this user
     /// @param feeAmount The amount of fee to pay (0 for no fee, paid in same token)
     /// @param feeCollector The address to receive the fee (address(0) for no fee)
-    /// @param description A description string for the intent
-    /// @param permitSig The permit signature (v, r, s)
-    /// @param intentSig The intent signature (v, r, s)
+    /// @param permitV The permit signature v component
+    /// @param permitR The permit signature r component
+    /// @param permitS The permit signature s component
+    /// @param sigV The intent signature v component
+    /// @param sigR The intent signature r component
+    /// @param sigS The intent signature s component
     function depositToIntentWithPermit(
         address user,
         address token,
@@ -78,9 +71,12 @@ interface ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        string calldata description,
-        Signature calldata permitSig,
-        Signature calldata intentSig
+        uint8 permitV,
+        bytes32 permitR,
+        bytes32 permitS,
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS
     ) external;
 
     /// @notice Deposit tokens to an intent address (requires prior approval)
@@ -92,8 +88,9 @@ interface ITrailsIntentEntrypoint {
     /// @param nonce The nonce for this user
     /// @param feeAmount The amount of fee to pay (0 for no fee, paid in same token)
     /// @param feeCollector The address to receive the fee (address(0) for no fee)
-    /// @param description A description string for the intent
-    /// @param intentSig The intent signature (v, r, s)
+    /// @param sigV The intent signature v component
+    /// @param sigR The intent signature r component
+    /// @param sigS The intent signature s component
     function depositToIntent(
         address user,
         address token,
@@ -103,7 +100,8 @@ interface ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        string calldata description,
-        Signature calldata intentSig
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS
     ) external;
 }

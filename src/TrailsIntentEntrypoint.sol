@@ -23,7 +23,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
 
     bytes32 public constant TRAILS_INTENT_TYPEHASH = keccak256(
-        "TrailsIntent(string description,address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector)"
+        "TrailsIntent(address user,address token,uint256 amount,address intentAddress,uint256 deadline,uint256 chainId,uint256 nonce,uint256 feeAmount,address feeCollector)"
     );
     string public constant VERSION = "1";
 
@@ -84,10 +84,17 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        string calldata description,
-        ITrailsIntentEntrypoint.Signature calldata permitSig,
-        ITrailsIntentEntrypoint.Signature calldata intentSig
+        uint8 permitV,
+        bytes32 permitR,
+        bytes32 permitS,
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS
     ) external nonReentrant {
+        _verifyAndMarkIntent(
+            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
+        );
+
         // Validate permitAmount exactly matches the total required amount (deposit + fee)
         // This prevents permit/approval mismatches that could cause DoS or unexpected behavior
         unchecked {
@@ -95,28 +102,12 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         }
 
         // Execute permit with try-catch to handle potential frontrunning, and scope variables to avoid stack too deep
-        try IERC20Permit(token)
-            .permit(user, address(this), permitAmount, deadline, permitSig.v, permitSig.r, permitSig.s) {
+        try IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS) {
         // Permit succeeded
         }
             catch {
             // Permit may have been frontrun. Continue with transferFrom attempt.
         }
-
-        _verifyAndMarkIntent(
-            user,
-            token,
-            amount,
-            intentAddress,
-            deadline,
-            nonce,
-            feeAmount,
-            feeCollector,
-            description,
-            intentSig.v,
-            intentSig.r,
-            intentSig.s
-        );
 
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
 
@@ -139,22 +130,12 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        string calldata description,
-        ITrailsIntentEntrypoint.Signature calldata intentSig
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS
     ) external nonReentrant {
         _verifyAndMarkIntent(
-            user,
-            token,
-            amount,
-            intentAddress,
-            deadline,
-            nonce,
-            feeAmount,
-            feeCollector,
-            description,
-            intentSig.v,
-            intentSig.r,
-            intentSig.s
+            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
         );
 
         IERC20(token).safeTransferFrom(user, intentAddress, amount);
@@ -182,7 +163,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        string calldata description,
         uint8 sigV,
         bytes32 sigR,
         bytes32 sigS
@@ -196,23 +176,21 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         if (nonce != nonces[user]) revert InvalidNonce();
 
         bytes32 _typehash = TRAILS_INTENT_TYPEHASH;
-        bytes32 descriptionHash = keccak256(bytes(description));
         bytes32 intentHash;
-        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, keccak256(bytes(description)), user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector));
+        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector));
         assembly {
             let ptr := mload(0x40)
             mstore(ptr, _typehash)
-            mstore(add(ptr, 0x20), descriptionHash)
-            mstore(add(ptr, 0x40), user)
-            mstore(add(ptr, 0x60), token)
-            mstore(add(ptr, 0x80), amount)
-            mstore(add(ptr, 0xa0), intentAddress)
-            mstore(add(ptr, 0xc0), deadline)
-            mstore(add(ptr, 0xe0), chainid())
-            mstore(add(ptr, 0x100), nonce)
-            mstore(add(ptr, 0x120), feeAmount)
-            mstore(add(ptr, 0x140), feeCollector)
-            intentHash := keccak256(ptr, 0x160)
+            mstore(add(ptr, 0x20), user)
+            mstore(add(ptr, 0x40), token)
+            mstore(add(ptr, 0x60), amount)
+            mstore(add(ptr, 0x80), intentAddress)
+            mstore(add(ptr, 0xa0), deadline)
+            mstore(add(ptr, 0xc0), chainid())
+            mstore(add(ptr, 0xe0), nonce)
+            mstore(add(ptr, 0x100), feeAmount)
+            mstore(add(ptr, 0x120), feeCollector)
+            intentHash := keccak256(ptr, 0x140)
         }
 
         bytes32 _domainSeparator = DOMAIN_SEPARATOR;
