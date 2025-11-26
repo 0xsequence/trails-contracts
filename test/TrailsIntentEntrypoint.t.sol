@@ -156,7 +156,6 @@ contract TrailsIntentEntrypointTest is Test {
         bytes32 intentHash = keccak256(
             abi.encode(
                 entrypoint.TRAILS_INTENT_TYPEHASH(),
-                keccak256(bytes("Transfer tokens")),
                 user,
                 address(token),
                 amount,
@@ -191,9 +190,12 @@ contract TrailsIntentEntrypointTest is Test {
             nonce,
             0, // no fee amount
             address(0), // no fee collector
-            "Transfer tokens",
-            ITrailsIntentEntrypoint.Signature(permitV, permitR, permitS),
-            ITrailsIntentEntrypoint.Signature(sigV, sigR, sigS)
+            permitV,
+            permitR,
+            permitS,
+            sigV,
+            sigR,
+            sigS
         );
 
         // Check balances after
