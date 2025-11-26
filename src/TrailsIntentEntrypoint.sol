@@ -94,10 +94,13 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
             if (permitAmount != amount + feeAmount) revert PermitAmountMismatch();
         }
 
-        // Execute permit and scope variables to avoid stack too deep
-        {
-            IERC20Permit(token)
-                .permit(user, address(this), permitAmount, deadline, permitSig.v, permitSig.r, permitSig.s);
+        // Execute permit with try-catch to handle potential frontrunning, and scope variables to avoid stack too deep
+        try IERC20Permit(token)
+            .permit(user, address(this), permitAmount, deadline, permitSig.v, permitSig.r, permitSig.s) {
+        // Permit succeeded
+        }
+            catch {
+            // Permit may have been frontrun. Continue with transferFrom attempt.
         }
 
         _verifyAndMarkIntent(
