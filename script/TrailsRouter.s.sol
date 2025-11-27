@@ -24,9 +24,10 @@ contract Deploy is SingletonDeployer {
 
     function deployRouter(uint256 pk) public returns (address) {
         bytes32 salt = bytes32(0);
+        address multicall3 = 0xcA11bde05977b3631167028862bE2a173976CA11;
 
-        // Deploy TrailsRouter
-        bytes memory initCode = type(TrailsRouter).creationCode;
+        // Deploy TrailsRouter with constructor arguments
+        bytes memory initCode = abi.encodePacked(type(TrailsRouter).creationCode, abi.encode(multicall3));
         address router = _deployIfNotAlready("TrailsRouter", initCode, salt, pk);
 
         return router;
