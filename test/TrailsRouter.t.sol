@@ -30,22 +30,22 @@ library TestHelpers {
         }
 
         bytes memory packed;
-        
+
         // Global flag byte:
         // Bit 0: space is zero (set to 1)
         // Bits 1-3: nonce size (0 = no nonce)
         // Bit 4: single call (0 = multiple calls)
         // Bit 5: numCalls size (0 = 1 byte, 1 = 2 bytes)
         uint8 globalFlag = 0x01; // space is zero
-        
+
         if (calls.length == 1) {
             globalFlag |= 0x10; // single call
         } else if (calls.length > 255) {
             globalFlag |= 0x20; // use 2 bytes for numCalls
         }
-        
+
         packed = abi.encodePacked(globalFlag);
-        
+
         // Write number of calls (if not single call)
         if (calls.length == 1) {
             // Already encoded in globalFlag
@@ -54,16 +54,16 @@ library TestHelpers {
         } else {
             packed = abi.encodePacked(packed, uint16(calls.length));
         }
-        
+
         // Encode each call
         for (uint256 i = 0; i < calls.length; i++) {
             uint8 flags = 0;
-            
+
             // Bit 0: call to self (0 = other address)
             // Bit 1: has value (0 = no value for Call3)
             // Bit 2: has data (1 = has data)
             flags |= 0x04; // has data
-            
+
             // Bit 3: has gasLimit (0 = no gasLimit)
             // Bit 4: delegateCall (0 = false)
             // Bit 5: onlyFallback (0 = false)
@@ -73,16 +73,16 @@ library TestHelpers {
             } else {
                 flags |= uint8(Payload.BEHAVIOR_REVERT_ON_ERROR) << 6;
             }
-            
+
             packed = abi.encodePacked(packed, flags);
             packed = abi.encodePacked(packed, calls[i].target); // address (20 bytes)
-            
+
             // Write calldata size (3 bytes) and data
             uint24 dataSize = uint24(calls[i].callData.length);
             packed = abi.encodePacked(packed, dataSize);
             packed = abi.encodePacked(packed, calls[i].callData);
         }
-        
+
         return packed;
     }
 
@@ -93,16 +93,16 @@ library TestHelpers {
         }
 
         bytes memory packed;
-        
+
         uint8 globalFlag = 0x01; // space is zero
         if (calls.length == 1) {
             globalFlag |= 0x10; // single call
         } else if (calls.length > 255) {
             globalFlag |= 0x20; // use 2 bytes for numCalls
         }
-        
+
         packed = abi.encodePacked(globalFlag);
-        
+
         if (calls.length == 1) {
             // Already encoded
         } else if (calls.length <= 255) {
@@ -110,34 +110,34 @@ library TestHelpers {
         } else {
             packed = abi.encodePacked(packed, uint16(calls.length));
         }
-        
+
         for (uint256 i = 0; i < calls.length; i++) {
             uint8 flags = 0;
-            
+
             flags |= 0x04; // has data
-            
+
             if (calls[i].value > 0) {
                 flags |= 0x02; // has value
             }
-            
+
             if (calls[i].allowFailure) {
                 flags |= uint8(Payload.BEHAVIOR_IGNORE_ERROR) << 6;
             } else {
                 flags |= uint8(Payload.BEHAVIOR_REVERT_ON_ERROR) << 6;
             }
-            
+
             packed = abi.encodePacked(packed, flags);
             packed = abi.encodePacked(packed, calls[i].target);
-            
+
             if (calls[i].value > 0) {
                 packed = abi.encodePacked(packed, calls[i].value);
             }
-            
+
             uint24 dataSize = uint24(calls[i].callData.length);
             packed = abi.encodePacked(packed, dataSize);
             packed = abi.encodePacked(packed, calls[i].callData);
         }
-        
+
         return packed;
     }
 }

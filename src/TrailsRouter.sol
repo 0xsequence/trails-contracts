@@ -46,7 +46,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         GUEST_MODULE = guestModule;
     }
 
-
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
@@ -406,5 +405,4 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             if (!success) revert TargetCallFailed(result);
         }
     }
-
 }
