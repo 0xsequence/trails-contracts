@@ -27,6 +27,11 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     );
     string public constant VERSION = "1";
 
+    bytes32 private constant EIP712_DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 private constant EIP712_DOMAIN_NAME = keccak256(bytes("TrailsIntentEntrypoint"));
+    bytes32 private constant EIP712_DOMAIN_VERSION = keccak256(bytes(VERSION));
+
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
@@ -41,13 +46,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     error PermitAmountMismatch();
 
     // -------------------------------------------------------------------------
-    // Immutable Variables
-    // -------------------------------------------------------------------------
-
-    /// @notice EIP-712 domain separator used for intent signatures.
-    bytes32 public immutable DOMAIN_SEPARATOR;
-
-    // -------------------------------------------------------------------------
     // State Variables
     // -------------------------------------------------------------------------
 
@@ -55,24 +53,15 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     mapping(address => uint256) public nonces;
 
     // -------------------------------------------------------------------------
-    // Constructor
-    // -------------------------------------------------------------------------
-
-    constructor() {
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes("TrailsIntentEntrypoint")),
-                keccak256(bytes(VERSION)),
-                block.chainid,
-                address(this)
-            )
-        );
-    }
-
-    // -------------------------------------------------------------------------
     // Functions
     // -------------------------------------------------------------------------
+
+    /// @inheritdoc ITrailsIntentEntrypoint
+    function DOMAIN_SEPARATOR() public view returns (bytes32 _domainSeparator) {
+        return keccak256(
+            abi.encode(EIP712_DOMAIN_TYPEHASH, EIP712_DOMAIN_NAME, EIP712_DOMAIN_VERSION, block.chainid, address(this))
+        );
+    }
 
     /// @inheritdoc ITrailsIntentEntrypoint
     function depositToIntentWithPermit(
@@ -202,7 +191,7 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
             intentHash := keccak256(ptr, 0x140)
         }
 
-        bytes32 _domainSeparator = DOMAIN_SEPARATOR;
+        bytes32 _domainSeparator = DOMAIN_SEPARATOR();
         bytes32 digest;
         // keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, intentHash));
         assembly {
