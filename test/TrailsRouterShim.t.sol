@@ -51,20 +51,20 @@ contract MockCallsPayloadRouter {
     fallback() external payable {
         // Decode CallsPayload and execute calls
         Payload.Decoded memory decoded = Payload.fromPackedCalls(msg.data);
-        
+
         // Execute calls
         for (uint256 i = 0; i < decoded.calls.length; i++) {
             Payload.Call memory call = decoded.calls[i];
-            
+
             // Skip onlyFallback calls
             if (call.onlyFallback) {
                 continue;
             }
-            
+
             // Execute call
             uint256 gasLimit = call.gasLimit == 0 ? gasleft() : call.gasLimit;
             (bool success,) = call.to.call{value: call.value, gas: gasLimit}(call.data);
-            
+
             if (!success) {
                 if (call.behaviorOnError == Payload.BEHAVIOR_REVERT_ON_ERROR) {
                     revert("MockCallsPayloadRouter: call failed");
@@ -74,7 +74,7 @@ contract MockCallsPayloadRouter {
                 // BEHAVIOR_IGNORE_ERROR: continue execution
             }
         }
-        
+
         // Emit event for the CallsPayload call
         emit Forwarded(msg.sender, msg.value, msg.data);
     }
@@ -95,20 +95,20 @@ contract MockRouterReturningData {
     fallback() external payable {
         // Decode CallsPayload and execute calls
         Payload.Decoded memory decoded = Payload.fromPackedCalls(msg.data);
-        
+
         // Execute calls
         for (uint256 i = 0; i < decoded.calls.length; i++) {
             Payload.Call memory call = decoded.calls[i];
-            
+
             // Skip onlyFallback calls
             if (call.onlyFallback) {
                 continue;
             }
-            
+
             // Execute call
             uint256 gasLimit = call.gasLimit == 0 ? gasleft() : call.gasLimit;
             (bool success,) = address(this).call{value: call.value, gas: gasLimit}(call.data);
-            
+
             if (!success) {
                 if (call.behaviorOnError == Payload.BEHAVIOR_REVERT_ON_ERROR) {
                     revert("MockRouterReturningData: call failed");
@@ -118,7 +118,7 @@ contract MockRouterReturningData {
                 // BEHAVIOR_IGNORE_ERROR: continue execution
             }
         }
-        
+
         // Emit event for the CallsPayload call
         emit Forwarded(msg.sender, msg.value, msg.data);
     }
@@ -134,20 +134,20 @@ contract CustomErrorRouter {
     fallback() external payable {
         // Decode CallsPayload and execute calls
         Payload.Decoded memory decoded = Payload.fromPackedCalls(msg.data);
-        
+
         // Execute calls
         for (uint256 i = 0; i < decoded.calls.length; i++) {
             Payload.Call memory call = decoded.calls[i];
-            
+
             // Skip onlyFallback calls
             if (call.onlyFallback) {
                 continue;
             }
-            
+
             // Execute call
             uint256 gasLimit = call.gasLimit == 0 ? gasleft() : call.gasLimit;
             (bool success,) = address(this).call{value: call.value, gas: gasLimit}(call.data);
-            
+
             if (!success) {
                 if (call.behaviorOnError == Payload.BEHAVIOR_REVERT_ON_ERROR) {
                     revert("CustomErrorRouter: call failed");
@@ -302,7 +302,10 @@ contract TrailsRouterShimTest is Test {
         // Expect router event when forwarded - use valid CallsPayload
         Payload.Call[] memory calls = new Payload.Call[](1);
         calls[0] = _createCall(
-            address(router), abi.encodeWithSignature("doNothing(uint256)", uint256(123)), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+            address(router),
+            abi.encodeWithSignature("doNothing(uint256)", uint256(123)),
+            0,
+            Payload.BEHAVIOR_REVERT_ON_ERROR
         );
         bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, callValue);
@@ -331,7 +334,10 @@ contract TrailsRouterShimTest is Test {
         // Expect router event when forwarded - use valid CallsPayload
         Payload.Call[] memory calls = new Payload.Call[](1);
         calls[0] = _createCall(
-            address(router), abi.encodeWithSignature("doNothing(uint256)", uint256(123)), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+            address(router),
+            abi.encodeWithSignature("doNothing(uint256)", uint256(123)),
+            0,
+            Payload.BEHAVIOR_REVERT_ON_ERROR
         );
         bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, callValue);
@@ -418,9 +424,8 @@ contract TrailsRouterShimTest is Test {
 
         // Prepare data - use CallsPayload that will revert
         Payload.Call[] memory calls = new Payload.Call[](1);
-        calls[0] = _createCall(
-            address(router), abi.encodeWithSignature("willRevert()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
-        );
+        calls[0] =
+            _createCall(address(router), abi.encodeWithSignature("willRevert()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR);
         bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, 0);
 
@@ -444,9 +449,8 @@ contract TrailsRouterShimTest is Test {
         vm.deal(holder, callValue);
 
         Payload.Call[] memory calls = new Payload.Call[](1);
-        calls[0] = _createCall(
-            address(router), abi.encodeWithSignature("receiveEth()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
-        );
+        calls[0] =
+            _createCall(address(router), abi.encodeWithSignature("receiveEth()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR);
         bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, callValue);
 
@@ -489,9 +493,8 @@ contract TrailsRouterShimTest is Test {
 
     function test_handleSequenceDelegateCall_zero_call_value() public {
         Payload.Call[] memory calls = new Payload.Call[](1);
-        calls[0] = _createCall(
-            address(router), abi.encodeWithSignature("doSomething()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
-        );
+        calls[0] =
+            _createCall(address(router), abi.encodeWithSignature("doSomething()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR);
         bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, uint256(0));
 
@@ -564,7 +567,10 @@ contract TrailsRouterShimTest is Test {
 
         Payload.Call[] memory calls = new Payload.Call[](1);
         calls[0] = _createCall(
-            address(customErrorRouter), abi.encodeWithSignature("triggerCustomError()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+            address(customErrorRouter),
+            abi.encodeWithSignature("triggerCustomError()"),
+            0,
+            Payload.BEHAVIOR_REVERT_ON_ERROR
         );
         bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, uint256(0));
@@ -592,18 +598,16 @@ contract TrailsRouterShimTest is Test {
 
         // First call
         Payload.Call[] memory calls1 = new Payload.Call[](1);
-        calls1[0] = _createCall(
-            address(router), abi.encodeWithSignature("call1()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
-        );
+        calls1[0] =
+            _createCall(address(router), abi.encodeWithSignature("call1()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR);
         bytes memory routerCalldata1 = TestHelpers.encodeCallsPayload(calls1);
         bytes memory forwardData1 = abi.encode(routerCalldata1, uint256(0));
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash1, 0, 0, 0, 0, forwardData1);
 
         // Second call
         Payload.Call[] memory calls2 = new Payload.Call[](1);
-        calls2[0] = _createCall(
-            address(router), abi.encodeWithSignature("call2()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
-        );
+        calls2[0] =
+            _createCall(address(router), abi.encodeWithSignature("call2()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR);
         bytes memory routerCalldata2 = TestHelpers.encodeCallsPayload(calls2);
         bytes memory forwardData2 = abi.encode(routerCalldata2, uint256(0));
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash2, 0, 0, 0, 0, forwardData2);

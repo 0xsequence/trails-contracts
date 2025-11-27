@@ -13,6 +13,7 @@ import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDeleg
 import {TstoreSetter, TstoreMode, TstoreRead} from "test/utils/TstoreUtils.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
+
 // -----------------------------------------------------------------------------
 // Helper Contracts and Structs
 // -----------------------------------------------------------------------------
