@@ -253,7 +253,7 @@ contract TrailsRouterShimTest is Test {
 
         // Verify sentinel by re-etching TrailsRouter and validating via delegated entrypoint
         bytes memory original = address(shimImpl).code;
-        vm.etch(holder, address(new TrailsRouter()).code);
+        vm.etch(holder, address(new TrailsRouter(0xcA11bde05977b3631167028862bE2a173976CA11)).code);
 
         address payable recipient = payable(address(0x111));
         vm.deal(holder, callValue);
@@ -309,7 +309,7 @@ contract TrailsRouterShimTest is Test {
 
         // Verify via TrailsRouter delegated validation
         bytes memory original = address(shimImpl).code;
-        vm.etch(holder, address(new TrailsRouter()).code);
+        vm.etch(holder, address(new TrailsRouter(0xcA11bde05977b3631167028862bE2a173976CA11)).code);
         address payable recipient = payable(address(0x112));
         vm.deal(holder, 1 ether);
         bytes memory data =

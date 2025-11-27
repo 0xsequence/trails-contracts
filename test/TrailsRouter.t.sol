@@ -49,6 +49,17 @@ contract RevertingReceiver {
     }
 }
 
+// Mock multicall that always fails (for testing storage conflicts)
+contract AlwaysFailingMulticall3 {
+    function aggregate3(IMulticall3.Call3[] calldata) external payable {
+        revert("MockMulticall3: forced failure");
+    }
+
+    function aggregate3Value(IMulticall3.Call3Value[] calldata) external payable {
+        revert("MockMulticall3: forced failure");
+    }
+}
+
 contract MockTarget {
     uint256 public lastAmount;
     bool public shouldRevert;
@@ -199,7 +210,7 @@ contract TrailsRouterTest is Test {
         MockMulticall3 mockMulticall3 = new MockMulticall3();
         vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, address(mockMulticall3).code);
 
-        router = new TrailsRouter();
+        router = new TrailsRouter(0xcA11bde05977b3631167028862bE2a173976CA11);
         getter = new MockSenderGetter();
         mockToken = new MockERC20("MockToken", "MTK", 18);
         failingToken = new FailingToken();
@@ -865,16 +876,12 @@ contract TrailsRouterTest is Test {
         // Save original multicall code
         bytes memory originalCode = 0xcA11bde05977b3631167028862bE2a173976CA11.code;
 
-        // Deploy and etch failing multicall
-        MockMulticall3 failingMulticall = new MockMulticall3();
+        // Deploy and etch always-failing multicall (doesn't use storage, always reverts)
+        AlwaysFailingMulticall3 failingMulticall = new AlwaysFailingMulticall3();
         vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, address(failingMulticall).code);
 
         // Verify the etch worked
         assertEq(keccak256(0xcA11bde05977b3631167028862bE2a173976CA11.code), keccak256(address(failingMulticall).code));
-
-        // Set the failure flag directly in storage since delegatecall uses caller's storage
-        // The shouldFail variable is at slot 0 in MockMulticall3
-        vm.store(address(router), bytes32(0), bytes32(uint256(1))); // Set shouldFail = true in router's storage
 
         IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
         calls[0] = IMulticall3.Call3({
@@ -901,12 +908,9 @@ contract TrailsRouterTest is Test {
         // Save original multicall code
         bytes memory originalCode = 0xcA11bde05977b3631167028862bE2a173976CA11.code;
 
-        // Mock multicall3 to return failure
-        MockMulticall3 failingMulticall = new MockMulticall3();
+        // Deploy and etch always-failing multicall (doesn't use storage, always reverts)
+        AlwaysFailingMulticall3 failingMulticall = new AlwaysFailingMulticall3();
         vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, address(failingMulticall).code);
-
-        // Set the failure flag directly in storage since delegatecall uses caller's storage
-        vm.store(address(router), bytes32(0), bytes32(uint256(1))); // Set shouldFail = true in router's storage
 
         IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
         calls[0] = IMulticall3.Call3({
