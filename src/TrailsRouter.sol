@@ -34,7 +34,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
     /// @notice Address of the Sequence V3 Guest module for forwarding CallsPayload
     /// @dev Guest module address is deterministic via CREATE2 deployment
-    address public immutable GUEST_MODULE = 0x0000000000000000000000000000000000000001;
+    address public immutable GUEST_MODULE = 0x0000000000601fcA38f0cCA649453F6739436d6C;
 
 
     // -------------------------------------------------------------------------
