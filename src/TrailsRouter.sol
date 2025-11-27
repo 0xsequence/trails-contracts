@@ -21,7 +21,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     using SafeERC20 for IERC20;
 
     // -------------------------------------------------------------------------
-    // State Variables
+    // Immutable Variables
     // -------------------------------------------------------------------------
 
     address public immutable MULTICALL3;
