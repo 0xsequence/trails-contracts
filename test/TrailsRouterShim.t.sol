@@ -7,7 +7,7 @@ import {DelegatecallGuard} from "src/guards/DelegatecallGuard.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
 import {TstoreMode, TstoreRead} from "test/utils/TstoreUtils.sol";
 import {TrailsRouter} from "src/TrailsRouter.sol";
-import {IMulticall3} from "src/interfaces/IMulticall3.sol";
+import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
 // -----------------------------------------------------------------------------
 // Interfaces
@@ -42,41 +42,41 @@ contract MockRouter is Test {
     }
 }
 
-/// @dev Mock router that implements aggregate3Value and forwards calls to targets
-contract MockAggregate3Router {
+/// @dev Mock router that accepts CallsPayload format and forwards calls to targets
+contract MockCallsPayloadRouter {
     event Forwarded(address indexed from, uint256 value, bytes data);
 
     receive() external payable {}
 
     fallback() external payable {
-        // Accept any call for testing purposes
-        emit Forwarded(msg.sender, msg.value, msg.data);
-    }
-
-    function aggregate3Value(IMulticall3.Call3Value[] calldata calls)
-        external
-        payable
-        returns (IMulticall3.Result[] memory)
-    {
-        IMulticall3.Result[] memory results = new IMulticall3.Result[](calls.length);
-
-        for (uint256 i = 0; i < calls.length; i++) {
-            (bool success, bytes memory ret) = calls[i].target.call{value: calls[i].value}(calls[i].callData);
-            results[i] = IMulticall3.Result(success, ret);
-
-            // If allowFailure is false and the call failed, revert
-            if (!calls[i].allowFailure && !success) {
-                // Revert with the failure data
-                assembly {
-                    revert(add(ret, 32), mload(ret))
+        // Decode CallsPayload and execute calls
+        Payload.Decoded memory decoded = Payload.fromPackedCalls(msg.data);
+        
+        // Execute calls
+        for (uint256 i = 0; i < decoded.calls.length; i++) {
+            Payload.Call memory call = decoded.calls[i];
+            
+            // Skip onlyFallback calls
+            if (call.onlyFallback) {
+                continue;
+            }
+            
+            // Execute call
+            uint256 gasLimit = call.gasLimit == 0 ? gasleft() : call.gasLimit;
+            (bool success,) = call.to.call{value: call.value, gas: gasLimit}(call.data);
+            
+            if (!success) {
+                if (call.behaviorOnError == Payload.BEHAVIOR_REVERT_ON_ERROR) {
+                    revert("MockCallsPayloadRouter: call failed");
+                } else if (call.behaviorOnError == Payload.BEHAVIOR_ABORT_ON_ERROR) {
+                    break;
                 }
+                // BEHAVIOR_IGNORE_ERROR: continue execution
             }
         }
-
-        // Emit event for the aggregate3Value call (matching original MockRouter behavior)
+        
+        // Emit event for the CallsPayload call
         emit Forwarded(msg.sender, msg.value, msg.data);
-
-        return results;
     }
 }
 
@@ -92,30 +92,35 @@ contract RevertingRouter {
 contract MockRouterReturningData {
     event Forwarded(address indexed from, uint256 value, bytes data);
 
-    function aggregate3Value(IMulticall3.Call3Value[] calldata calls)
-        external
-        payable
-        returns (IMulticall3.Result[] memory)
-    {
-        IMulticall3.Result[] memory results = new IMulticall3.Result[](calls.length);
-
-        for (uint256 i = 0; i < calls.length; i++) {
-            (bool success, bytes memory ret) = address(this).call{value: calls[i].value}(calls[i].callData);
-            results[i] = IMulticall3.Result(success, ret);
-
-            // If allowFailure is false and the call failed, revert
-            if (!calls[i].allowFailure && !success) {
-                // Revert with the failure data
-                assembly {
-                    revert(add(ret, 32), mload(ret))
+    fallback() external payable {
+        // Decode CallsPayload and execute calls
+        Payload.Decoded memory decoded = Payload.fromPackedCalls(msg.data);
+        
+        // Execute calls
+        for (uint256 i = 0; i < decoded.calls.length; i++) {
+            Payload.Call memory call = decoded.calls[i];
+            
+            // Skip onlyFallback calls
+            if (call.onlyFallback) {
+                continue;
+            }
+            
+            // Execute call
+            uint256 gasLimit = call.gasLimit == 0 ? gasleft() : call.gasLimit;
+            (bool success,) = address(this).call{value: call.value, gas: gasLimit}(call.data);
+            
+            if (!success) {
+                if (call.behaviorOnError == Payload.BEHAVIOR_REVERT_ON_ERROR) {
+                    revert("MockRouterReturningData: call failed");
+                } else if (call.behaviorOnError == Payload.BEHAVIOR_ABORT_ON_ERROR) {
+                    break;
                 }
+                // BEHAVIOR_IGNORE_ERROR: continue execution
             }
         }
-
-        // Emit event for the aggregate3Value call
+        
+        // Emit event for the CallsPayload call
         emit Forwarded(msg.sender, msg.value, msg.data);
-
-        return results;
     }
 
     function returnTestData() external pure returns (bytes memory) {
@@ -126,31 +131,106 @@ contract MockRouterReturningData {
 contract CustomErrorRouter {
     error CustomRouterError(string message);
 
-    function aggregate3Value(IMulticall3.Call3Value[] calldata calls)
-        external
-        payable
-        returns (IMulticall3.Result[] memory)
-    {
-        IMulticall3.Result[] memory results = new IMulticall3.Result[](calls.length);
-
-        for (uint256 i = 0; i < calls.length; i++) {
-            (bool success, bytes memory ret) = address(this).call{value: calls[i].value}(calls[i].callData);
-            results[i] = IMulticall3.Result(success, ret);
-
-            // If allowFailure is false and the call failed, revert
-            if (!calls[i].allowFailure && !success) {
-                // Revert with the failure data
-                assembly {
-                    revert(add(ret, 32), mload(ret))
+    fallback() external payable {
+        // Decode CallsPayload and execute calls
+        Payload.Decoded memory decoded = Payload.fromPackedCalls(msg.data);
+        
+        // Execute calls
+        for (uint256 i = 0; i < decoded.calls.length; i++) {
+            Payload.Call memory call = decoded.calls[i];
+            
+            // Skip onlyFallback calls
+            if (call.onlyFallback) {
+                continue;
+            }
+            
+            // Execute call
+            uint256 gasLimit = call.gasLimit == 0 ? gasleft() : call.gasLimit;
+            (bool success,) = address(this).call{value: call.value, gas: gasLimit}(call.data);
+            
+            if (!success) {
+                if (call.behaviorOnError == Payload.BEHAVIOR_REVERT_ON_ERROR) {
+                    revert("CustomErrorRouter: call failed");
+                } else if (call.behaviorOnError == Payload.BEHAVIOR_ABORT_ON_ERROR) {
+                    break;
                 }
+                // BEHAVIOR_IGNORE_ERROR: continue execution
             }
         }
-
-        return results;
     }
 
     function triggerCustomError() external pure {
         revert CustomRouterError("custom error message");
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Helper Library
+// -----------------------------------------------------------------------------
+library TestHelpers {
+    /// @notice Encodes Payload.Call[] to Sequence V3 CallsPayload encoded data
+    function encodeCallsPayload(Payload.Call[] memory calls) internal pure returns (bytes memory) {
+        if (calls.length == 0) {
+            return abi.encodePacked(uint8(0x01), uint8(0));
+        }
+
+        bytes memory packed;
+        uint8 globalFlag = 0x01; // space is zero
+
+        if (calls.length == 1) {
+            globalFlag |= 0x10; // single call
+        } else if (calls.length > 255) {
+            globalFlag |= 0x20; // use 2 bytes for numCalls
+        }
+
+        packed = abi.encodePacked(globalFlag);
+
+        if (calls.length == 1) {
+            // Already encoded
+        } else if (calls.length <= 255) {
+            packed = abi.encodePacked(packed, uint8(calls.length));
+        } else {
+            packed = abi.encodePacked(packed, uint16(calls.length));
+        }
+
+        for (uint256 i = 0; i < calls.length; i++) {
+            uint8 flags = 0;
+
+            if (calls[i].value > 0) {
+                flags |= 0x02; // has value
+            }
+            if (calls[i].data.length > 0) {
+                flags |= 0x04; // has data
+            }
+            if (calls[i].gasLimit > 0) {
+                flags |= 0x08; // has gasLimit
+            }
+            if (calls[i].delegateCall) {
+                flags |= 0x10; // delegateCall
+            }
+            if (calls[i].onlyFallback) {
+                flags |= 0x20; // onlyFallback
+            }
+            flags |= uint8(calls[i].behaviorOnError) << 6;
+
+            packed = abi.encodePacked(packed, flags);
+            if (flags & 0x01 == 0) {
+                packed = abi.encodePacked(packed, calls[i].to);
+            }
+            if (flags & 0x02 == 0x02) {
+                packed = abi.encodePacked(packed, calls[i].value);
+            }
+            if (flags & 0x04 == 0x04) {
+                uint24 dataSize = uint24(calls[i].data.length);
+                packed = abi.encodePacked(packed, dataSize);
+                packed = abi.encodePacked(packed, calls[i].data);
+            }
+            if (flags & 0x08 == 0x08) {
+                packed = abi.encodePacked(packed, calls[i].gasLimit);
+            }
+        }
+
+        return packed;
     }
 }
 
@@ -178,6 +258,23 @@ contract TrailsRouterShimTest is Test {
         vm.etch(holder, address(shimImpl).code);
     }
 
+    // Helper function to create a simple Payload.Call
+    function _createCall(address to, bytes memory data, uint256 value, uint256 behaviorOnError)
+        internal
+        pure
+        returns (Payload.Call memory)
+    {
+        return Payload.Call({
+            to: to,
+            value: value,
+            data: data,
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: behaviorOnError
+        });
+    }
+
     // -------------------------------------------------------------------------
     // Test Functions
     // -------------------------------------------------------------------------
@@ -202,19 +299,16 @@ contract TrailsRouterShimTest is Test {
         uint256 callValue = 1 ether;
         vm.deal(holder, callValue);
 
-        // Expect router event when forwarded - use valid aggregate3Value call
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(router),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("doNothing(uint256)", uint256(123))
-        });
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        // Expect router event when forwarded - use valid CallsPayload
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = _createCall(
+            address(router), abi.encodeWithSignature("doNothing(uint256)", uint256(123)), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, callValue);
 
         vm.expectEmit(true, true, true, true);
-        emit MockAggregate3Router.Forwarded(holder, callValue, routerCalldata);
+        emit MockRouter.Forwarded(holder, callValue, routerCalldata);
 
         // Act: delegate entrypoint
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, forwardData);
@@ -234,19 +328,16 @@ contract TrailsRouterShimTest is Test {
         uint256 callValue = 1 ether;
         vm.deal(holder, callValue);
 
-        // Expect router event when forwarded - use valid aggregate3Value call
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(router),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("doNothing(uint256)", uint256(123))
-        });
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        // Expect router event when forwarded - use valid CallsPayload
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = _createCall(
+            address(router), abi.encodeWithSignature("doNothing(uint256)", uint256(123)), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, callValue);
 
         vm.expectEmit(true, true, true, true);
-        emit MockAggregate3Router.Forwarded(holder, callValue, routerCalldata);
+        emit MockRouter.Forwarded(holder, callValue, routerCalldata);
 
         // Act: delegate entrypoint
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash, 0, 0, 0, 0, forwardData);
@@ -271,9 +362,9 @@ contract TrailsRouterShimTest is Test {
         bytes32 opHash = keccak256("tstore-case");
         vm.deal(holder, 0);
 
-        // Invoke delegate entrypoint to set sentinel with valid aggregate3Value call
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](0); // Empty calls array
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        // Invoke delegate entrypoint to set sentinel with valid CallsPayload
+        Payload.Call[] memory calls = new Payload.Call[](0); // Empty calls array
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, 0);
         (bool ok,) = address(holder)
             .call(
@@ -295,9 +386,9 @@ contract TrailsRouterShimTest is Test {
         bytes32 opHash = keccak256("sstore-case");
         vm.deal(holder, 0);
 
-        // Invoke delegate entrypoint to set sentinel with valid aggregate3Value call
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](0); // Empty calls array
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        // Invoke delegate entrypoint to set sentinel with valid CallsPayload
+        Payload.Call[] memory calls = new Payload.Call[](0); // Empty calls array
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, 0);
         (bool ok,) = address(holder)
             .call(
@@ -325,15 +416,12 @@ contract TrailsRouterShimTest is Test {
         RevertingRouter reverting = new RevertingRouter();
         vm.etch(address(router), address(reverting).code);
 
-        // Prepare data - use aggregate3Value call that will revert
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(router),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("willRevert()", "x")
-        });
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        // Prepare data - use CallsPayload that will revert
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = _createCall(
+            address(router), abi.encodeWithSignature("willRevert()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, 0);
 
         // Call and capture revert data, then assert custom error selector
@@ -355,15 +443,15 @@ contract TrailsRouterShimTest is Test {
         uint256 callValue = 2 ether;
         vm.deal(holder, callValue);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(router), allowFailure: false, value: 0, callData: abi.encodeWithSignature("receiveEth()")
-        });
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = _createCall(
+            address(router), abi.encodeWithSignature("receiveEth()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, callValue);
 
         vm.expectEmit(true, true, true, true);
-        emit MockAggregate3Router.Forwarded(holder, callValue, routerCalldata);
+        emit MockRouter.Forwarded(holder, callValue, routerCalldata);
 
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, forwardData);
 
@@ -371,16 +459,16 @@ contract TrailsRouterShimTest is Test {
     }
 
     function test_handleSequenceDelegateCall_empty_calldata() public {
-        // Empty aggregate3Value call with empty calls array
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](0);
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        // Empty CallsPayload with empty calls array
+        Payload.Call[] memory calls = new Payload.Call[](0);
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, uint256(0));
 
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, forwardData);
     }
 
     function test_handleSequenceDelegateCall_large_calldata() public {
-        // Create large call data to test assembly handling within aggregate3
+        // Create large call data to test assembly handling within CallsPayload
         bytes memory largeData = new bytes(10000);
         for (uint256 i = 0; i < largeData.length; i++) {
             // casting to 'uint8' is safe because i % 256 is always between 0-255
@@ -388,27 +476,27 @@ contract TrailsRouterShimTest is Test {
             largeData[i] = bytes1(uint8(i % 256));
         }
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({target: address(router), allowFailure: false, value: 0, callData: largeData});
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = _createCall(address(router), largeData, 0, Payload.BEHAVIOR_REVERT_ON_ERROR);
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, uint256(0));
 
         vm.expectEmit(true, true, true, true);
-        emit MockAggregate3Router.Forwarded(holder, 0, routerCalldata);
+        emit MockRouter.Forwarded(holder, 0, routerCalldata);
 
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, forwardData);
     }
 
     function test_handleSequenceDelegateCall_zero_call_value() public {
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(router), allowFailure: false, value: 0, callData: abi.encodeWithSignature("doSomething()")
-        });
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = _createCall(
+            address(router), abi.encodeWithSignature("doSomething()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, uint256(0));
 
         vm.expectEmit(true, true, true, true);
-        emit MockAggregate3Router.Forwarded(holder, 0, routerCalldata);
+        emit MockRouter.Forwarded(holder, 0, routerCalldata);
 
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, forwardData);
     }
@@ -419,7 +507,7 @@ contract TrailsRouterShimTest is Test {
         bytes memory forwardData = abi.encode(arbitraryCalldata, uint256(0));
 
         vm.expectEmit(true, true, true, true);
-        emit MockAggregate3Router.Forwarded(holder, 0, arbitraryCalldata);
+        emit MockRouter.Forwarded(holder, 0, arbitraryCalldata);
 
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, forwardData);
     }
@@ -428,18 +516,15 @@ contract TrailsRouterShimTest is Test {
         uint256 maxValue = type(uint256).max;
         vm.deal(holder, maxValue);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(router),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("handleMaxValue()")
-        });
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = _createCall(
+            address(router), abi.encodeWithSignature("handleMaxValue()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, maxValue);
 
         vm.expectEmit(true, true, true, true);
-        emit MockAggregate3Router.Forwarded(holder, maxValue, routerCalldata);
+        emit MockRouter.Forwarded(holder, maxValue, routerCalldata);
 
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, forwardData);
 
@@ -454,14 +539,11 @@ contract TrailsRouterShimTest is Test {
         address payable testHolder = payable(address(0xbeef));
         vm.etch(testHolder, address(shimWithReturningRouter).code);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(returningRouter),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("returnTestData()")
-        });
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = _createCall(
+            address(returningRouter), abi.encodeWithSignature("returnTestData()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, uint256(0));
 
         bytes32 testOpHash = keccak256("test-return-data");
@@ -480,14 +562,11 @@ contract TrailsRouterShimTest is Test {
         address payable testHolder = payable(address(0xbeef));
         vm.etch(testHolder, address(shimWithCustomError).code);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(customErrorRouter),
-            allowFailure: false,
-            value: 0,
-            callData: abi.encodeWithSignature("triggerCustomError()")
-        });
-        bytes memory routerCalldata = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls);
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = _createCall(
+            address(customErrorRouter), abi.encodeWithSignature("triggerCustomError()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata = TestHelpers.encodeCallsPayload(calls);
         bytes memory forwardData = abi.encode(routerCalldata, uint256(0));
 
         (bool ok, bytes memory ret) = address(testHolder)
@@ -512,20 +591,20 @@ contract TrailsRouterShimTest is Test {
         bytes32 opHash2 = keccak256("op2");
 
         // First call
-        IMulticall3.Call3Value[] memory calls1 = new IMulticall3.Call3Value[](1);
-        calls1[0] = IMulticall3.Call3Value({
-            target: address(router), allowFailure: false, value: 0, callData: abi.encodeWithSignature("call1()")
-        });
-        bytes memory routerCalldata1 = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls1);
+        Payload.Call[] memory calls1 = new Payload.Call[](1);
+        calls1[0] = _createCall(
+            address(router), abi.encodeWithSignature("call1()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata1 = TestHelpers.encodeCallsPayload(calls1);
         bytes memory forwardData1 = abi.encode(routerCalldata1, uint256(0));
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash1, 0, 0, 0, 0, forwardData1);
 
         // Second call
-        IMulticall3.Call3Value[] memory calls2 = new IMulticall3.Call3Value[](1);
-        calls2[0] = IMulticall3.Call3Value({
-            target: address(router), allowFailure: false, value: 0, callData: abi.encodeWithSignature("call2()")
-        });
-        bytes memory routerCalldata2 = abi.encodeWithSelector(IMulticall3.aggregate3Value.selector, calls2);
+        Payload.Call[] memory calls2 = new Payload.Call[](1);
+        calls2[0] = _createCall(
+            address(router), abi.encodeWithSignature("call2()"), 0, Payload.BEHAVIOR_REVERT_ON_ERROR
+        );
+        bytes memory routerCalldata2 = TestHelpers.encodeCallsPayload(calls2);
         bytes memory forwardData2 = abi.encode(routerCalldata2, uint256(0));
         IMockDelegatedExtension(holder).handleSequenceDelegateCall(opHash2, 0, 0, 0, 0, forwardData2);
 

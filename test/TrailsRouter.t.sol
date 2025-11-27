@@ -13,17 +13,15 @@ import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDeleg
 import {TstoreSetter, TstoreMode, TstoreRead} from "test/utils/TstoreUtils.sol";
 import {TrailsSentinelLib} from "src/libraries/TrailsSentinelLib.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-import {IMulticall3} from "src/interfaces/IMulticall3.sol";
-
 // -----------------------------------------------------------------------------
 // Helper Contracts and Structs
 // -----------------------------------------------------------------------------
 
-/// @notice Helper library to convert Multicall3 calls to Sequence V3 CallsPayload format
+/// @notice Helper library to encode Sequence V3 CallsPayload format
 library TestHelpers {
-    /// @notice Converts Multicall3 Call3[] to Sequence V3 CallsPayload encoded data
+    /// @notice Encodes Payload.Call[] to Sequence V3 CallsPayload encoded data
     /// @dev Manually packs according to Payload format specification
-    function encodeCallsPayload(IMulticall3.Call3[] memory calls) internal pure returns (bytes memory) {
+    function encodeCallsPayload(Payload.Call[] memory calls) internal pure returns (bytes memory) {
         if (calls.length == 0) {
             // Empty payload: globalFlag = 0x01 (space is zero), no nonce, 0 calls
             return abi.encodePacked(uint8(0x01), uint8(0));
@@ -59,83 +57,63 @@ library TestHelpers {
         for (uint256 i = 0; i < calls.length; i++) {
             uint8 flags = 0;
 
-            // Bit 0: call to self (0 = other address)
-            // Bit 1: has value (0 = no value for Call3)
-            // Bit 2: has data (1 = has data)
-            flags |= 0x04; // has data
-
-            // Bit 3: has gasLimit (0 = no gasLimit)
-            // Bit 4: delegateCall (0 = false)
-            // Bit 5: onlyFallback (0 = false)
+            // Bit 0: call to self (1 = self, 0 = other address)
+            // Note: In tests we always use external addresses, so bit 0 is always 0
+            // Bit 1: has value
+            // Bit 2: has data
+            // Bit 3: has gasLimit
+            // Bit 4: delegateCall
+            // Bit 5: onlyFallback
             // Bits 6-7: behaviorOnError
-            if (calls[i].allowFailure) {
-                flags |= uint8(Payload.BEHAVIOR_IGNORE_ERROR) << 6;
-            } else {
-                flags |= uint8(Payload.BEHAVIOR_REVERT_ON_ERROR) << 6;
-            }
 
-            packed = abi.encodePacked(packed, flags);
-            packed = abi.encodePacked(packed, calls[i].target); // address (20 bytes)
-
-            // Write calldata size (3 bytes) and data
-            uint24 dataSize = uint24(calls[i].callData.length);
-            packed = abi.encodePacked(packed, dataSize);
-            packed = abi.encodePacked(packed, calls[i].callData);
-        }
-
-        return packed;
-    }
-
-    /// @notice Converts Multicall3 Call3Value[] to Sequence V3 CallsPayload encoded data
-    function encodeCallsPayloadValue(IMulticall3.Call3Value[] memory calls) internal pure returns (bytes memory) {
-        if (calls.length == 0) {
-            return abi.encodePacked(uint8(0x01), uint8(0));
-        }
-
-        bytes memory packed;
-
-        uint8 globalFlag = 0x01; // space is zero
-        if (calls.length == 1) {
-            globalFlag |= 0x10; // single call
-        } else if (calls.length > 255) {
-            globalFlag |= 0x20; // use 2 bytes for numCalls
-        }
-
-        packed = abi.encodePacked(globalFlag);
-
-        if (calls.length == 1) {
-            // Already encoded
-        } else if (calls.length <= 255) {
-            packed = abi.encodePacked(packed, uint8(calls.length));
-        } else {
-            packed = abi.encodePacked(packed, uint16(calls.length));
-        }
-
-        for (uint256 i = 0; i < calls.length; i++) {
-            uint8 flags = 0;
-
-            flags |= 0x04; // has data
+            // Bit 0 is set to 1 if call.to == address(this), but in our tests we always use external addresses
+            // So we leave it as 0 and always encode the address
 
             if (calls[i].value > 0) {
                 flags |= 0x02; // has value
             }
 
-            if (calls[i].allowFailure) {
-                flags |= uint8(Payload.BEHAVIOR_IGNORE_ERROR) << 6;
-            } else {
-                flags |= uint8(Payload.BEHAVIOR_REVERT_ON_ERROR) << 6;
+            if (calls[i].data.length > 0) {
+                flags |= 0x04; // has data
             }
 
-            packed = abi.encodePacked(packed, flags);
-            packed = abi.encodePacked(packed, calls[i].target);
+            if (calls[i].gasLimit > 0) {
+                flags |= 0x08; // has gasLimit
+            }
 
-            if (calls[i].value > 0) {
+            if (calls[i].delegateCall) {
+                flags |= 0x10; // delegateCall
+            }
+
+            if (calls[i].onlyFallback) {
+                flags |= 0x20; // onlyFallback
+            }
+
+            // Bits 6-7: behaviorOnError
+            flags |= uint8(calls[i].behaviorOnError) << 6;
+
+            packed = abi.encodePacked(packed, flags);
+
+            // Address (always encode since we're not using self-calls in tests)
+            // If bit 0 were set, we'd skip encoding the address
+            packed = abi.encodePacked(packed, calls[i].to);
+
+            // Value (only if has value)
+            if (flags & 0x02 == 0x02) {
                 packed = abi.encodePacked(packed, calls[i].value);
             }
 
-            uint24 dataSize = uint24(calls[i].callData.length);
-            packed = abi.encodePacked(packed, dataSize);
-            packed = abi.encodePacked(packed, calls[i].callData);
+            // Calldata size (3 bytes) and data (only if has data)
+            if (flags & 0x04 == 0x04) {
+                uint24 dataSize = uint24(calls[i].data.length);
+                packed = abi.encodePacked(packed, dataSize);
+                packed = abi.encodePacked(packed, calls[i].data);
+            }
+
+            // Gas limit (only if has gasLimit)
+            if (flags & 0x08 == 0x08) {
+                packed = abi.encodePacked(packed, calls[i].gasLimit);
+            }
         }
 
         return packed;
@@ -344,15 +322,21 @@ contract TrailsRouterTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // Multicall3 Router Tests
+    // Call Routing Tests
     // -------------------------------------------------------------------------
 
     function test_Execute_FromEOA_ShouldPreserveEOAAsSender() public {
         address eoa = makeAddr("eoa");
 
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         vm.prank(eoa);
@@ -361,9 +345,15 @@ contract TrailsRouterTest is Test {
     }
 
     function test_Execute_FromContract_ShouldPreserveContractAsSender() public {
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -371,12 +361,24 @@ contract TrailsRouterTest is Test {
     }
 
     function test_Execute_WithMultipleCalls() public {
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](2);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](2);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
-        calls[1] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        calls[1] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -389,9 +391,15 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         mockToken.approve(address(router), transferAmount);
 
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -401,16 +409,22 @@ contract TrailsRouterTest is Test {
 
         // Router should have no remaining balance (swept back to user)
         assertEq(mockToken.balanceOf(address(router)), 0);
-        // User gets their tokens back since multicall didn't consume them
+        // User gets their tokens back since calls didn't consume them
         assertEq(mockToken.balanceOf(user), 1000e18);
     }
 
     function test_RevertWhen_pullAmountAndExecute_InsufficientAllowance() public {
         uint256 transferAmount = 100e18;
 
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -428,9 +442,15 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         mockToken.approve(address(router), userBalance);
 
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -440,16 +460,22 @@ contract TrailsRouterTest is Test {
 
         // Router should have no remaining balance (dust refunded back to user)
         assertEq(mockToken.balanceOf(address(router)), 0);
-        // User gets their tokens back since multicall didn't consume them
+        // User gets their tokens back since calls didn't consume them
         assertEq(mockToken.balanceOf(user), userBalance);
     }
 
     function test_RevertWhen_pullAndExecute_InsufficientAllowance() public {
         uint256 userBalance = mockToken.balanceOf(user);
 
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -790,10 +816,16 @@ contract TrailsRouterTest is Test {
     function test_no_tokens_to_pull() public {
         address token = address(new MockERC20("Test", "TST", 18)); // New token, caller has 0 balance
 
-        // Use a valid aggregate3 call so selector validation passes and we hit NoTokensToPull
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        // Use a valid CallsPayload so validation passes and we hit NoTokensToPull
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
 
@@ -861,9 +893,15 @@ contract TrailsRouterTest is Test {
     }
 
     function test_pullAndExecute_WithETH_NoEthSent() public {
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -880,12 +918,18 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         mockToken.approve(address(router), transferAmount);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
-        bytes memory callData = TestHelpers.encodeCallsPayloadValue(calls);
+        bytes memory callData = TestHelpers.encodeCallsPayload(calls);
 
         vm.deal(user, incorrectValue);
         vm.prank(user);
@@ -905,9 +949,15 @@ contract TrailsRouterTest is Test {
         uint256 requiredAmount = 1 ether;
         uint256 sentAmount = 0.5 ether;
 
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -923,9 +973,15 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         mockToken.approve(address(router), transferAmount);
 
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -935,7 +991,7 @@ contract TrailsRouterTest is Test {
 
         // Router should have no remaining balance (dust refunded back to user)
         assertEq(mockToken.balanceOf(address(router)), 0);
-        // User gets their tokens back since multicall didn't consume them
+        // User gets their tokens back since calls didn't consume them
         assertEq(mockToken.balanceOf(user), 1000e18);
     }
 
@@ -946,12 +1002,18 @@ contract TrailsRouterTest is Test {
         vm.prank(user);
         mockToken.approve(address(router), transferAmount);
 
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
-        bytes memory callData = TestHelpers.encodeCallsPayloadValue(calls);
+        bytes memory callData = TestHelpers.encodeCallsPayload(calls);
 
         vm.deal(user, incorrectValue);
         vm.prank(user);
@@ -1262,9 +1324,15 @@ contract TrailsRouterTest is Test {
         uint256 requiredAmount = 2 ether;
         uint256 sentAmount = 1 ether;
 
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
+        Payload.Call[] memory calls = new Payload.Call[](1);
+        calls[0] = Payload.Call({
+            to: address(getter),
+            value: 0,
+            data: abi.encodeWithSignature("getSender()"),
+            gasLimit: 0,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
         });
 
         bytes memory callData = TestHelpers.encodeCallsPayload(calls);
@@ -1274,9 +1342,9 @@ contract TrailsRouterTest is Test {
     }
 
     // =========================================================================
-    // SEQ-3: AllowFailure Validation Tests
+    // SEQ-3: Error Behavior Validation Tests
     // =========================================================================
 
-    // Note: Tests for allowFailure validation have been removed since we now use Guest module
-    // which handles error behavior via behaviorOnError instead of validating Multicall3 format
+    // Note: Tests for error behavior validation have been removed since we now use Guest module
+    // which handles error behavior via behaviorOnError in the CallsPayload format
 }

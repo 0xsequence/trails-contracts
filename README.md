@@ -15,10 +15,10 @@ Trails Contracts provides a secure, efficient infrastructure for executing cross
 
 A consolidated router contract that combines three key functionalities:
 
-1. **Multicall Routing** - Delegates calls to Multicall3 while preserving msg.sender context
-   - `execute()` - Execute multiple calls in sequence via delegatecall
-   - `pullAndExecute()` - Pull user's full ERC20 balance, then execute multicall
-   - `pullAmountAndExecute()` - Pull specific ERC20 amount, then execute multicall
+1. **Call Routing** - Executes Sequence V3 CallsPayload format batch calls via Guest module
+   - `execute()` - Execute CallsPayload batch calls
+   - `pullAndExecute()` - Pull user's full ERC20 balance, then execute CallsPayload
+   - `pullAmountAndExecute()` - Pull specific ERC20 amount, then execute CallsPayload
 
 2. **Balance Injection** - Dynamically inject token balances into calldata
    - `injectSweepAndCall()` - Sweep tokens from msg.sender, inject balance into calldata, execute call
@@ -191,7 +191,7 @@ All contracts are deployed via ERC-2470 Singleton Factory for deterministic addr
 | TrailsIntentEntrypoint | 0xF1Cb5D0E6197adF31c969a595f1Fc23F6A4124b5 |
 | TrailsRouterShim | 0x5D4C6AF414c1f9cE650b08D528ef678d2C266a58 |
 
-**Note:** TrailsRouter consolidates the functionality of TrailsTokenSweeper, TrailsBalanceInjector, and TrailsMulticall3Router into a single deployment.
+**Note:** TrailsRouter consolidates the functionality of TrailsTokenSweeper, TrailsBalanceInjector, and TrailsRouter (call routing) into a single deployment.
 
 ### Deployment Scripts
 

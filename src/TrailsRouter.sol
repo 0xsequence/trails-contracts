@@ -21,7 +21,7 @@ interface IGuest {
 /// @notice Consolidated router for Trails operations including call routing, balance injection, and token sweeping
 /// @dev Must be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
 ///      Uses Sequence V3 CallsPayload format for batch call execution.
-///      Forwards CallsPayload to Guest module for execution (similar to how Multicall3 was used).
+///      Forwards CallsPayload to Guest module for execution.
 contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, Tstorish {
     // -------------------------------------------------------------------------
     // Libraries
@@ -84,7 +84,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             revert InvalidPayloadFormat();
         }
 
-        // Forward CallsPayload to Guest module (similar to how Multicall3 was used)
+        // Forward CallsPayload to Guest module
         // Guest module's fallback accepts CallsPayload encoded data and doesn't return anything
         (bool success, bytes memory returnData) = GUEST_MODULE.call{value: msg.value}(data);
         if (!success) {
@@ -125,7 +125,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             revert InvalidPayloadFormat();
         }
 
-        // Forward CallsPayload to Guest module (similar to how Multicall3 was used)
+        // Forward CallsPayload to Guest module
         // Guest module's fallback accepts CallsPayload encoded data and doesn't return anything
         (bool success, bytes memory returnData) = GUEST_MODULE.call{value: msg.value}(data);
         if (!success) {

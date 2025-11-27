@@ -29,7 +29,7 @@ sequenceDiagram
     participant OriginIntent as Origin Intent Address<br/>(Sequence v3 Wallet)
     participant Shim as TrailsRouterShim
     participant Router as TrailsRouter
-    participant MC3 as Multicall3<br/>(0xcA11...bde05)
+    participant Guest as Guest Module<br/>(Sequence V3)
     participant Bridge as Bridge Protocol<br/>(LiFi/Relay)
     participant DestIntent as Destination Intent Address<br/>(Sequence v3 Wallet)
     participant FeeCollector as Fee Collector
@@ -41,14 +41,14 @@ sequenceDiagram
     Note over OriginIntent: Relayer detects deposit<br/>Initiates execution
 
     rect rgb(240, 248, 255)
-        Note over OriginIntent,MC3: CALL #1 - Origin Swap & Bridge
+        Note over OriginIntent,Guest: CALL #1 - Origin Swap & Bridge
         OriginIntent->>Shim: (delegatecall)<br/>handleSequenceDelegateCall(opHash, data)
-        Note over Shim: Decode: (bytes inner, uint256 callValue)<br/>Validate: selector == 0x174dea71 (aggregate3Value)
-        Shim->>Router: (call with value)<br/>pullAndExecute(token, multicall3Data)
-        Router->>MC3: (delegatecall)<br/>aggregate3Value(calls[])
-        Note over MC3: Execute batch:<br/>1. Token approvals<br/>2. DEX swap<br/>3. Bridge protocol call
-        MC3->>Bridge: Bridge tokens to destination
-        MC3-->>Router: success
+        Note over Shim: Decode: (bytes inner, uint256 callValue)<br/>Forward CallsPayload to router
+        Shim->>Router: (call with value)<br/>pullAndExecute(token, callsPayloadData)
+        Router->>Guest: (call with value)<br/>CallsPayload encoded data
+        Note over Guest: Execute batch:<br/>1. Token approvals<br/>2. DEX swap<br/>3. Bridge protocol call
+        Guest->>Bridge: Bridge tokens to destination
+        Guest-->>Router: success
         Router-->>Shim: returnData
         Note over Shim: _setTstorish(successSlot(opHash), SUCCESS_VALUE)
         Shim-->>OriginIntent: return
@@ -112,7 +112,7 @@ sequenceDiagram
     participant OriginIntent as Origin Intent Address<br/>(Sequence v3 Wallet)
     participant Shim as TrailsRouterShim
     participant Router as TrailsRouter
-    participant MC3 as Multicall3
+    participant Guest as Guest Module
     participant Bridge as Bridge Protocol<br/>(LiFi/Relay)
     participant DestIntent as Destination Intent Address<br/>(Sequence v3 Wallet)
     participant Protocol as Destination Protocol<br/>(Aave/Morpho/NFT)
@@ -125,7 +125,7 @@ sequenceDiagram
     rect rgb(240, 248, 255)
         Note over OriginIntent,MC3: CALL #1 - Origin Swap & Bridge
         OriginIntent->>Shim: (delegatecall)<br/>handleSequenceDelegateCall(opHash, data)
-        Shim->>Router: (call with value)<br/>pullAndExecute(token, multicall3Data)
+        Shim->>Router: (call with value)<br/>pullAndExecute(token, callsPayloadData)
         Router->>MC3: (delegatecall) aggregate3Value(calls[])
         MC3->>Bridge: Bridge tokens to destination
         MC3-->>Router: success
@@ -212,7 +212,7 @@ sequenceDiagram
     participant Intent as Intent Address<br/>(Sequence v3 Wallet)
     participant Shim as TrailsRouterShim
     participant Router as TrailsRouter
-    participant MC3 as Multicall3
+    participant Guest as Guest Module
     participant DEX as DEX Protocol<br/>(Uniswap/etc)
     participant FeeCollector as Fee Collector
 
@@ -226,7 +226,7 @@ sequenceDiagram
         Note over Intent,DEX: CALL #1 - Token Swap
         Intent->>Shim: (delegatecall)<br/>handleSequenceDelegateCall(opHash, data)
         Note over Shim: Validate: selector == 0x174dea71
-        Shim->>Router: (call with value)<br/>pullAndExecute(token, multicall3Data)
+        Shim->>Router: (call with value)<br/>pullAndExecute(token, callsPayloadData)
         Router->>MC3: (delegatecall)<br/>aggregate3Value(calls[])
         Note over MC3: Execute batch:<br/>1. Token approvals<br/>2. DEX swap (NO bridge)
         MC3->>DEX: Swap tokens
@@ -290,7 +290,7 @@ sequenceDiagram
     participant Intent as Intent Address<br/>(Sequence v3 Wallet)
     participant Shim as TrailsRouterShim
     participant Router as TrailsRouter
-    participant MC3 as Multicall3
+    participant Guest as Guest Module
     participant DEX as DEX Protocol
     participant Protocol as Destination Protocol<br/>(Aave/Morpho)
     participant FeeCollector as Fee Collector
@@ -377,7 +377,7 @@ sequenceDiagram
     participant Calls as Calls Module<br/>(Sequence v3)
     participant Shim as TrailsRouterShim
     participant Router as TrailsRouter
-    participant MC3 as Multicall3
+    participant Guest as Guest Module
     participant FeeCollector as Fee Collector
 
     Note over User,FeeCollector: ORIGIN CHAIN EXECUTION - Failure Scenario
@@ -388,7 +388,7 @@ sequenceDiagram
         Note over Intent,MC3: CALL #1 - Origin Swap/Bridge FAILS
         Intent->>Shim: (delegatecall)<br/>handleSequenceDelegateCall(opHash, data)
         Note over Shim: Validate selector: 0x174dea71
-        Shim->>Router: (call with value)<br/>pullAndExecute(token, multicall3Data)
+        Shim->>Router: (call with value)<br/>pullAndExecute(token, callsPayloadData)
         Router->>MC3: (delegatecall)<br/>aggregate3Value(calls[])
         Note over MC3: Execute batch:<br/>Token approvals → DEX swap/bridge
         MC3--xRouter: REVERT (swap fails, insufficient liquidity)
