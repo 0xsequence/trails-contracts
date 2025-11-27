@@ -62,6 +62,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     error AmountOffsetOutOfBounds();
     error PlaceholderMismatch();
     error TargetCallFailed(bytes revertData);
+    error BehaviorOnErrorMustBeRevert(uint256 callIndex);
 
     // -------------------------------------------------------------------------
     // Receive ETH
@@ -78,11 +79,9 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     /// @dev Accepts Sequence V3 CallsPayload format. Forwards to Guest module for execution.
     ///      Guest module doesn't return results, matching its fallback function behavior.
     function execute(bytes calldata data) public payable {
-        // Validate payload is transaction kind
+        // Decode and validate payload
         Payload.Decoded memory decoded = Payload.fromPackedCalls(data);
-        if (decoded.kind != Payload.KIND_TRANSACTIONS) {
-            revert InvalidPayloadFormat();
-        }
+        _validateV3CallsPayload(decoded);
 
         // Forward CallsPayload to Guest module
         // Guest module's fallback accepts CallsPayload encoded data and doesn't return anything
@@ -119,11 +118,9 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
-        // Validate payload is transaction kind
+        // Decode and validate payload
         Payload.Decoded memory decoded = Payload.fromPackedCalls(data);
-        if (decoded.kind != Payload.KIND_TRANSACTIONS) {
-            revert InvalidPayloadFormat();
-        }
+        _validateV3CallsPayload(decoded);
 
         // Forward CallsPayload to Guest module
         // Guest module's fallback accepts CallsPayload encoded data and doesn't return anything
@@ -343,6 +340,24 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     /// forge-lint: disable-next-line(mixed-case-function)
     function _getSelfBalance(address token) internal view returns (uint256) {
         return _getBalance(token, address(this));
+    }
+
+    /// forge-lint: disable-next-line(mixed-case-function)
+    /// @notice Validates that a Sequence V3 CallsPayload is a transaction kind and all calls have behaviorOnError set to REVERT_ON_ERROR
+    /// @dev This ensures atomicity: if any call reverts, the entire batch reverts
+    /// @param decoded The decoded CallsPayload to validate
+    function _validateV3CallsPayload(Payload.Decoded memory decoded) internal pure {
+        // Validate payload is transaction kind
+        if (decoded.kind != Payload.KIND_TRANSACTIONS) {
+            revert InvalidPayloadFormat();
+        }
+
+        // Iterate through all calls and verify behaviorOnError is REVERT_ON_ERROR
+        for (uint256 i = 0; i < decoded.calls.length; i++) {
+            if (decoded.calls[i].behaviorOnError != Payload.BEHAVIOR_REVERT_ON_ERROR) {
+                revert BehaviorOnErrorMustBeRevert(i);
+            }
+        }
     }
 
     /// forge-lint: disable-next-line(mixed-case-function)
