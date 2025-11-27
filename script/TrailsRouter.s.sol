@@ -25,8 +25,12 @@ contract Deploy is SingletonDeployer {
     function deployRouter(uint256 pk) public returns (address) {
         bytes32 salt = bytes32(0);
 
-        // Deploy TrailsRouter
-        bytes memory initCode = type(TrailsRouter).creationCode;
+        // Get guest module address from environment or use default
+        address guestModule = vm.envOr("GUEST_MODULE", address(0x0000000000601fcA38f0cCA649453F6739436d6C));
+        console.log("Guest Module Address:", guestModule);
+
+        // Deploy TrailsRouter with constructor argument
+        bytes memory initCode = bytes.concat(type(TrailsRouter).creationCode, abi.encode(guestModule));
         address router = _deployIfNotAlready("TrailsRouter", initCode, salt, pk);
 
         return router;

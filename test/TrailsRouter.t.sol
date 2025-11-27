@@ -318,10 +318,10 @@ contract TrailsRouterTest is Test {
 
     function setUp() public {
         // Deploy router
-        // Note: The router uses a hardcoded Guest module address (0x0000000000000000000000000000000000000001)
+        // Note: The router uses a Guest module address (0x0000000000000000000000000000000000000001)
         // This is a precompile address (ECRecover), so we can't mock it with vm.etch
         // Tests that need to mock Guest module behavior will need to be updated or skipped
-        router = new TrailsRouter();
+        router = new TrailsRouter(address(0x0000000000000000000000000000000000000001));
         getter = new MockSenderGetter();
         mockToken = new MockERC20("MockToken", "MTK", 18);
         failingToken = new FailingToken();

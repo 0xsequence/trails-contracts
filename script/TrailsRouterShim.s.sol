@@ -25,9 +25,6 @@ contract Deploy is SingletonDeployer {
 
         // Deploy TrailsRouter using the TrailsRouter deployment script
         TrailsRouterDeploy routerDeploy = new TrailsRouterDeploy();
-        routerDeploy.run();
-
-        // Get the deployed router address from the deployment script
         routerAddress = routerDeploy.deployRouter(pk);
         console.log("TrailsRouter deployed at:", routerAddress);
 

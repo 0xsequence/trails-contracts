@@ -29,12 +29,22 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     using SafeERC20 for IERC20;
 
     // -------------------------------------------------------------------------
-    // Immutable Variables
+    // State Variables
     // -------------------------------------------------------------------------
 
     /// @notice Address of the Sequence V3 Guest module for forwarding CallsPayload
-    /// @dev Guest module address is deterministic via CREATE2 deployment
-    address public immutable GUEST_MODULE = 0x0000000000601fcA38f0cCA649453F6739436d6C;
+    /// @dev Guest module address is set via constructor
+    address public GUEST_MODULE;
+
+    // -------------------------------------------------------------------------
+    // Constructor
+    // -------------------------------------------------------------------------
+
+    /// @notice Initialize the TrailsRouter with the Guest module address
+    /// @param guestModule Address of the Sequence V3 Guest module
+    constructor(address guestModule) {
+        GUEST_MODULE = guestModule;
+    }
 
 
     // -------------------------------------------------------------------------
