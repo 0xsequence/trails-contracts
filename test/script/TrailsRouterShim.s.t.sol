@@ -26,8 +26,11 @@ contract TrailsRouterShimDeploymentTest is Test {
     // -------------------------------------------------------------------------
 
     // Expected predetermined addresses (calculated using CREATE2)
+    // Must match the deployment script's initCode which includes constructor args
     function expectedRouterAddress() internal pure returns (address payable) {
-        return Create2Utils.calculateCreate2Address(type(TrailsRouter).creationCode, Create2Utils.standardSalt());
+        address guestModule = address(0x0000000000601fcA38f0cCA649453F6739436d6C);
+        bytes memory initCode = bytes.concat(type(TrailsRouter).creationCode, abi.encode(guestModule));
+        return Create2Utils.calculateCreate2Address(initCode, Create2Utils.standardSalt());
     }
 
     function expectedShimAddress() internal pure returns (address payable) {
