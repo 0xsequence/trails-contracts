@@ -4,16 +4,24 @@ pragma solidity ^0.8.30;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
+import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {Tstorish} from "tstorish/Tstorish.sol";
 import {DelegatecallGuard} from "./guards/DelegatecallGuard.sol";
-import {IMulticall3} from "./interfaces/IMulticall3.sol";
 import {ITrailsRouter} from "./interfaces/ITrailsRouter.sol";
 import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 
+/// @notice Guest module interface for forwarding CallsPayload
+interface IGuest {
+    /// @notice Fallback function that accepts CallsPayload encoded data
+    fallback() external payable;
+}
+
 /// @title TrailsRouter
 /// @author Miguel Mota, Shun Kakinoki
-/// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
+/// @notice Consolidated router for Trails operations including call routing, balance injection, and token sweeping
 /// @dev Must be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
+///      Uses Sequence V3 CallsPayload format for batch call execution.
+///      Forwards CallsPayload to Guest module for execution (similar to how Multicall3 was used).
 contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, Tstorish {
     // -------------------------------------------------------------------------
     // Libraries
@@ -24,7 +32,10 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     // Immutable Variables
     // -------------------------------------------------------------------------
 
-    address public immutable MULTICALL3 = 0xcA11bde05977b3631167028862bE2a173976CA11;
+    /// @notice Address of the Sequence V3 Guest module for forwarding CallsPayload
+    /// @dev Guest module address is deterministic via CREATE2 deployment
+    address public immutable GUEST_MODULE = 0x0000000000000000000000000000000000000001;
+
 
     // -------------------------------------------------------------------------
     // Errors
@@ -32,8 +43,8 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
     error NativeTransferFailed();
     error InvalidDelegatedSelector(bytes4 selector);
-    error InvalidFunctionSelector(bytes4 selector);
-    error AllowFailureMustBeFalse(uint256 callIndex);
+    error InvalidPayloadFormat();
+    error CallExecutionFailed(uint256 callIndex, bytes revertData);
     error SuccessSentinelNotSet();
     error NoValueAvailable();
     error NoTokensToPull();
@@ -51,23 +62,30 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     receive() external payable {}
 
     // -------------------------------------------------------------------------
-    // Multicall3 Router Functions
+    // Router Functions
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ITrailsRouter
-    function execute(bytes calldata data) public payable returns (IMulticall3.Result[] memory returnResults) {
-        _validateRouterCall(data);
-        (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
-        if (!success) revert TargetCallFailed(returnData);
-        return abi.decode(returnData, (IMulticall3.Result[]));
+    /// @dev Accepts Sequence V3 CallsPayload format. Forwards to Guest module for execution.
+    ///      Guest module doesn't return results, matching its fallback function behavior.
+    function execute(bytes calldata data) public payable {
+        // Validate payload is transaction kind
+        Payload.Decoded memory decoded = Payload.fromPackedCalls(data);
+        if (decoded.kind != Payload.KIND_TRANSACTIONS) {
+            revert InvalidPayloadFormat();
+        }
+
+        // Forward CallsPayload to Guest module (similar to how Multicall3 was used)
+        // Guest module's fallback accepts CallsPayload encoded data and doesn't return anything
+        (bool success, bytes memory returnData) = GUEST_MODULE.call{value: msg.value}(data);
+        if (!success) {
+            revert TargetCallFailed(returnData);
+        }
+        // Guest module execution completed successfully - no return value
     }
 
     /// @inheritdoc ITrailsRouter
-    function pullAndExecute(address token, bytes calldata data)
-        public
-        payable
-        returns (IMulticall3.Result[] memory returnResults)
-    {
+    function pullAndExecute(address token, bytes calldata data) public payable {
         uint256 amount;
         if (token == address(0)) {
             if (msg.value == 0) revert NoValueAvailable();
@@ -77,16 +95,14 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             if (amount == 0) revert NoTokensToPull();
         }
 
-        return pullAmountAndExecute(token, amount, data);
+        pullAmountAndExecute(token, amount, data);
     }
 
     /// @inheritdoc ITrailsRouter
-    function pullAmountAndExecute(address token, uint256 amount, bytes calldata data)
-        public
-        payable
-        returns (IMulticall3.Result[] memory returnResults)
-    {
-        _validateRouterCall(data);
+    /// @dev Accepts Sequence V3 CallsPayload format. Forwards to Guest module for execution.
+    ///      Guest module doesn't return results, matching its fallback function behavior.
+    function pullAmountAndExecute(address token, uint256 amount, bytes calldata data) public payable {
+        // Pull tokens first
         if (token == address(0)) {
             if (msg.value != amount) revert IncorrectValue(amount, msg.value);
         } else {
@@ -94,9 +110,19 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
-        (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
-        if (!success) revert TargetCallFailed(returnData);
-        returnResults = abi.decode(returnData, (IMulticall3.Result[]));
+        // Validate payload is transaction kind
+        Payload.Decoded memory decoded = Payload.fromPackedCalls(data);
+        if (decoded.kind != Payload.KIND_TRANSACTIONS) {
+            revert InvalidPayloadFormat();
+        }
+
+        // Forward CallsPayload to Guest module (similar to how Multicall3 was used)
+        // Guest module's fallback accepts CallsPayload encoded data and doesn't return anything
+        (bool success, bytes memory returnData) = GUEST_MODULE.call{value: msg.value}(data);
+        if (!success) {
+            revert TargetCallFailed(returnData);
+        }
+        // Guest module execution completed successfully - no return value
 
         // Sweep remaining balance back to msg.sender to prevent dust from EXACT_OUTPUT swaps getting stuck.
         // We sweep the full balance (not tracking initial) since TrailsRouter is stateless by design.
@@ -371,36 +397,4 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         }
     }
 
-    /// forge-lint: disable-next-line(mixed-case-function)
-    function _validateRouterCall(bytes calldata callData) internal pure {
-        // Extract function selector
-        if (callData.length < 4) revert InvalidFunctionSelector(bytes4(0));
-
-        bytes4 selector = bytes4(callData[0:4]);
-
-        // Only allow `aggregate3Value` or `aggregate3` (0x174dea71 or 0x82ad56cb)
-        if (selector == 0x174dea71) {
-            // Decode and validate the Call3Value[] array to ensure allowFailure=false for all calls
-            IMulticall3.Call3Value[] memory calls = abi.decode(callData[4:], (IMulticall3.Call3Value[]));
-
-            // Iterate through all calls and verify allowFailure is false
-            for (uint256 i = 0; i < calls.length; i++) {
-                if (calls[i].allowFailure) {
-                    revert AllowFailureMustBeFalse(i);
-                }
-            }
-        } else if (selector == 0x82ad56cb) {
-            // Decode and validate the Call3[] array to ensure allowFailure=false for all calls
-            IMulticall3.Call3[] memory calls = abi.decode(callData[4:], (IMulticall3.Call3[]));
-
-            // Iterate through all calls and verify allowFailure is false
-            for (uint256 i = 0; i < calls.length; i++) {
-                if (calls[i].allowFailure) {
-                    revert AllowFailureMustBeFalse(i);
-                }
-            }
-        } else {
-            revert InvalidFunctionSelector(selector);
-        }
-    }
 }

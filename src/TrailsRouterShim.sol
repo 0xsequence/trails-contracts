@@ -14,7 +14,7 @@ contract TrailsRouterShim is ITrailsRouterShim, DelegatecallGuard, Tstorish {
     // Immutable variables
     // -------------------------------------------------------------------------
 
-    /// @notice Address of the deployed TrailsMulticall3Router to forward calls to
+    /// @notice Address of the deployed TrailsRouter to forward calls to
     address public immutable ROUTER;
     // SELF provided by DelegatecallGuard
 

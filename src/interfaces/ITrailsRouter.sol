@@ -2,7 +2,6 @@
 pragma solidity ^0.8.30;
 
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
-import {IMulticall3} from "./IMulticall3.sol";
 
 /// @title ITrailsRouter
 /// @notice Interface describing the delegate-call router utilities exposed to Sequence wallets.
@@ -33,35 +32,26 @@ interface ITrailsRouter is IDelegatedExtension {
     event ActualRefund(address indexed token, address indexed recipient, uint256 expected, uint256 actual);
 
     // ---------------------------------------------------------------------
-    // Multicall Operations
+    // Router Operations
     // ---------------------------------------------------------------------
 
-    /// @notice Delegates to Multicall3 to preserve msg.sender context.
-    /// @dev Delegates to Multicall3 to preserve msg.sender context.
-    /// @param data The data to execute.
-    /// @return returnResults The result of the execution.
-    function execute(bytes calldata data) external payable returns (IMulticall3.Result[] memory returnResults);
+    /// @notice Executes Sequence V3 CallsPayload format batch calls.
+    /// @dev Forwards CallsPayload to Guest module for execution. Guest module doesn't return results.
+    /// @param data The Sequence V3 CallsPayload encoded data to execute.
+    function execute(bytes calldata data) external payable;
 
-    /// @notice Pull tokens from msg.sender, then delegatecall into Multicall3.
+    /// @notice Pull tokens from msg.sender, then execute batch calls.
     /// @dev For ERC20: pulls entire balance and requires prior approval. For ETH: uses msg.value.
     /// @param token The ERC20 token to pull, or address(0) for ETH.
-    /// @param data The calldata for Multicall3.
-    /// @return returnResults The result of the execution.
-    function pullAndExecute(address token, bytes calldata data)
-        external
-        payable
-        returns (IMulticall3.Result[] memory returnResults);
+    /// @param data The Sequence V3 CallsPayload encoded data to execute.
+    function pullAndExecute(address token, bytes calldata data) external payable;
 
-    /// @notice Pull specific amount of tokens from msg.sender, then delegatecall into Multicall3.
+    /// @notice Pull specific amount of tokens from msg.sender, then execute batch calls.
     /// @dev For ERC20: requires prior approval. For ETH: requires msg.value.
     /// @param token The ERC20 token to pull, or address(0) for ETH.
     /// @param amount The amount to pull.
-    /// @param data The calldata for Multicall3.
-    /// @return returnResults The result of the execution.
-    function pullAmountAndExecute(address token, uint256 amount, bytes calldata data)
-        external
-        payable
-        returns (IMulticall3.Result[] memory returnResults);
+    /// @param data The Sequence V3 CallsPayload encoded data to execute.
+    function pullAmountAndExecute(address token, uint256 amount, bytes calldata data) external payable;
 
     // ---------------------------------------------------------------------
     // Balance Injection
