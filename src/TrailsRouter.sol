@@ -24,7 +24,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     // State Variables
     // -------------------------------------------------------------------------
 
-    address public MULTICALL3;
+    address public immutable MULTICALL3;
 
     // -------------------------------------------------------------------------
     // Constructor
