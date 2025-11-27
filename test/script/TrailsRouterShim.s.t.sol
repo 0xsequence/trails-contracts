@@ -27,7 +27,9 @@ contract TrailsRouterShimDeploymentTest is Test {
 
     // Expected predetermined addresses (calculated using CREATE2)
     function expectedRouterAddress() internal pure returns (address payable) {
-        return Create2Utils.calculateCreate2Address(type(TrailsRouter).creationCode, Create2Utils.standardSalt());
+        address multicall3 = 0xcA11bde05977b3631167028862bE2a173976CA11;
+        bytes memory initCode = abi.encodePacked(type(TrailsRouter).creationCode, abi.encode(multicall3));
+        return Create2Utils.calculateCreate2Address(initCode, Create2Utils.standardSalt());
     }
 
     function expectedShimAddress() internal pure returns (address payable) {
