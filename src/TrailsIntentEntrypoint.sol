@@ -43,7 +43,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     error InvalidIntentSignature();
     error InvalidNonce();
     error InvalidFeeParameters();
-    error PermitAmountMismatch();
 
     // -------------------------------------------------------------------------
     // State Variables
@@ -84,12 +83,6 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         _verifyAndMarkIntent(
             user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
         );
-
-        // Validate permitAmount exactly matches the total required amount (deposit + fee)
-        // This prevents permit/approval mismatches that could cause DoS or unexpected behavior
-        unchecked {
-            if (permitAmount != amount + feeAmount) revert PermitAmountMismatch();
-        }
 
         // Execute permit with try-catch to handle potential frontrunning, and scope variables to avoid stack too deep
         try IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS) {

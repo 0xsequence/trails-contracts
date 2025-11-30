@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {TrailsIntentEntrypoint} from "../src/TrailsIntentEntrypoint.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {MockNonStandardERC20} from "./mocks/MockNonStandardERC20.sol";
 
 // Mock ERC20 token with permit functionality for testing
@@ -1989,25 +1990,31 @@ contract TrailsIntentEntrypointTest is Test {
     }
 
     // =========================================================================
-    // SEQ-1: Permit Amount Validation Tests (Additional Safety Check)
+    // SEQ-1: Permit Amount Flexibility Tests
     // =========================================================================
 
     /**
-     * @notice Test that depositToIntentWithPermit reverts when permit amount is insufficient
-     * @dev Validates permitAmount != amount + feeAmount check (insufficient case)
+     * @notice depositToIntentWithPermit reverts when permit amount cannot cover amount + fee
+     * @dev Now relies on the token's allowance error instead of a custom mismatch check
      */
     function testPermitAmountInsufficientWithFee() public {
         vm.startPrank(user);
         uint256 amt = 50e18;
         uint256 fee = 10e18;
-        uint256 permitAmt = amt + fee - 1; // Insufficient by 1
+        uint256 permitAmt = amt + fee - 1; // Insufficient by 1 wei
         uint256 dl = block.timestamp + 1 hours;
         uint256 nonce = entrypoint.nonces(user);
 
         (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
-        (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
+        (uint8 sv, bytes32 sr, bytes32 ss) =
+            _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
 
-        vm.expectRevert(TrailsIntentEntrypoint.PermitAmountMismatch.selector);
+        uint256 expectedAllowance = fee - 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector, address(entrypoint), expectedAllowance, fee
+            )
+        );
         entrypoint.depositToIntentWithPermit(
             user,
             address(token),
@@ -2029,31 +2036,38 @@ contract TrailsIntentEntrypointTest is Test {
     }
 
     /**
-     * @notice Test that depositToIntentWithPermit reverts when permit amount exceeds required
-     * @dev Validates permitAmount != amount + feeAmount check (excess case)
+     * @notice depositToIntentWithPermit allows over-permitting; only spends amount + fee
+     * @dev Verifies extra allowance remains available after the deposit completes
      */
-    function testPermitAmountExcessiveWithFee() public {
+    function testPermitAmountExcessiveWithFeeLeavesAllowance() public {
         vm.startPrank(user);
         uint256 amt = 50e18;
         uint256 fee = 10e18;
-        uint256 permitAmt = amt + fee + 1; // Excess by 1
+        uint256 extra = 5e18;
+        uint256 permitAmt = amt + fee + extra; // Permit more than required
         uint256 dl = block.timestamp + 1 hours;
         uint256 nonce = entrypoint.nonces(user);
+        address intentAddr = address(0x5678);
+        address feeCollector = address(0x9999);
 
         (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
-        (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
+        (uint8 sv, bytes32 sr, bytes32 ss) =
+            _signIntent2(user, amt, intentAddr, dl, nonce, fee, feeCollector);
 
-        vm.expectRevert(TrailsIntentEntrypoint.PermitAmountMismatch.selector);
+        uint256 userBalanceBefore = token.balanceOf(user);
+        uint256 intentBalanceBefore = token.balanceOf(intentAddr);
+        uint256 feeCollectorBalanceBefore = token.balanceOf(feeCollector);
+
         entrypoint.depositToIntentWithPermit(
             user,
             address(token),
             amt,
             permitAmt,
-            address(0x5678),
+            intentAddr,
             dl,
             nonce,
             fee,
-            address(0x9999),
+            feeCollector,
             pv,
             pr,
             ps,
@@ -2061,6 +2075,76 @@ contract TrailsIntentEntrypointTest is Test {
             sr,
             ss
         );
+
+        assertEq(token.balanceOf(user), userBalanceBefore - (amt + fee));
+        assertEq(token.balanceOf(intentAddr), intentBalanceBefore + amt);
+        assertEq(token.balanceOf(feeCollector), feeCollectorBalanceBefore + fee);
+        assertEq(token.allowance(user, address(entrypoint)), extra);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Uses leftover allowance from an oversized permit for a second deposit without a new permit
+     * @dev First call over-permits, second call consumes the remaining allowance via depositToIntent
+     */
+    function testPermitAmountExcessiveThenUseRemainingAllowance() public {
+        vm.startPrank(user);
+
+        uint256 amt1 = 50e18;
+        uint256 fee1 = 10e18;
+        uint256 leftover = 20e18;
+        uint256 permitAmt = amt1 + fee1 + leftover;
+        uint256 dl = block.timestamp + 1 hours;
+        address intentAddr = address(0x5678);
+        address feeCollector = address(0x9999);
+
+        uint256 nonce1 = entrypoint.nonces(user);
+
+        (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
+        (uint8 sv1, bytes32 sr1, bytes32 ss1) =
+            _signIntent2(user, amt1, intentAddr, dl, nonce1, fee1, feeCollector);
+
+        entrypoint.depositToIntentWithPermit(
+            user,
+            address(token),
+            amt1,
+            permitAmt,
+            intentAddr,
+            dl,
+            nonce1,
+            fee1,
+            feeCollector,
+            pv,
+            pr,
+            ps,
+            sv1,
+            sr1,
+            ss1
+        );
+
+        assertEq(token.allowance(user, address(entrypoint)), leftover);
+
+        // Use the leftover allowance without another permit
+        uint256 amt2 = 15e18;
+        uint256 fee2 = 5e18; // amt2 + fee2 == leftover
+        uint256 nonce2 = entrypoint.nonces(user);
+        (uint8 sv2, bytes32 sr2, bytes32 ss2) =
+            _signIntent2(user, amt2, intentAddr, dl, nonce2, fee2, feeCollector);
+
+        uint256 userBalBefore = token.balanceOf(user);
+        uint256 intentBalBefore = token.balanceOf(intentAddr);
+        uint256 feeCollectorBalBefore = token.balanceOf(feeCollector);
+
+        entrypoint.depositToIntent(
+            user, address(token), amt2, intentAddr, dl, nonce2, fee2, feeCollector, sv2, sr2, ss2
+        );
+
+        assertEq(token.allowance(user, address(entrypoint)), 0);
+        assertEq(token.balanceOf(user), userBalBefore - (amt2 + fee2));
+        assertEq(token.balanceOf(intentAddr), intentBalBefore + amt2);
+        assertEq(token.balanceOf(feeCollector), feeCollectorBalBefore + fee2);
+
         vm.stopPrank();
     }
 
