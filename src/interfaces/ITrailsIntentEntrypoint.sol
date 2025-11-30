@@ -49,7 +49,7 @@ interface ITrailsIntentEntrypoint {
     /// @param user The user making the deposit
     /// @param token The token to deposit (also used for fee payment)
     /// @param amount The amount to deposit
-    /// @param permitAmount The amount to permit for spending (amount + feeAmount if paying fee)
+    /// @param permitAmount The allowance to set via permit (must cover amount + feeAmount; can be higher to leave leftover)
     /// @param intentAddress The intent address to deposit to
     /// @param deadline The permit deadline
     /// @param nonce The nonce for this user

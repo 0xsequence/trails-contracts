@@ -129,31 +129,13 @@ flowchart TD
   dest_sweep --> done
 ```
 
-#### TrailsIntentEntrypoint – Fee Payment
-
-The entrypoint supports decoupled fee payments that can leverage existing allowances (e.g., leftover permit allowance from a prior deposit) or set allowance on the fly via ERC-2612 permit.
-
-##### API
-
-- **payFee**
-  - Signature: `payFee(address user, address feeToken, uint256 feeAmount, address feeCollector)`
-  - Preconditions: `feeAmount > 0`, `feeToken != address(0)`, `feeCollector != address(0)`, and sufficient allowance for the entrypoint
-  - Effects: Transfers `feeAmount` of `feeToken` from `user` to `feeCollector`
-  - Emits: `FeePaid(user, feeToken, feeAmount, feeCollector)`
-
-- **payFeeWithPermit**
-  - Signature: `payFeeWithPermit(address user, address feeToken, uint256 feeAmount, address feeCollector, uint256 deadline, uint8 v, bytes32 r, bytes32 s)`
-  - Preconditions: `feeAmount > 0`, `feeToken != address(0)`, `feeCollector != address(0)`, `block.timestamp <= deadline`
-  - Effects: Executes ERC-2612 permit for `feeAmount` and then transfers tokens from `user` to `feeCollector`
-  - Emits: `FeePaid(user, feeToken, feeAmount, feeCollector)`
-
 ##### Typical Flow
 
 - Use `depositToIntentWithPermit` with a `permitAmount` greater than the deposit `amount` to leave leftover allowance.
-- Call `payFee` to consume the leftover allowance for fee collection.
 
 ```solidity
 // Deposit with a larger permit to leave leftover allowance
+uint256 intentNonce = entrypoint.nonces(user);
 entrypoint.depositToIntentWithPermit(
     user,
     token,
@@ -161,6 +143,9 @@ entrypoint.depositToIntentWithPermit(
     totalPermit, // > depositAmount, leaves leftover allowance
     intentAddress,
     deadline,
+    intentNonce,
+    feeAmount,
+    feeCollector,
     permitV,
     permitR,
     permitS,
@@ -168,16 +153,11 @@ entrypoint.depositToIntentWithPermit(
     sigR,
     sigS
 );
-
-// Later: collect fee using leftover allowance
-entrypoint.payFee(user, token, feeAmount, feeCollector);
 ```
 
 #### Notes
 
 - `FeePaid(address indexed user, address indexed feeToken, uint256 feeAmount, address indexed feeCollector)` is emitted on successful fee payment.
-- `payFee` requires prior allowance (e.g., leftover from `depositToIntentWithPermit`).
-- `payFeeWithPermit` sets the allowance atomically using ERC-2612 before transferring.
 
 ## Deployment
 
