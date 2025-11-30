@@ -2006,8 +2006,7 @@ contract TrailsIntentEntrypointTest is Test {
         uint256 nonce = entrypoint.nonces(user);
 
         (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
-        (uint8 sv, bytes32 sr, bytes32 ss) =
-            _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
+        (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, address(0x5678), dl, nonce, fee, address(0x9999));
 
         uint256 expectedAllowance = fee - 1;
         vm.expectRevert(
@@ -2051,29 +2050,14 @@ contract TrailsIntentEntrypointTest is Test {
         address feeCollector = address(0x9999);
 
         (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
-        (uint8 sv, bytes32 sr, bytes32 ss) =
-            _signIntent2(user, amt, intentAddr, dl, nonce, fee, feeCollector);
+        (uint8 sv, bytes32 sr, bytes32 ss) = _signIntent2(user, amt, intentAddr, dl, nonce, fee, feeCollector);
 
         uint256 userBalanceBefore = token.balanceOf(user);
         uint256 intentBalanceBefore = token.balanceOf(intentAddr);
         uint256 feeCollectorBalanceBefore = token.balanceOf(feeCollector);
 
         entrypoint.depositToIntentWithPermit(
-            user,
-            address(token),
-            amt,
-            permitAmt,
-            intentAddr,
-            dl,
-            nonce,
-            fee,
-            feeCollector,
-            pv,
-            pr,
-            ps,
-            sv,
-            sr,
-            ss
+            user, address(token), amt, permitAmt, intentAddr, dl, nonce, fee, feeCollector, pv, pr, ps, sv, sr, ss
         );
 
         assertEq(token.balanceOf(user), userBalanceBefore - (amt + fee));
@@ -2102,25 +2086,10 @@ contract TrailsIntentEntrypointTest is Test {
         uint256 nonce1 = entrypoint.nonces(user);
 
         (uint8 pv, bytes32 pr, bytes32 ps) = _signPermit(user, permitAmt, dl);
-        (uint8 sv1, bytes32 sr1, bytes32 ss1) =
-            _signIntent2(user, amt1, intentAddr, dl, nonce1, fee1, feeCollector);
+        (uint8 sv1, bytes32 sr1, bytes32 ss1) = _signIntent2(user, amt1, intentAddr, dl, nonce1, fee1, feeCollector);
 
         entrypoint.depositToIntentWithPermit(
-            user,
-            address(token),
-            amt1,
-            permitAmt,
-            intentAddr,
-            dl,
-            nonce1,
-            fee1,
-            feeCollector,
-            pv,
-            pr,
-            ps,
-            sv1,
-            sr1,
-            ss1
+            user, address(token), amt1, permitAmt, intentAddr, dl, nonce1, fee1, feeCollector, pv, pr, ps, sv1, sr1, ss1
         );
 
         assertEq(token.allowance(user, address(entrypoint)), leftover);
@@ -2129,8 +2098,7 @@ contract TrailsIntentEntrypointTest is Test {
         uint256 amt2 = 15e18;
         uint256 fee2 = 5e18; // amt2 + fee2 == leftover
         uint256 nonce2 = entrypoint.nonces(user);
-        (uint8 sv2, bytes32 sr2, bytes32 ss2) =
-            _signIntent2(user, amt2, intentAddr, dl, nonce2, fee2, feeCollector);
+        (uint8 sv2, bytes32 sr2, bytes32 ss2) = _signIntent2(user, amt2, intentAddr, dl, nonce2, fee2, feeCollector);
 
         uint256 userBalBefore = token.balanceOf(user);
         uint256 intentBalBefore = token.balanceOf(intentAddr);
