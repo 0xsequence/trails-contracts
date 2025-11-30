@@ -75,7 +75,11 @@ Intent(
   address token,          // ERC20 token to deposit
   uint256 amount,         // Amount to deposit
   address intentAddress,  // Destination intent wallet
-  uint256 deadline        // Intent expiration timestamp
+  uint256 deadline,       // Intent expiration timestamp
+  uint256 chainId,        // Chain the intent is authorized for
+  uint256 nonce,          // Intent nonce for replay protection
+  uint256 feeAmount,      // Fee to collect alongside the deposit
+  address feeCollector    // Recipient of the fee
 )
 ```
 
