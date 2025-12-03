@@ -46,21 +46,20 @@ interface ITrailsIntentEntrypoint {
     // -------------------------------------------------------------------------
 
     /// @notice Deposit tokens to an intent address using ERC20 permit
+    /// @dev The intent digest is encoded into the permit deadline with the highest byte set to 0xff.
+    /// @dev The permit signature must be valid for the permit with the computed deadline.
     /// @param user The user making the deposit
     /// @param token The token to deposit (also used for fee payment)
     /// @param amount The amount to deposit
-    /// @param permitAmount The allowance to set via permit (must cover amount + feeAmount; can be higher to leave leftover)
+    /// @param permitAmount The amount to permit for spending (amount + feeAmount if paying fee)
     /// @param intentAddress The intent address to deposit to
-    /// @param deadline The permit deadline
+    /// @param deadline The intent deadline
     /// @param nonce The nonce for this user
     /// @param feeAmount The amount of fee to pay (0 for no fee, paid in same token)
     /// @param feeCollector The address to receive the fee (address(0) for no fee)
-    /// @param permitV The permit signature v component
-    /// @param permitR The permit signature r component
-    /// @param permitS The permit signature s component
-    /// @param sigV The intent signature v component
-    /// @param sigR The intent signature r component
-    /// @param sigS The intent signature s component
+    /// @param sigV The signature v component
+    /// @param sigR The signature r component
+    /// @param sigS The signature s component
     function depositToIntentWithPermit(
         address user,
         address token,
@@ -71,9 +70,6 @@ interface ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        uint8 permitV,
-        bytes32 permitR,
-        bytes32 permitS,
         uint8 sigV,
         bytes32 sigR,
         bytes32 sigS

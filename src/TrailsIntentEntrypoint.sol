@@ -32,6 +32,9 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
     bytes32 private constant EIP712_DOMAIN_NAME = keccak256(bytes("TrailsIntentEntrypoint"));
     bytes32 private constant EIP712_DOMAIN_VERSION = keccak256(bytes(VERSION));
 
+    // Mask to ensure deadline hash is always in the future
+    uint256 private constant DEADLINE_MASK = 0xff00000000000000000000000000000000000000000000000000000000000000;
+
     // -------------------------------------------------------------------------
     // Errors
     // -------------------------------------------------------------------------
@@ -73,24 +76,17 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         uint256 nonce,
         uint256 feeAmount,
         address feeCollector,
-        uint8 permitV,
-        bytes32 permitR,
-        bytes32 permitS,
         uint8 sigV,
         bytes32 sigR,
         bytes32 sigS
     ) external nonReentrant {
-        _verifyAndMarkIntent(
-            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
-        );
+        // Validate intent parameters and increment nonce (digest validation is nested within permit execution)
+        bytes32 intentDigest =
+            _prepareIntentUsage(user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector);
+        uint256 permitDeadline = uint256(intentDigest) | DEADLINE_MASK;
 
-        // Execute permit with try-catch to handle potential frontrunning, and scope variables to avoid stack too deep
-        try IERC20Permit(token).permit(user, address(this), permitAmount, deadline, permitV, permitR, permitS) {
-        // Permit succeeded
-        }
-            catch {
-            // Permit may have been frontrun. Continue with transferFrom attempt.
-        }
+        // Execute permit
+        IERC20Permit(token).permit(user, address(this), permitAmount, permitDeadline, sigV, sigR, sigS);
 
         _processDeposit(user, token, amount, intentAddress, feeAmount, feeCollector);
     }
@@ -109,10 +105,93 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         bytes32 sigR,
         bytes32 sigS
     ) external nonReentrant {
-        _verifyAndMarkIntent(
-            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
+        bytes32 intentDigest = _prepareIntentUsage(
+            user, token, amount, intentAddress, deadline, nonce, feeAmount, feeCollector
         );
+
+        _verifyIntentSignature(intentDigest, sigV, sigR, sigS, user);
+
         _processDeposit(user, token, amount, intentAddress, feeAmount, feeCollector);
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal Functions
+    // -------------------------------------------------------------------------
+
+    /// @notice Prepares intent usage by validating parameters, building intent digest, and incrementing nonce
+    /// @dev If deadline is 0, skips expiration check (used for permit flow where deadline is computed)
+    /// @param user The user making the deposit
+    /// @param token The token to deposit
+    /// @param amount The amount to deposit
+    /// @param intentAddress The intent address to deposit to
+    /// @param deadline The intent deadline (0 to skip expiration check)
+    /// @param nonce The nonce for this user
+    /// @param feeAmount The amount of fee to pay
+    /// @param feeCollector The address to receive the fee
+    /// @return intentDigest The EIP-712 digest of the intent message
+    function _prepareIntentUsage(
+        address user,
+        address token,
+        uint256 amount,
+        address intentAddress,
+        uint256 deadline,
+        uint256 nonce,
+        uint256 feeAmount,
+        address feeCollector
+    ) internal returns (bytes32 intentDigest) {
+        // Validate parameters
+        if (amount == 0) revert InvalidAmount();
+        if (token == address(0)) revert InvalidToken();
+        if (intentAddress == address(0)) revert InvalidIntentAddress();
+        if (block.timestamp > deadline) revert IntentExpired();
+        if (nonce != nonces[user]) revert InvalidNonce();
+
+        // Build intent hash
+        bytes32 _typehash = TRAILS_INTENT_TYPEHASH;
+        bytes32 intentHash;
+        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector));
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, _typehash)
+            mstore(add(ptr, 0x20), user)
+            mstore(add(ptr, 0x40), token)
+            mstore(add(ptr, 0x60), amount)
+            mstore(add(ptr, 0x80), intentAddress)
+            mstore(add(ptr, 0xa0), deadline)
+            mstore(add(ptr, 0xc0), chainid())
+            mstore(add(ptr, 0xe0), nonce)
+            mstore(add(ptr, 0x100), feeAmount)
+            mstore(add(ptr, 0x120), feeCollector)
+            intentHash := keccak256(ptr, 0x140)
+        }
+
+        // Build intent digest
+        bytes32 _domainSeparator = DOMAIN_SEPARATOR();
+        // keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, intentHash));
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, 0x1901)
+            mstore(add(ptr, 0x20), _domainSeparator)
+            mstore(add(ptr, 0x40), intentHash)
+            intentDigest := keccak256(add(ptr, 0x1e), 0x42)
+        }
+
+        // Increment nonce for the user
+        nonces[user]++;
+    }
+
+    /// @notice Verifies that the intent signature is valid
+    /// @param intentDigest The EIP-712 digest of the intent message
+    /// @param sigV The signature v component
+    /// @param sigR The signature r component
+    /// @param sigS The signature s component
+    /// @param expectedUser The expected user address that signed the intent
+    function _verifyIntentSignature(bytes32 intentDigest, uint8 sigV, bytes32 sigR, bytes32 sigS, address expectedUser)
+        internal
+        pure
+    {
+        address recovered = ECDSA.recover(intentDigest, sigV, sigR, sigS);
+        if (recovered != expectedUser) revert InvalidIntentSignature();
     }
 
     function _processDeposit(
@@ -138,66 +217,5 @@ contract TrailsIntentEntrypoint is ReentrancyGuard, ITrailsIntentEntrypoint {
         }
 
         emit IntentDeposit(user, intentAddress, amount);
-    }
-
-    // -------------------------------------------------------------------------
-    // Internal Functions
-    // -------------------------------------------------------------------------
-
-    /// forge-lint: disable-next-line(mixed-case-function)
-    function _verifyAndMarkIntent(
-        address user,
-        address token,
-        uint256 amount,
-        address intentAddress,
-        uint256 deadline,
-        uint256 nonce,
-        uint256 feeAmount,
-        address feeCollector,
-        uint8 sigV,
-        bytes32 sigR,
-        bytes32 sigS
-    ) internal {
-        if (amount == 0) revert InvalidAmount();
-        if (token == address(0)) revert InvalidToken();
-        if (intentAddress == address(0)) revert InvalidIntentAddress();
-        if (block.timestamp > deadline) revert IntentExpired();
-        // Chain ID is already included in the signature, so we don't need to check it here
-        // The signature verification will fail if the chain ID doesn't match
-        if (nonce != nonces[user]) revert InvalidNonce();
-
-        bytes32 _typehash = TRAILS_INTENT_TYPEHASH;
-        bytes32 intentHash;
-        // keccak256(abi.encode(TRAILS_INTENT_TYPEHASH, user, token, amount, intentAddress, deadline, chainId, nonce, feeAmount, feeCollector));
-        assembly {
-            let ptr := mload(0x40)
-            mstore(ptr, _typehash)
-            mstore(add(ptr, 0x20), user)
-            mstore(add(ptr, 0x40), token)
-            mstore(add(ptr, 0x60), amount)
-            mstore(add(ptr, 0x80), intentAddress)
-            mstore(add(ptr, 0xa0), deadline)
-            mstore(add(ptr, 0xc0), chainid())
-            mstore(add(ptr, 0xe0), nonce)
-            mstore(add(ptr, 0x100), feeAmount)
-            mstore(add(ptr, 0x120), feeCollector)
-            intentHash := keccak256(ptr, 0x140)
-        }
-
-        bytes32 _domainSeparator = DOMAIN_SEPARATOR();
-        bytes32 digest;
-        // keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, intentHash));
-        assembly {
-            let ptr := mload(0x40)
-            mstore(ptr, 0x1901)
-            mstore(add(ptr, 0x20), _domainSeparator)
-            mstore(add(ptr, 0x40), intentHash)
-            digest := keccak256(add(ptr, 0x1e), 0x42)
-        }
-        address recovered = ECDSA.recover(digest, sigV, sigR, sigS);
-        if (recovered != user) revert InvalidIntentSignature();
-
-        // Increment nonce for the user
-        nonces[user]++;
     }
 }
