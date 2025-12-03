@@ -415,18 +415,7 @@ contract TrailsIntentEntrypointTest is Test {
         );
 
         entrypoint.depositToIntentWithPermit(
-            user,
-            address(token),
-            amt,
-            amt + fee,
-            intentAddress,
-            deadline,
-            nonce1,
-            fee,
-            feeCollector,
-            sigV,
-            sigR,
-            sigS
+            user, address(token), amt, amt + fee, intentAddress, deadline, nonce1, fee, feeCollector, sigV, sigR, sigS
         );
 
         assertEq(token.balanceOf(feeCollector), fee);
@@ -613,18 +602,7 @@ contract TrailsIntentEntrypointTest is Test {
 
         vm.expectRevert(TrailsIntentEntrypoint.InvalidToken.selector);
         entrypoint.depositToIntentWithPermit(
-            user,
-            address(0),
-            amount,
-            amount,
-            intentAddress,
-            deadline,
-            nonce,
-            feeAmount,
-            feeCollector,
-            sigV,
-            sigR,
-            sigS
+            user, address(0), amount, amount, intentAddress, deadline, nonce, feeAmount, feeCollector, sigV, sigR, sigS
         );
 
         vm.stopPrank();
@@ -1065,7 +1043,9 @@ contract TrailsIntentEntrypointTest is Test {
         uint256 deadline = block.timestamp + 3600;
 
         // Create permit signature with intent digest-derived deadline\
-        uint256 permitDeadline = _calculatePermitDeadline(user, address(token), amount, intentAddress, deadline, nonce, feeAmount, feeCollector);
+        uint256 permitDeadline = _calculatePermitDeadline(
+            user, address(token), amount, intentAddress, deadline, nonce, feeAmount, feeCollector
+        );
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = _signPermitWithDeadline(amount, permitDeadline);
 
         // Use permit
@@ -1453,9 +1433,8 @@ contract TrailsIntentEntrypointTest is Test {
         uint256 deadline = block.timestamp + 1 hours;
 
         // Create permit signature with intent digest-derived deadline
-        (uint8 sigV, bytes32 sigR, bytes32 sigS) = _signPermitForIntent(
-            user, address(token), amt, intentAddr, deadline, nonce, fee, feeCollector, permitAmt
-        );
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) =
+            _signPermitForIntent(user, address(token), amt, intentAddr, deadline, nonce, fee, feeCollector, permitAmt);
 
         uint256 expectedAllowance = fee - 1;
         vm.expectRevert(
@@ -1464,18 +1443,7 @@ contract TrailsIntentEntrypointTest is Test {
             )
         );
         entrypoint.depositToIntentWithPermit(
-            user,
-            address(token),
-            amt,
-            permitAmt,
-            intentAddr,
-            deadline,
-            nonce,
-            fee,
-            feeCollector,
-            sigV,
-            sigR,
-            sigS
+            user, address(token), amt, permitAmt, intentAddr, deadline, nonce, fee, feeCollector, sigV, sigR, sigS
         );
         vm.stopPrank();
     }
@@ -1496,9 +1464,8 @@ contract TrailsIntentEntrypointTest is Test {
         uint256 deadline = block.timestamp + 1 hours;
 
         // Create permit signature with intent digest-derived deadline
-        (uint8 sigV, bytes32 sigR, bytes32 sigS) = _signPermitForIntent(
-            user, address(token), amt, intentAddr, deadline, nonce, fee, feeCollector, permitAmt
-        );
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) =
+            _signPermitForIntent(user, address(token), amt, intentAddr, deadline, nonce, fee, feeCollector, permitAmt);
 
         uint256 userBalanceBefore = token.balanceOf(user);
         uint256 intentBalanceBefore = token.balanceOf(intentAddr);
@@ -1539,7 +1506,18 @@ contract TrailsIntentEntrypointTest is Test {
         );
 
         entrypoint.depositToIntentWithPermit(
-            user, address(token), amt1, permitAmt, intentAddr, deadline1, nonce1, fee1, feeCollector, sigV1, sigR1, sigS1
+            user,
+            address(token),
+            amt1,
+            permitAmt,
+            intentAddr,
+            deadline1,
+            nonce1,
+            fee1,
+            feeCollector,
+            sigV1,
+            sigR1,
+            sigS1
         );
 
         assertEq(token.allowance(user, address(entrypoint)), leftover);
@@ -1549,7 +1527,8 @@ contract TrailsIntentEntrypointTest is Test {
         uint256 fee2 = 5e18; // amt2 + fee2 == leftover
         uint256 nonce2 = entrypoint.nonces(user);
         uint256 deadline2 = block.timestamp + 1 hours; // Use a regular deadline for depositToIntent
-        (uint8 sv2, bytes32 sr2, bytes32 ss2) = _signIntent2(user, amt2, intentAddr, deadline2, nonce2, fee2, feeCollector);
+        (uint8 sv2, bytes32 sr2, bytes32 ss2) =
+            _signIntent2(user, amt2, intentAddr, deadline2, nonce2, fee2, feeCollector);
 
         uint256 userBalBefore = token.balanceOf(user);
         uint256 intentBalBefore = token.balanceOf(intentAddr);
@@ -1594,10 +1573,11 @@ contract TrailsIntentEntrypointTest is Test {
         deadline = uint256(intentParamsHash) | DEADLINE_MASK;
     }
 
-    function _signPermitWithDeadline(
-        uint256 permitAmount,
-        uint256 permitDeadline
-    ) internal view returns (uint8 v, bytes32 r, bytes32 s) {
+    function _signPermitWithDeadline(uint256 permitAmount, uint256 permitDeadline)
+        internal
+        view
+        returns (uint8 v, bytes32 r, bytes32 s)
+    {
         // Get permit nonce from token
         uint256 permitNonce = token.nonces(user);
 
@@ -1631,7 +1611,6 @@ contract TrailsIntentEntrypointTest is Test {
         uint256 feeAmount,
         address feeCollector
     ) internal view returns (uint256 permitDeadline) {
-
         // Build intent hash (same as contract does)
         bytes32 intentHash;
         bytes32 _typehash = entrypoint.TRAILS_INTENT_TYPEHASH();
@@ -1679,8 +1658,9 @@ contract TrailsIntentEntrypointTest is Test {
         address feeCollector,
         uint256 permitAmount
     ) internal view returns (uint8 v, bytes32 r, bytes32 s) {
-
-        uint256 permitDeadline = _calculatePermitDeadline(userAddr, tokenAddr, amount, intentAddress, deadline, nonce, feeAmount, feeCollector);
+        uint256 permitDeadline = _calculatePermitDeadline(
+            userAddr, tokenAddr, amount, intentAddress, deadline, nonce, feeAmount, feeCollector
+        );
 
         return _signPermitWithDeadline(permitAmount, permitDeadline);
     }
