@@ -223,12 +223,11 @@ contract DelayedOwnerForwarderFactoryTest is Test {
 
         // Make a call to set owner
         address target = makeAddr("target");
-        bytes memory callData = abi.encodePacked(bytes20(target));
+        bytes memory callData = ""; // Empty data to call receive function
 
         address caller = makeAddr("caller");
         vm.prank(caller);
-        (bool success,) = forwarderAddr.call(callData);
-        assertTrue(success, "Forwarder call should succeed");
+        forwarder.call(target, callData);
         assertEq(forwarder.owner(), caller, "Forwarder should set owner to first caller");
     }
 

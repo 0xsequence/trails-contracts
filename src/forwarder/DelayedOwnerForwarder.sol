@@ -15,28 +15,38 @@ contract DelayedOwnerForwarder {
 
     constructor() payable {}
 
-    /// @notice Fallback function to forward calls
-    /// @dev Sets owner if not already set
-    /// @dev If owner is set, must be called by owner
-    fallback() external payable {
-        // Check ownership
+    modifier checkSetOwner() {
         if (owner == address(0)) {
             owner = msg.sender;
         } else if (msg.sender != owner) {
             revert NotCalledByOwner();
         }
+        _;
+    }
+
+    /// @notice Call a function
+    /// @dev Sets owner if not already set
+    /// @dev If owner is set, must be called by owner
+    /// @param to The address to call
+    /// @param data The data to call
+    function call(address to, bytes memory data) external payable checkSetOwner {
         // Forward the call
-        if (msg.data.length < 20) {
-            revert InvalidCallData();
-        }
-        address to = address(bytes20(msg.data[0:20]));
-        (bool success,) = to.call{value: msg.value}(msg.data[20:]);
+        (bool success,) = to.call{value: msg.value}(data);
         if (!success) {
             revert ForwardFailed();
         }
     }
 
-    /// @notice Receive native tokens
-    /// @dev Ignores ownership
-    receive() external payable {}
+    /// @notice Delegatecall a function
+    /// @dev Sets owner if not already set
+    /// @dev If owner is set, must be called by owner
+    /// @param to The address to delegatecall
+    /// @param data The data to delegatecall
+    function delegatecall(address to, bytes memory data) external payable checkSetOwner {
+        (bool success,) = to.delegatecall(data);
+        if (!success) {
+            revert ForwardFailed();
+        }
+    }
+
 }

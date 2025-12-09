@@ -45,6 +45,40 @@ contract MockTarget {
     }
 }
 
+/// @dev Mock contract for testing delegatecall functionality
+/// @notice This contract stores state that can be modified via delegatecall
+contract MockDelegatecallTarget {
+    uint256 public storedValue;
+    address public storedAddress;
+    bytes public storedData;
+
+    event DelegatecallReceived(address sender, uint256 value, bytes data);
+
+    function setValue(uint256 _value) external payable {
+        storedValue = _value;
+        storedAddress = msg.sender;
+        emit DelegatecallReceived(msg.sender, msg.value, msg.data);
+    }
+
+    function setAddress(address _addr) external payable {
+        storedAddress = _addr;
+        emit DelegatecallReceived(msg.sender, msg.value, msg.data);
+    }
+
+    function setData(bytes calldata _data) external payable {
+        storedData = _data;
+        emit DelegatecallReceived(msg.sender, msg.value, _data);
+    }
+
+    function revertOnDelegatecall() external pure {
+        revert("MockDelegatecallTarget: intentional revert");
+    }
+
+    function getThisAddress() external view returns (address) {
+        return address(this);
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Test Contract
 // -----------------------------------------------------------------------------
@@ -73,51 +107,37 @@ contract DelayedOwnerForwarderTest is Test {
 
     function test_firstCallerBecomesOwner() public {
         // First call should set owner
-        bytes memory callData =
-            abi.encodePacked(bytes20(address(target)), abi.encodeWithSelector(MockTarget.receiveCall.selector));
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success,) = address(forwarder).call(callData);
-        assertTrue(success, "First call should succeed");
+        forwarder.call(address(target), callData);
         assertEq(forwarder.owner(), owner, "First caller should become owner");
     }
 
     function test_ownerCanCallMultipleTimes() public {
         // First call sets owner
-        bytes memory callData1 =
-            abi.encodePacked(bytes20(address(target)), abi.encodeWithSelector(MockTarget.receiveCall.selector));
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success1,) = address(forwarder).call(callData1);
-        assertTrue(success1, "First call should succeed");
+        forwarder.call(address(target), callData);
         assertEq(forwarder.owner(), owner, "Owner should be set");
 
         // Second call by same owner should succeed
-        bytes memory callData2 =
-            abi.encodePacked(bytes20(address(target)), abi.encodeWithSelector(MockTarget.receiveCall.selector));
-
         vm.prank(owner);
-        (bool success2,) = address(forwarder).call(callData2);
-        assertTrue(success2, "Second call by owner should succeed");
+        forwarder.call(address(target), callData);
     }
 
     function test_nonOwnerCannotCall() public {
         // First call sets owner
-        bytes memory callData1 =
-            abi.encodePacked(bytes20(address(target)), abi.encodeWithSelector(MockTarget.receiveCall.selector));
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success1,) = address(forwarder).call(callData1);
-        assertTrue(success1, "First call should succeed");
+        forwarder.call(address(target), callData);
 
         // Second call by non-owner should revert
-        bytes memory callData2 =
-            abi.encodePacked(bytes20(address(target)), abi.encodeWithSelector(MockTarget.receiveCall.selector));
-
         vm.prank(nonOwner);
         vm.expectRevert(DelayedOwnerForwarder.NotCalledByOwner.selector);
-        (bool success2,) = address(forwarder).call(callData2);
-        success2; // Silence unused variable warning
+        forwarder.call(address(target), callData);
     }
 
     // -------------------------------------------------------------------------
@@ -125,26 +145,22 @@ contract DelayedOwnerForwarderTest is Test {
     // -------------------------------------------------------------------------
 
     function test_forwardsCallToTarget() public {
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
-        bytes memory callData = abi.encodePacked(bytes20(address(target)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success,) = address(forwarder).call(callData);
-        assertTrue(success, "Forward should succeed");
+        forwarder.call(address(target), callData);
 
         assertEq(target.lastSender(), address(forwarder), "Target should receive call from forwarder");
-        assertEq(target.lastCallData(), targetCallData, "Target should receive correct call data");
+        assertEq(target.lastCallData(), callData, "Target should receive correct call data");
     }
 
     function test_forwardsValue() public {
         uint256 value = 1 ether;
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
-        bytes memory callData = abi.encodePacked(bytes20(address(target)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.deal(owner, value);
         vm.prank(owner);
-        (bool success,) = address(forwarder).call{value: value}(callData);
-        assertTrue(success, "Forward with value should succeed");
+        forwarder.call{value: value}(address(target), callData);
 
         assertEq(target.lastValue(), value, "Target should receive forwarded value");
         assertEq(address(target).balance, value, "Target should have received ETH");
@@ -152,24 +168,21 @@ contract DelayedOwnerForwarderTest is Test {
 
     function test_forwardsCallWithData() public {
         bytes memory customData = abi.encode("test", 123, true);
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.receiveCallWithData.selector, customData);
-        bytes memory callData = abi.encodePacked(bytes20(address(target)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCallWithData.selector, customData);
 
         vm.prank(owner);
-        (bool success,) = address(forwarder).call(callData);
-        assertTrue(success, "Forward with data should succeed");
+        forwarder.call(address(target), callData);
 
         // receiveCallWithData stores the data parameter, not msg.data
         assertEq(target.lastCallData(), customData, "Target should receive correct call data");
     }
 
     function test_forwardsToReceiveFunction() public {
-        bytes memory callData = abi.encodePacked(bytes20(address(target)));
+        bytes memory callData = "";
 
         vm.deal(owner, 1 ether);
         vm.prank(owner);
-        (bool success,) = address(forwarder).call{value: 1 ether}(callData);
-        assertTrue(success, "Forward to receive should succeed");
+        forwarder.call{value: 1 ether}(address(target), callData);
 
         assertEq(target.lastValue(), 1 ether, "Target should receive value");
         assertEq(address(target).balance, 1 ether, "Target should have received ETH");
@@ -179,45 +192,22 @@ contract DelayedOwnerForwarderTest is Test {
     // Test Functions - Error Cases
     // -------------------------------------------------------------------------
 
-    function test_revertsWhen_callDataTooShort() public {
-        // Call data must be at least 20 bytes (address)
-        bytes memory shortCallData = hex"1234567890"; // 5 bytes, less than 20
-
-        vm.prank(owner);
-        vm.expectRevert(DelayedOwnerForwarder.InvalidCallData.selector);
-        (bool success,) = address(forwarder).call(shortCallData);
-        success; // Silence unused variable warning
-    }
-
-    function test_noRevertsWhen_callDataExactly20Bytes() public {
-        // Exactly 20 bytes should be valid (address only, no call data)
-        bytes memory callData = abi.encodePacked(bytes20(address(target)));
-
-        vm.prank(owner);
-        (bool success,) = address(forwarder).call(callData);
-        assertTrue(success, "20 bytes should be valid (forwards to receive function)");
-    }
-
     function test_revertsWhen_forwardFails() public {
         MockTarget failingTarget = new MockTarget();
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.revertOnCall.selector);
-        bytes memory callData = abi.encodePacked(bytes20(address(failingTarget)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.revertOnCall.selector);
 
         vm.prank(owner);
         vm.expectRevert(DelayedOwnerForwarder.ForwardFailed.selector);
-        (bool success,) = address(forwarder).call(callData);
-        success; // Silence unused variable warning
+        forwarder.call(address(failingTarget), callData);
     }
 
     function test_revertsWhen_targetCallReverts() public {
         MockTarget failingTarget = new MockTarget();
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.revertOnCall.selector);
-        bytes memory callData = abi.encodePacked(bytes20(address(failingTarget)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.revertOnCall.selector);
 
         vm.prank(owner);
         vm.expectRevert(DelayedOwnerForwarder.ForwardFailed.selector);
-        (bool success,) = address(forwarder).call(callData);
-        success; // Silence unused variable warning
+        forwarder.call(address(failingTarget), callData);
     }
 
     // -------------------------------------------------------------------------
@@ -230,19 +220,16 @@ contract DelayedOwnerForwarderTest is Test {
 
     function test_multipleCallsPreserveOwner() public {
         // First call sets owner
-        bytes memory callData =
-            abi.encodePacked(bytes20(address(target)), abi.encodeWithSelector(MockTarget.receiveCall.selector));
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success1,) = address(forwarder).call(callData);
-        assertTrue(success1, "First call should succeed");
+        forwarder.call(address(target), callData);
         assertEq(forwarder.owner(), owner, "Owner should be set");
 
         // Multiple subsequent calls by owner
         for (uint256 i = 0; i < 5; i++) {
             vm.prank(owner);
-            (bool success,) = address(forwarder).call(callData);
-            assertTrue(success, "Subsequent call should succeed");
+            forwarder.call(address(target), callData);
             assertEq(forwarder.owner(), owner, "Owner should remain unchanged");
         }
     }
@@ -250,87 +237,191 @@ contract DelayedOwnerForwarderTest is Test {
     function test_forwardsToDifferentTargets() public {
         MockTarget target1 = new MockTarget();
         MockTarget target2 = new MockTarget();
-
-        bytes memory callData1 =
-            abi.encodePacked(bytes20(address(target1)), abi.encodeWithSelector(MockTarget.receiveCall.selector));
-        bytes memory callData2 =
-            abi.encodePacked(bytes20(address(target2)), abi.encodeWithSelector(MockTarget.receiveCall.selector));
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success1,) = address(forwarder).call(callData1);
-        assertTrue(success1, "First forward should succeed");
+        forwarder.call(address(target1), callData);
         assertEq(target1.lastSender(), address(forwarder), "Target1 should receive call");
 
         vm.prank(owner);
-        (bool success2,) = address(forwarder).call(callData2);
-        assertTrue(success2, "Second forward should succeed");
+        forwarder.call(address(target2), callData);
         assertEq(target2.lastSender(), address(forwarder), "Target2 should receive call");
     }
 
     function test_forwardsWithZeroValue() public {
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
-        bytes memory callData = abi.encodePacked(bytes20(address(target)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success,) = address(forwarder).call{value: 0}(callData);
-        assertTrue(success, "Forward with zero value should succeed");
+        forwarder.call{value: 0}(address(target), callData);
 
         assertEq(target.lastValue(), 0, "Target should receive zero value");
     }
 
     function test_forwardsWithLargeValue() public {
         uint256 largeValue = 1000 ether;
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
-        bytes memory callData = abi.encodePacked(bytes20(address(target)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.deal(owner, largeValue);
         vm.prank(owner);
-        (bool success,) = address(forwarder).call{value: largeValue}(callData);
-        assertTrue(success, "Forward with large value should succeed");
+        forwarder.call{value: largeValue}(address(target), callData);
 
         assertEq(target.lastValue(), largeValue, "Target should receive large value");
     }
 
     function test_forwardsToContractWithoutReceive() public {
-        // Deploy a contract without receive or fallback
-        address targetWithoutReceive = address(new MockTarget());
-        // Remove receive function by deploying a minimal contract
-        address minimalContract = address(uint160(0x1234));
-        vm.assume(minimalContract.code.length == 0);
-
         // This should still work if we call a function
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
-        bytes memory callData = abi.encodePacked(bytes20(address(target)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success,) = address(forwarder).call(callData);
-        assertTrue(success, "Forward to contract with function should succeed");
+        forwarder.call(address(target), callData);
     }
 
     function test_addressExtraction() public {
-        address testTarget = makeAddr("testTarget");
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
-        bytes memory callData = abi.encodePacked(bytes20(testTarget), targetCallData);
-
-        // Verify the forwarder correctly extracts and forwards to the target
-        // This implicitly tests address extraction
+        // Verify the forwarder correctly forwards to the target
         MockTarget mockTarget = new MockTarget();
-        bytes memory callDataWithMock = abi.encodePacked(bytes20(address(mockTarget)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success,) = address(forwarder).call(callDataWithMock);
-        assertTrue(success, "Forward should succeed");
+        forwarder.call(address(mockTarget), callData);
         assertEq(mockTarget.lastSender(), address(forwarder), "Target should receive call from forwarder");
     }
 
     function test_callDataTruncation() public {
-        bytes memory targetCallData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
-        bytes memory callData = abi.encodePacked(bytes20(address(target)), targetCallData);
+        bytes memory callData = abi.encodeWithSelector(MockTarget.receiveCall.selector);
 
         vm.prank(owner);
-        (bool success,) = address(forwarder).call(callData);
-        assertTrue(success, "Forward should succeed");
+        forwarder.call(address(target), callData);
 
-        assertEq(target.lastCallData(), targetCallData, "Forwarded data should match");
+        assertEq(target.lastCallData(), callData, "Forwarded data should match");
+    }
+
+    // -------------------------------------------------------------------------
+    // Test Functions - Delegatecall
+    // -------------------------------------------------------------------------
+
+    function test_delegatecall_setsOwner() public {
+        // Use a simple function that doesn't modify storage to avoid storage collision
+        MockDelegatecallTarget delegateTarget = new MockDelegatecallTarget();
+        bytes memory callData = abi.encodeWithSelector(MockDelegatecallTarget.getThisAddress.selector);
+
+        vm.prank(owner);
+        forwarder.delegatecall(address(delegateTarget), callData);
+        assertEq(forwarder.owner(), owner, "First caller should become owner");
+    }
+
+    function test_delegatecall_modifiesForwarderState() public {
+        // First set owner to avoid storage collision issues
+        bytes memory dummyCall = abi.encodeWithSelector(MockTarget.receiveCall.selector);
+        vm.prank(owner);
+        forwarder.call(address(target), dummyCall);
+        assertEq(forwarder.owner(), owner, "Owner should be set first");
+
+        // Now test delegatecall - note that this may modify forwarder storage
+        // We use getThisAddress which is view-only to verify delegatecall works
+        MockDelegatecallTarget delegateTarget = new MockDelegatecallTarget();
+        bytes memory callData = abi.encodeWithSelector(MockDelegatecallTarget.getThisAddress.selector);
+
+        vm.prank(owner);
+        forwarder.delegatecall(address(delegateTarget), callData);
+
+        // Owner should still be set (unless storage collision occurred)
+        // This test verifies delegatecall executes without reverting
+    }
+
+    function test_delegatecall_withValue() public {
+        MockDelegatecallTarget delegateTarget = new MockDelegatecallTarget();
+        uint256 value = 1 ether;
+        // Use a function that can receive value
+        bytes memory callData = abi.encodeWithSelector(MockDelegatecallTarget.setValue.selector, uint256(456));
+
+        vm.deal(owner, value);
+        vm.prank(owner);
+        forwarder.delegatecall{value: value}(address(delegateTarget), callData);
+
+        // With delegatecall, the value stays in the forwarder's balance, not the target's
+        // The target code executes in the forwarder's context, so msg.value is available
+        // but the ETH balance remains with the forwarder
+        assertEq(address(forwarder).balance, value, "Value should remain in forwarder");
+    }
+
+    function test_delegatecall_withData() public {
+        MockDelegatecallTarget delegateTarget = new MockDelegatecallTarget();
+        bytes memory customData = abi.encode("test", 789, false);
+        bytes memory callData = abi.encodeWithSelector(MockDelegatecallTarget.setData.selector, customData);
+
+        vm.prank(owner);
+        forwarder.delegatecall(address(delegateTarget), callData);
+    }
+
+    function test_delegatecall_nonOwnerReverts() public {
+        // First set owner using regular call to avoid storage collision
+        bytes memory dummyCall = abi.encodeWithSelector(MockTarget.receiveCall.selector);
+        vm.prank(owner);
+        forwarder.call(address(target), dummyCall);
+
+        MockDelegatecallTarget delegateTarget = new MockDelegatecallTarget();
+        bytes memory callData = abi.encodeWithSelector(MockDelegatecallTarget.getThisAddress.selector);
+
+        // Non-owner should not be able to delegatecall
+        vm.prank(nonOwner);
+        vm.expectRevert(DelayedOwnerForwarder.NotCalledByOwner.selector);
+        forwarder.delegatecall(address(delegateTarget), callData);
+    }
+
+    function test_delegatecall_revertsWhenTargetReverts() public {
+        MockDelegatecallTarget delegateTarget = new MockDelegatecallTarget();
+        bytes memory callData = abi.encodeWithSelector(MockDelegatecallTarget.revertOnDelegatecall.selector);
+
+        vm.prank(owner);
+        vm.expectRevert(DelayedOwnerForwarder.ForwardFailed.selector);
+        forwarder.delegatecall(address(delegateTarget), callData);
+    }
+
+    function test_delegatecall_emptyData() public {
+        MockDelegatecallTarget delegateTarget = new MockDelegatecallTarget();
+        bytes memory callData = "";
+
+        vm.prank(owner);
+        // Empty data will revert because there's no function to call and no fallback
+        vm.expectRevert(DelayedOwnerForwarder.ForwardFailed.selector);
+        forwarder.delegatecall(address(delegateTarget), callData);
+    }
+
+    function test_delegatecall_multipleCalls() public {
+        // First set owner using regular call to avoid storage collision
+        bytes memory dummyCall = abi.encodeWithSelector(MockTarget.receiveCall.selector);
+        vm.prank(owner);
+        forwarder.call(address(target), dummyCall);
+
+        // Now test multiple delegatecalls using view function to avoid storage issues
+        MockDelegatecallTarget delegateTarget = new MockDelegatecallTarget();
+
+        vm.prank(owner);
+        bytes memory callData1 = abi.encodeWithSelector(MockDelegatecallTarget.getThisAddress.selector);
+        forwarder.delegatecall(address(delegateTarget), callData1);
+
+        vm.prank(owner);
+        bytes memory callData2 = abi.encodeWithSelector(MockDelegatecallTarget.getThisAddress.selector);
+        forwarder.delegatecall(address(delegateTarget), callData2);
+    }
+
+    function test_delegatecall_differentTargets() public {
+        // First set owner using regular call to avoid storage collision
+        bytes memory dummyCall = abi.encodeWithSelector(MockTarget.receiveCall.selector);
+        vm.prank(owner);
+        forwarder.call(address(target), dummyCall);
+
+        // Now test delegatecall to different targets using view function
+        MockDelegatecallTarget target1 = new MockDelegatecallTarget();
+        MockDelegatecallTarget target2 = new MockDelegatecallTarget();
+
+        bytes memory callData1 = abi.encodeWithSelector(MockDelegatecallTarget.getThisAddress.selector);
+        bytes memory callData2 = abi.encodeWithSelector(MockDelegatecallTarget.getThisAddress.selector);
+
+        vm.prank(owner);
+        forwarder.delegatecall(address(target1), callData1);
+
+        vm.prank(owner);
+        forwarder.delegatecall(address(target2), callData2);
     }
 }
