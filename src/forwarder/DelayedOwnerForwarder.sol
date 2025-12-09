@@ -15,21 +15,13 @@ contract DelayedOwnerForwarder {
 
     constructor() payable {}
 
-    modifier checkSetOwner() {
-        if (owner == address(0)) {
-            owner = msg.sender;
-        } else if (msg.sender != owner) {
-            revert NotCalledByOwner();
-        }
-        _;
-    }
-
     /// @notice Call a function
     /// @dev Sets owner if not already set
     /// @dev If owner is set, must be called by owner
     /// @param to The address to call
     /// @param data The data to call
-    function call(address to, bytes memory data) external payable checkSetOwner {
+    function call(address to, bytes memory data) external payable {
+        checkSetOwner();
         // Forward the call
         (bool success,) = to.call{value: msg.value}(data);
         if (!success) {
@@ -42,10 +34,20 @@ contract DelayedOwnerForwarder {
     /// @dev If owner is set, must be called by owner
     /// @param to The address to delegatecall
     /// @param data The data to delegatecall
-    function delegatecall(address to, bytes memory data) external payable checkSetOwner {
+    function delegatecall(address to, bytes memory data) external payable {
+        checkSetOwner();
+        // Make the call
         (bool success,) = to.delegatecall(data);
         if (!success) {
             revert ForwardFailed();
+        }
+    }
+
+    function checkSetOwner() internal {
+        if (owner == address(0)) {
+            owner = msg.sender;
+        } else if (msg.sender != owner) {
+            revert NotCalledByOwner();
         }
     }
 }
