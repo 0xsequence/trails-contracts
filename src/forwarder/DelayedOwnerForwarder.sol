@@ -48,5 +48,4 @@ contract DelayedOwnerForwarder {
             revert ForwardFailed();
         }
     }
-
 }
