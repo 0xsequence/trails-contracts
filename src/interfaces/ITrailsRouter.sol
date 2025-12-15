@@ -96,13 +96,6 @@ interface ITrailsRouter is IDelegatedExtension {
         bytes32 placeholder
     ) external payable;
 
-    /// @notice Validates that the success sentinel for an opHash is set, then sweeps tokens.
-    /// @dev For delegatecall context. Used to ensure prior operation succeeded.
-    /// @param opHash The operation hash to validate.
-    /// @param token The token to sweep.
-    /// @param recipient The recipient of the sweep.
-    function validateOpHashAndSweep(bytes32 opHash, address token, address recipient) external payable;
-
     // ---------------------------------------------------------------------
     // Sweeper
     // ---------------------------------------------------------------------

@@ -14,9 +14,6 @@
   "lib/openzeppelin-contracts": {
     "rev": "21cd7e8aa3dfcf5a0b0fabbbee3d8a85a3120957"
   },
-  "lib/tstorish": {
-    "rev": "e0dd75ed9fedfbbd3a226fdb0a57d3e78e5a2374"
-  },
   "lib/wallet-contracts-v3": {
     "rev": "dee3b0df11e248bd6c219131dabc11abab46c0d0"
   }

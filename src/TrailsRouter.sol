@@ -4,17 +4,15 @@ pragma solidity ^0.8.30;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
-import {Tstorish} from "tstorish/Tstorish.sol";
 import {DelegatecallGuard} from "./guards/DelegatecallGuard.sol";
 import {IMulticall3} from "./interfaces/IMulticall3.sol";
 import {ITrailsRouter} from "./interfaces/ITrailsRouter.sol";
-import {TrailsSentinelLib} from "./libraries/TrailsSentinelLib.sol";
 
 /// @title TrailsRouter
 /// @author Miguel Mota, Shun Kakinoki
 /// @notice Consolidated router for Trails operations including multicall routing, balance injection, and token sweeping
 /// @dev Must be delegatecalled via the Sequence delegated extension module to access wallet storage/balances.
-contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, Tstorish {
+contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard {
     // -------------------------------------------------------------------------
     // Libraries
     // -------------------------------------------------------------------------
@@ -42,7 +40,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
     error InvalidDelegatedSelector(bytes4 selector);
     error InvalidFunctionSelector(bytes4 selector);
     error AllowFailureMustBeFalse(uint256 callIndex);
-    error SuccessSentinelNotSet();
     error NoValueAvailable();
     error NoTokensToPull();
     error IncorrectValue(uint256 required, uint256 received);
@@ -220,26 +217,13 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         emit RefundAndSweep(_token, _refundRecipient, _refundAmount, _sweepRecipient, actualRefund, remaining);
     }
 
-    /// @inheritdoc ITrailsRouter
-    function validateOpHashAndSweep(bytes32 opHash, address _token, address _recipient)
-        public
-        payable
-        onlyDelegatecall
-    {
-        uint256 slot = TrailsSentinelLib.successSlot(opHash);
-        if (_getTstorish(slot) != TrailsSentinelLib.SUCCESS_VALUE) {
-            revert SuccessSentinelNotSet();
-        }
-        sweep(_token, _recipient);
-    }
-
     // -------------------------------------------------------------------------
     // Sequence Delegated Extension Entry Point
     // -------------------------------------------------------------------------
 
     /// @inheritdoc IDelegatedExtension
     function handleSequenceDelegateCall(
-        bytes32 _opHash,
+        bytes32, /* _opHash */
         uint256, /* _startingGas */
         uint256, /* _index */
         uint256, /* _numCalls */
@@ -274,12 +258,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
             (address token, address refundRecipient, uint256 refundAmount, address sweepRecipient) =
                 abi.decode(_data[4:], (address, address, uint256, address));
             refundAndSweep(token, refundRecipient, refundAmount, sweepRecipient);
-            return;
-        }
-
-        if (selector == this.validateOpHashAndSweep.selector) {
-            (, address token, address recipient) = abi.decode(_data[4:], (bytes32, address, address));
-            validateOpHashAndSweep(_opHash, token, recipient);
             return;
         }
 
