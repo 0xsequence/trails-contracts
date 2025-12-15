@@ -5,9 +5,6 @@
   "lib/erc2470-libs": {
     "rev": "a3bae46d6b78b724ffef3dd83dfbe678e6593ec9"
   },
-  "lib/evm-cctp-contracts": {
-    "rev": "5e893866d49326d62d3ecf3f7fb599dd71787469"
-  },
   "lib/forge-std": {
     "rev": "60acb7aaadcce2d68e52986a0a66fe79f07d138f"
   },
