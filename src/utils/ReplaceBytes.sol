@@ -4,7 +4,6 @@ pragma solidity ^0.8.27;
 /// @notice Helpers for mutating `bytes` in-place.
 /// @dev Reverts with empty data on out-of-bounds writes.
 library ReplaceBytes {
-
   /// @notice Overwrites 20 bytes at `offset` with `addr`, in-place.
   /// @dev Writes the raw 20-byte address (i.e. `abi.encodePacked(addr)`), not ABI-padded.
   ///      Safe for any `offset` (word-aligned or not) and does not allocate a new array.
@@ -44,5 +43,4 @@ library ReplaceBytes {
       mstore(add(add(data, 32), offset), val)
     }
   }
-
 }

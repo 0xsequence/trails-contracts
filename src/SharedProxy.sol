@@ -5,7 +5,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Guest} from "wallet-contracts-v3/Guest.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-
+import {ReplaceBytes} from "src/utils/ReplaceBytes.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
 
 /**
@@ -24,6 +24,7 @@ import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
 contract SharedProxy is Guest {
   using SafeERC20 for IERC20;
   using LibBytes for bytes;
+  using ReplaceBytes for bytes;
 
   error ArrayLengthMismatch();
   error ExecutionFailed(uint256 index, bytes result);
@@ -63,6 +64,13 @@ contract SharedProxy is Guest {
       Payload.Decoded memory decoded = Payload.fromPackedCalls(packedPayload);
       bytes32 opHash = Payload.hash(decoded);
 
+      _hydrate(decoded, hydratePayload);
+      _dispatchGuest(decoded, opHash);
+    }
+  }
+
+  function _hydrate(Payload.Decoded memory decoded, bytes calldata hydratePayload) internal view {
+    unchecked {
       // Dynamically hydrate the payload with information only known at execution time
       uint256 rindex;
       uint256 tindex;
@@ -79,15 +87,47 @@ contract SharedProxy is Guest {
           (cindex, rindex) = hydratePayload.readUint16(rindex);
 
           if (flag == HYDRATE_DATA_SELF_ADDRESS) {
-            // decoded.calls[tindex].data
+            // Insert the contract's address at the specified offset
+            decoded.calls[tindex].data.replaceAddress(cindex, address(this));
           } else if (flag == HYDRATE_DATA_MESSAGE_SENDER_ADDRESS) {
-            // decoded.calls[tindex].
+            // Insert the message sender's address at the specified offset
+            decoded.calls[tindex].data.replaceAddress(cindex, msg.sender);
           } else if (flag == HYDRATE_DATA_SELF_BALANCE) {
-            // decoded.calls[tindex].
+            // Insert the contract's balance at the specified offset
+            decoded.calls[tindex].data.replaceUint256(cindex, address(this).balance);
           } else if (flag == HYDRATE_DATA_MESSAGE_SENDER_BALANCE) {
-            // decoded.calls[tindex].
+            // Insert the message sender's balance at the specified offset
+            decoded.calls[tindex].data.replaceUint256(cindex, msg.sender.balance);
+          } else if (flag == HYDRATE_DATA_ANY_ADDRESS_BALANCE) {
+            // Insert any address's balance at the specified offset
+            address addr;
+            (addr, rindex) = hydratePayload.readAddress(rindex);
+            uint256 bal = addr.balance;
+            decoded.calls[tindex].data.replaceUint256(cindex, bal);
           } else if (flag == HYDRATE_DATA_SELF_TOKEN_BALANCE) {
-            // decoded.calls[tindex].
+            // Insert this contract's ERC20 balance for the token address specified (extracted from calldata)
+            // Assume next 20 bytes in hydratePayload is the token address
+            address token;
+            (token, rindex) = hydratePayload.readAddress(rindex);
+            uint256 bal = IERC20(token).balanceOf(address(this));
+            decoded.calls[tindex].data.replaceUint256(cindex, bal);
+          } else if (flag == HYDRATE_DATA_MESSAGE_SENDER_TOKEN_BALANCE) {
+            // Insert the message sender's ERC20 balance for the token address specified (extracted from calldata)
+            // Assume next 20 bytes in hydratePayload is the token address
+            address token;
+            (token, rindex) = hydratePayload.readAddress(rindex);
+            uint256 bal = IERC20(token).balanceOf(msg.sender);
+            decoded.calls[tindex].data.replaceUint256(cindex, bal);
+          } else if (flag == HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE) {
+            // Insert any address's ERC20 balance for the token address specified (extracted from calldata)
+            // Assume next 20 bytes in hydratePayload is the token address
+            // and the next 20 bytes is the address to get the balance of
+            address token;
+            address addr;
+            (token, rindex) = hydratePayload.readAddress(rindex);
+            (addr, rindex) = hydratePayload.readAddress(rindex);
+            uint256 bal = IERC20(token).balanceOf(addr);
+            decoded.calls[tindex].data.replaceUint256(cindex, bal);
           }
         } else if (flag == HYDRATE_TO_MESSAGE_SENDER_ADDRESS) {
           (tindex, rindex) = hydratePayload.readUint8(rindex);
@@ -98,13 +138,7 @@ contract SharedProxy is Guest {
           revert UnknownHydrateDataCommand(flag);
         }
       }
-
-      _dispatchGuest(decoded, opHash);
     }
-  }
-
-  function _hydrate(Payload.Decoded memory decoded, bytes calldata hydratePayload) internal pure {
-
   }
 
   function _sweep(address sweepTarget, address[] calldata tokensToSweep) private {
