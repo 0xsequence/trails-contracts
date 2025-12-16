@@ -57,21 +57,6 @@ interface ITrailsRouter is IDelegatedExtension {
     // Balance Injection
     // ---------------------------------------------------------------------
 
-    /// @notice Sweeps tokens from msg.sender and calls target with modified calldata.
-    /// @dev Transfers tokens from msg.sender to this contract first.
-    /// @param token The ERC-20 token to sweep, or address(0) for ETH.
-    /// @param target The address to call with modified calldata.
-    /// @param callData The original calldata (must include a 32-byte placeholder).
-    /// @param amountOffset The byte offset in calldata where the placeholder is located.
-    /// @param placeholder The 32-byte placeholder that will be replaced with balance.
-    function injectSweepAndCall(
-        address token,
-        address target,
-        bytes calldata callData,
-        uint256 amountOffset,
-        bytes32 placeholder
-    ) external payable;
-
     /// @notice Injects balance and calls target (for delegatecall context).
     /// @param token The ERC-20 token to sweep, or address(0) for ETH.
     /// @param target The address to call with modified calldata.

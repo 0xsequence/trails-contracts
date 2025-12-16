@@ -102,29 +102,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard {
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ITrailsRouter
-    function injectSweepAndCall(
-        address token,
-        address target,
-        bytes calldata callData,
-        uint256 amountOffset,
-        bytes32 placeholder
-    ) external payable {
-        uint256 callerBalance;
-
-        if (token == address(0)) {
-            callerBalance = msg.value;
-            if (callerBalance == 0) revert NoValueAvailable();
-        } else {
-            if (msg.value != 0) revert IncorrectValue(0, msg.value);
-            callerBalance = _getBalance(token, msg.sender);
-            if (callerBalance == 0) revert NoTokensToSweep();
-            _safeTransferFrom(token, msg.sender, address(this), callerBalance);
-        }
-
-        _injectAndExecuteCall(token, target, callData, amountOffset, placeholder, callerBalance);
-    }
-
-    /// @inheritdoc ITrailsRouter
     function injectAndCall(
         address token,
         address target,

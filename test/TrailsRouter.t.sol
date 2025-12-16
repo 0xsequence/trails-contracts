@@ -327,72 +327,6 @@ contract TrailsRouterTest is Test {
     // Balance Injection Tests
     // -------------------------------------------------------------------------
 
-    function testInjectSweepAndCall() public {
-        MockERC20 testToken = new MockERC20("Test", "TST", 18);
-        MockTarget testTarget = new MockTarget(address(testToken));
-
-        uint256 tokenBalance = 1000e18;
-        testToken.mint(address(this), tokenBalance);
-        testToken.approve(address(router), tokenBalance);
-
-        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
-
-        router.injectSweepAndCall(address(testToken), address(testTarget), callData, 4, PLACEHOLDER);
-
-        assertEq(testTarget.lastAmount(), tokenBalance);
-        assertEq(testToken.balanceOf(address(this)), 0);
-        assertEq(testToken.balanceOf(address(testTarget)), tokenBalance);
-    }
-
-    function testInjectSweepAndCall_WithToken_IncorrectValue() public {
-        MockERC20 testToken = new MockERC20("Test", "TST", 18);
-        MockTarget testTarget = new MockTarget(address(testToken));
-
-        uint256 tokenBalance = 1000e18;
-        uint256 incorrectValue = 1 ether;
-        testToken.mint(address(this), tokenBalance);
-        testToken.approve(address(router), tokenBalance);
-
-        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
-
-        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, 0, incorrectValue));
-        router.injectSweepAndCall{value: incorrectValue}(
-            address(testToken), address(testTarget), callData, 4, PLACEHOLDER
-        );
-    }
-
-    function testSweepAndCallETH() public {
-        uint256 ethAmount = 1 ether;
-
-        bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
-
-        router.injectSweepAndCall{value: ethAmount}(address(0), address(targetEth), callData, 4, PLACEHOLDER);
-
-        assertEq(targetEth.lastAmount(), ethAmount);
-        assertEq(targetEth.receivedEth(), ethAmount);
-        assertEq(address(targetEth).balance, ethAmount);
-    }
-
-    function testRevertWhen_injectSweepAndCall_InsufficientAllowance() public {
-        uint256 balance = 1e18;
-        mockToken.mint(address(this), balance);
-
-        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
-
-        vm.expectRevert(
-            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(router), 0, balance)
-        );
-        router.injectSweepAndCall(address(mockToken), address(target), callData, 4, PLACEHOLDER);
-    }
-
-    function testRevertWhen_injectSweepAndCall_NoValueAvailable() public {
-        bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
-
-        vm.prank(user);
-        vm.expectRevert(TrailsRouter.NoValueAvailable.selector);
-        router.injectSweepAndCall{value: 0}(address(0), address(targetEth), callData, 4, PLACEHOLDER);
-    }
-
     function testDelegateCallWithETH() public {
         MockWallet wallet = new MockWallet();
 
@@ -704,21 +638,6 @@ contract TrailsRouterTest is Test {
         vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, originalCode);
     }
 
-    function testInjectSweepAndCall_WithETH_ZeroBalance() public {
-        bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
-
-        vm.expectRevert(TrailsRouter.NoValueAvailable.selector);
-        router.injectSweepAndCall{value: 0}(address(0), address(targetEth), callData, 4, PLACEHOLDER);
-    }
-
-    function testInjectSweepAndCall_WithToken_ZeroBalance() public {
-        MockERC20 zeroToken = new MockERC20("Zero", "ZERO", 18);
-        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0));
-
-        vm.expectRevert(TrailsRouter.NoTokensToSweep.selector);
-        router.injectSweepAndCall(address(zeroToken), address(target), callData, 4, PLACEHOLDER);
-    }
-
     function testInjectAndCall_WithZeroBalance() public {
         bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
 
@@ -734,43 +653,6 @@ contract TrailsRouterTest is Test {
         vm.prank(holder);
         vm.expectRevert(TrailsRouter.NoTokensToSweep.selector);
         TrailsRouter(holder).injectAndCall(address(zeroToken), address(target), callData, 4, PLACEHOLDER);
-    }
-
-    function testInjectSweepAndCall_WithETH_TargetCallFails() public {
-        uint256 ethAmount = 1 ether;
-
-        bytes memory callData = abi.encodeWithSignature("depositEth(uint256,address)", PLACEHOLDER, address(0x123));
-
-        // Make target revert
-        targetEth.setShouldRevert(true);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TrailsRouter.TargetCallFailed.selector, abi.encodeWithSignature("Error(string)", "Target reverted")
-            )
-        );
-        router.injectSweepAndCall{value: ethAmount}(address(0), address(targetEth), callData, 4, PLACEHOLDER);
-    }
-
-    function testInjectSweepAndCall_WithToken_TargetCallFails() public {
-        MockERC20 testToken = new MockERC20("Test", "TST", 18);
-        MockTarget testTarget = new MockTarget(address(testToken));
-
-        uint256 tokenBalance = 1000e18;
-        testToken.mint(address(this), tokenBalance);
-        testToken.approve(address(router), tokenBalance);
-
-        bytes memory callData = abi.encodeWithSignature("deposit(uint256,address)", PLACEHOLDER, address(0x123));
-
-        // Make target revert
-        testTarget.setShouldRevert(true);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TrailsRouter.TargetCallFailed.selector, abi.encodeWithSignature("Error(string)", "Target reverted")
-            )
-        );
-        router.injectSweepAndCall(address(testToken), address(testTarget), callData, 4, PLACEHOLDER);
     }
 
     function testRefundAndSweep_FullRefund() public {
