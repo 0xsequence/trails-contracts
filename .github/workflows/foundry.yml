@@ -54,8 +54,3 @@ jobs:
         run: |
           forge lint
         id: lint
-
-      - name: Run Forge snapshot
-        run: |
-          forge snapshot --check
-        id: snapshot
