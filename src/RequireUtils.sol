@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -141,11 +142,10 @@ contract RequireUtils {
     _requireMinERC1155BalanceBatch(token, wallet, tokenIds, minBalances);
   }
 
-  function requireMinERC1155BalanceBatchSelf(
-    address token,
-    uint256[] calldata tokenIds,
-    uint256[] calldata minBalances
-  ) external view {
+  function requireMinERC1155BalanceBatchSelf(address token, uint256[] calldata tokenIds, uint256[] calldata minBalances)
+    external
+    view
+  {
     _requireMinERC1155BalanceBatch(token, msg.sender, tokenIds, minBalances);
   }
 

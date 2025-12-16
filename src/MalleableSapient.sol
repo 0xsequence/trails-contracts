@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
