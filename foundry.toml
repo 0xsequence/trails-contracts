@@ -10,3 +10,6 @@ optimizer_runs = 4294967295
 
 [lint]
 exclude_lints = ["unsafe-cheatcode"]
+
+[fmt]
+tab_width = 2

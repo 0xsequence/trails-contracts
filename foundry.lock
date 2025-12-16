@@ -1,4 +1,10 @@
 {
+  "lib/openzeppelin-contracts": {
+    "tag": {
+      "name": "v5.5.0",
+      "rev": "fcbae5394ae8ad52d8e580a3477db99814b9d565"
+    }
+  },
   "lib/wallet-contracts-v3": {
     "rev": "dee3b0df11e248bd6c219131dabc11abab46c0d0"
   }

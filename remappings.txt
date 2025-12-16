@@ -1,1 +1,2 @@
 wallet-contracts-v3/=lib/wallet-contracts-v3/src/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
