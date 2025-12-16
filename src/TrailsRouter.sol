@@ -41,7 +41,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard {
     error InvalidFunctionSelector(bytes4 selector);
     error AllowFailureMustBeFalse(uint256 callIndex);
     error NoValueAvailable();
-    error NoTokensToPull();
     error IncorrectValue(uint256 required, uint256 received);
     error NoTokensToSweep();
     error AmountOffsetOutOfBounds();
@@ -65,24 +64,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard {
         (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
         if (!success) revert TargetCallFailed(returnData);
         return abi.decode(returnData, (IMulticall3.Result[]));
-    }
-
-    /// @inheritdoc ITrailsRouter
-    function pullAndExecute(address token, bytes calldata data)
-        public
-        payable
-        returns (IMulticall3.Result[] memory returnResults)
-    {
-        uint256 amount;
-        if (token == address(0)) {
-            if (msg.value == 0) revert NoValueAvailable();
-            amount = msg.value;
-        } else {
-            amount = _getBalance(token, msg.sender);
-            if (amount == 0) revert NoTokensToPull();
-        }
-
-        return pullAmountAndExecute(token, amount, data);
     }
 
     /// @inheritdoc ITrailsRouter

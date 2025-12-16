@@ -309,45 +309,6 @@ contract TrailsRouterTest is Test {
         router.pullAmountAndExecute(address(mockToken), transferAmount, callData);
     }
 
-    function test_pullAndExecute_WithValidToken_ShouldTransferFullBalanceAndExecute() public {
-        uint256 userBalance = mockToken.balanceOf(user);
-
-        vm.prank(user);
-        mockToken.approve(address(router), userBalance);
-
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
-        });
-
-        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
-
-        vm.prank(user);
-        router.pullAndExecute(address(mockToken), callData);
-
-        // Router should have no remaining balance (dust refunded back to user)
-        assertEq(mockToken.balanceOf(address(router)), 0);
-        // User gets their tokens back since multicall didn't consume them
-        assertEq(mockToken.balanceOf(user), userBalance);
-    }
-
-    function test_RevertWhen_pullAndExecute_InsufficientAllowance() public {
-        uint256 userBalance = mockToken.balanceOf(user);
-
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
-        });
-
-        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
-
-        vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(router), 0, userBalance)
-        );
-        router.pullAndExecute(address(mockToken), callData);
-    }
-
     function test_ReceiveETH_ShouldAcceptETH() public {
         uint256 depositAmount = 1 ether;
 
@@ -584,20 +545,6 @@ contract TrailsRouterTest is Test {
         success;
     }
 
-    function test_no_tokens_to_pull() public {
-        address token = address(new MockERC20("Test", "TST", 18)); // New token, caller has 0 balance
-
-        // Use a valid aggregate3 call so selector validation passes and we hit NoTokensToPull
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
-        });
-        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
-
-        vm.expectRevert(TrailsRouter.NoTokensToPull.selector);
-        router.pullAndExecute(token, callData);
-    }
-
     function test_no_tokens_to_sweep() public {
         address token = address(new MockERC20("Test", "TST", 18)); // New token, contract has 0 balance
         MockTarget mockTarget = new MockTarget(address(token));
@@ -647,59 +594,6 @@ contract TrailsRouterTest is Test {
             )
         );
         success;
-    }
-
-    function test_pullAndExecute_WithETH_ShouldTransferAndExecute() public {
-        uint256 ethAmount = 1 ether;
-        vm.deal(user, ethAmount);
-
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
-        });
-
-        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
-
-        vm.prank(user);
-        router.pullAndExecute{value: ethAmount}(address(0), callData);
-
-        // Router should have no remaining balance (dust refunded back to user)
-        assertEq(address(router).balance, 0);
-        // User gets their ETH back since multicall didn't consume it
-        assertEq(user.balance, ethAmount);
-    }
-
-    function test_pullAndExecute_WithETH_NoEthSent() public {
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
-        });
-
-        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
-
-        vm.prank(user);
-        vm.expectRevert(TrailsRouter.NoValueAvailable.selector);
-        router.pullAndExecute(address(0), callData);
-    }
-
-    function test_pullAndExecute_WithToken_IncorrectValue() public {
-        uint256 transferAmount = 100e18;
-        uint256 incorrectValue = 1 ether;
-
-        vm.prank(user);
-        mockToken.approve(address(router), transferAmount);
-
-        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
-        calls[0] = IMulticall3.Call3Value({
-            target: address(getter), allowFailure: false, value: 0, callData: abi.encodeWithSignature("getSender()")
-        });
-
-        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
-
-        vm.deal(user, incorrectValue);
-        vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, 0, incorrectValue));
-        router.pullAndExecute{value: incorrectValue}(address(mockToken), callData);
     }
 
     function test_pullAmountAndExecute_WithETH_ShouldTransferAndExecute() public {
@@ -805,39 +699,6 @@ contract TrailsRouterTest is Test {
             )
         );
         router.execute(callData);
-
-        // Restore original code
-        vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, originalCode);
-    }
-
-    function test_pullAndExecute_WithFailingMulticall() public {
-        uint256 transferAmount = 100e18;
-
-        // Save original multicall code
-        bytes memory originalCode = 0xcA11bde05977b3631167028862bE2a173976CA11.code;
-
-        // Deploy and etch always-failing multicall (doesn't use storage, always reverts)
-        AlwaysFailingMulticall3 failingMulticall = new AlwaysFailingMulticall3();
-        vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, address(failingMulticall).code);
-
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter), allowFailure: false, callData: abi.encodeWithSignature("getSender()")
-        });
-
-        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
-
-        // Give tokens to the test contract (which will be msg.sender) and approve
-        mockToken.mint(address(this), transferAmount);
-        mockToken.approve(address(router), transferAmount);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TrailsRouter.TargetCallFailed.selector,
-                abi.encodeWithSignature("Error(string)", "MockMulticall3: forced failure")
-            )
-        );
-        router.pullAndExecute(address(mockToken), callData);
 
         // Restore original code
         vm.etch(0xcA11bde05977b3631167028862bE2a173976CA11, originalCode);
@@ -1267,32 +1128,6 @@ contract TrailsRouterTest is Test {
         // Should revert with AllowFailureMustBeFalse error for index 0 (first occurrence)
         vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
         router.pullAmountAndExecute(address(erc20), 10 ether, callData);
-
-        vm.stopPrank();
-    }
-
-    /**
-     * @notice Test that pullAndExecute also validates allowFailure flag
-     * @dev Ensures the validation applies to pullAndExecute as well
-     */
-    function test_RevertWhen_pullAndExecute_allowFailure_true() public {
-        erc20.mint(user, 100 ether);
-        vm.startPrank(user);
-        erc20.approve(address(router), 100 ether);
-
-        // Create a call with allowFailure=true
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = IMulticall3.Call3({
-            target: address(getter),
-            allowFailure: true, // This should cause revert
-            callData: abi.encodeWithSignature("getSender()")
-        });
-
-        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
-
-        // Should revert with AllowFailureMustBeFalse error for index 0
-        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.AllowFailureMustBeFalse.selector, 0));
-        router.pullAndExecute(address(erc20), callData);
 
         vm.stopPrank();
     }

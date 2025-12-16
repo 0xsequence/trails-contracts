@@ -42,16 +42,6 @@ interface ITrailsRouter is IDelegatedExtension {
     /// @return returnResults The result of the execution.
     function execute(bytes calldata data) external payable returns (IMulticall3.Result[] memory returnResults);
 
-    /// @notice Pull tokens from msg.sender, then delegatecall into Multicall3.
-    /// @dev For ERC20: pulls entire balance and requires prior approval. For ETH: uses msg.value.
-    /// @param token The ERC20 token to pull, or address(0) for ETH.
-    /// @param data The calldata for Multicall3.
-    /// @return returnResults The result of the execution.
-    function pullAndExecute(address token, bytes calldata data)
-        external
-        payable
-        returns (IMulticall3.Result[] memory returnResults);
-
     /// @notice Pull specific amount of tokens from msg.sender, then delegatecall into Multicall3.
     /// @dev For ERC20: requires prior approval. For ETH: requires msg.value.
     /// @param token The ERC20 token to pull, or address(0) for ETH.
