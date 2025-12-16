@@ -33,16 +33,20 @@ contract SharedProxy is Guest {
 
   uint8 private constant HYDRATE_DATA_SELF_ADDRESS = 0x00;
   uint8 private constant HYDRATE_DATA_MESSAGE_SENDER_ADDRESS = 0x01;
+  uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_ADDRESS = 0x09;
 
   uint8 private constant HYDRATE_DATA_SELF_BALANCE = 0x02;
   uint8 private constant HYDRATE_DATA_MESSAGE_SENDER_BALANCE = 0x03;
+  uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_BALANCE = 0x0A;
   uint8 private constant HYDRATE_DATA_ANY_ADDRESS_BALANCE = 0x04;
 
   uint8 private constant HYDRATE_DATA_SELF_TOKEN_BALANCE = 0x05;
   uint8 private constant HYDRATE_DATA_MESSAGE_SENDER_TOKEN_BALANCE = 0x06;
+  uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_TOKEN_BALANCE = 0x0B;
   uint8 private constant HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE = 0x07;
 
   uint8 private constant HYDRATE_TO_MESSAGE_SENDER_ADDRESS = 0x08;
+  uint8 private constant HYDRATE_TO_TRANSACTION_ORIGIN_ADDRESS = 0x0C;
 
   // Useful in delegatecall contexts, since sweeping is not necessary
   // yet it allows to dynamically hydrate the payload with information that was not known at the creation of the intent.
@@ -94,12 +98,18 @@ contract SharedProxy is Guest {
           } else if (flag == HYDRATE_DATA_MESSAGE_SENDER_ADDRESS) {
             // Insert the message sender's address at the specified offset
             decoded.calls[tindex].data.replaceAddress(cindex, msg.sender);
+          } else if (flag == HYDRATE_DATA_TRANSACTION_ORIGIN_ADDRESS) {
+            // Insert the transaction origin's address at the specified offset
+            decoded.calls[tindex].data.replaceAddress(cindex, tx.origin);
           } else if (flag == HYDRATE_DATA_SELF_BALANCE) {
             // Insert the contract's balance at the specified offset
             decoded.calls[tindex].data.replaceUint256(cindex, address(this).balance);
           } else if (flag == HYDRATE_DATA_MESSAGE_SENDER_BALANCE) {
             // Insert the message sender's balance at the specified offset
             decoded.calls[tindex].data.replaceUint256(cindex, msg.sender.balance);
+          } else if (flag == HYDRATE_DATA_TRANSACTION_ORIGIN_BALANCE) {
+            // Insert the transaction origin's balance at the specified offset
+            decoded.calls[tindex].data.replaceUint256(cindex, tx.origin.balance);
           } else if (flag == HYDRATE_DATA_ANY_ADDRESS_BALANCE) {
             // Insert any address's balance at the specified offset
             address addr;
@@ -120,6 +130,13 @@ contract SharedProxy is Guest {
             (token, rindex) = hydratePayload.readAddress(rindex);
             uint256 bal = IERC20(token).balanceOf(msg.sender);
             decoded.calls[tindex].data.replaceUint256(cindex, bal);
+          } else if (flag == HYDRATE_DATA_TRANSACTION_ORIGIN_TOKEN_BALANCE) {
+            // Insert the transaction origin's ERC20 balance for the token address specified (extracted from calldata)
+            // Assume next 20 bytes in hydratePayload is the token address
+            address token;
+            (token, rindex) = hydratePayload.readAddress(rindex);
+            uint256 bal = IERC20(token).balanceOf(tx.origin);
+            decoded.calls[tindex].data.replaceUint256(cindex, bal);
           } else if (flag == HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE) {
             // Insert any address's ERC20 balance for the token address specified (extracted from calldata)
             // Assume next 20 bytes in hydratePayload is the token address
@@ -135,6 +152,11 @@ contract SharedProxy is Guest {
           (tindex, rindex) = hydratePayload.readUint8(rindex);
 
           // The message sender address is the address that sent the message to the contract.
+          (decoded.calls[tindex].to, rindex) = hydratePayload.readAddress(rindex);
+        } else if (flag == HYDRATE_TO_TRANSACTION_ORIGIN_ADDRESS) {
+          (tindex, rindex) = hydratePayload.readUint8(rindex);
+
+          // The transaction origin address is the address that originated the transaction.
           (decoded.calls[tindex].to, rindex) = hydratePayload.readAddress(rindex);
         } else {
           revert UnknownHydrateDataCommand(flag);
