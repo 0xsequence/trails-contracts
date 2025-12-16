@@ -44,6 +44,8 @@ contract SharedProxy is Guest {
 
   uint8 private constant HYDRATE_TO_MESSAGE_SENDER_ADDRESS = 0x08;
 
+  // Useful in delegatecall contexts, since sweeping is not necessary
+  // yet it allows to dynamically hydrate the payload with information that was not known at the creation of the intent.
   function hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) external payable {
     _hydrateExecute(packedPayload, hydratePayload);
   }
