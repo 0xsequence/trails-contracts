@@ -1,22 +1,4 @@
 {
-  "lib/contracts": {
-    "rev": "672c4cc42a4051a1918a7c448770ecb1af152bb3"
-  },
-  "lib/erc2470-libs": {
-    "rev": "a3bae46d6b78b724ffef3dd83dfbe678e6593ec9"
-  },
-  "lib/evm-cctp-contracts": {
-    "rev": "5e893866d49326d62d3ecf3f7fb599dd71787469"
-  },
-  "lib/forge-std": {
-    "rev": "60acb7aaadcce2d68e52986a0a66fe79f07d138f"
-  },
-  "lib/openzeppelin-contracts": {
-    "rev": "21cd7e8aa3dfcf5a0b0fabbbee3d8a85a3120957"
-  },
-  "lib/tstorish": {
-    "rev": "e0dd75ed9fedfbbd3a226fdb0a57d3e78e5a2374"
-  },
   "lib/wallet-contracts-v3": {
     "rev": "dee3b0df11e248bd6c219131dabc11abab46c0d0"
   }
