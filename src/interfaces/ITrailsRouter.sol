@@ -90,18 +90,4 @@ interface ITrailsRouter is IDelegatedExtension {
     function refundAndSweep(address token, address refundRecipient, uint256 refundAmount, address sweepRecipient)
         external
         payable;
-
-    // ---------------------------------------------------------------------
-    // Delegate Entry
-    // ---------------------------------------------------------------------
-
-    /// @inheritdoc IDelegatedExtension
-    function handleSequenceDelegateCall(
-        bytes32 opHash,
-        uint256 startingGas,
-        uint256 index,
-        uint256 numCalls,
-        uint256 space,
-        bytes calldata data
-    ) external;
 }

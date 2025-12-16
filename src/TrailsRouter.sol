@@ -189,7 +189,7 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard {
         bytes calldata _data
     )
         external
-        override(IDelegatedExtension, ITrailsRouter)
+        override
         onlyDelegatecall
     {
         bytes4 selector;
