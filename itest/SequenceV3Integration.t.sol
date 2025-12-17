@@ -175,7 +175,7 @@ contract SequenceV3IntegrationTest is Test {
     assertEq(receiver.lastData(), dataB);
   }
 
-  function test_integration_walletDelegatecallsSharedProxy_andHydrates() external {
+  function test_integration_walletDelegatecallsHydrateProxy_andHydrates() external {
     TrailsUtils trailsUtils = new TrailsUtils();
 
     SeqFactory factory = new SeqFactory();

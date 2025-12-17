@@ -3,7 +3,7 @@ pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
 
-import {SharedProxy} from "src/modules/SharedProxy.sol";
+import {HydrateProxy} from "src/modules/HydrateProxy.sol";
 import {Sweep} from "src/modules/Sweep.sol";
 import {Calls} from "wallet-contracts-v3/modules/Calls.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
@@ -11,13 +11,13 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {PackedPayload} from "test/helpers/PackedPayload.sol";
 import {MockERC20, RecordingReceiver, RevertingReceiver, RejectEther} from "test/helpers/Mocks.sol";
 
-contract SharedProxyCaller {
-  function hydrateExecute(SharedProxy proxy, bytes calldata packedPayload, bytes calldata hydratePayload) external payable {
+contract HydrateProxyCaller {
+  function hydrateExecute(HydrateProxy proxy, bytes calldata packedPayload, bytes calldata hydratePayload) external payable {
     proxy.hydrateExecute{value: msg.value}(packedPayload, hydratePayload);
   }
 
   function hydrateExecuteAndSweep(
-    SharedProxy proxy,
+    HydrateProxy proxy,
     bytes calldata packedPayload,
     address sweepTarget,
     address[] calldata tokensToSweep,
@@ -27,7 +27,7 @@ contract SharedProxyCaller {
   }
 }
 
-contract SharedProxyTest is Test {
+contract HydrateProxyTest is Test {
   using PackedPayload for Payload.Call[];
 
   struct HydrateAllFlagsCase {
@@ -113,8 +113,8 @@ contract SharedProxyTest is Test {
   }
 
   function testFuzz_hydrateExecute_hydratesAllFlags_andExecutes(bytes32 seed) external {
-    SharedProxy proxy = new SharedProxy();
-    SharedProxyCaller caller = new SharedProxyCaller();
+    HydrateProxy proxy = new HydrateProxy();
+    HydrateProxyCaller caller = new HydrateProxyCaller();
 
     RecordingReceiver msgSenderReceiver = new RecordingReceiver();
     RecordingReceiver originReceiver = new RecordingReceiver();
@@ -189,7 +189,7 @@ contract SharedProxyTest is Test {
         && marker != SELECTOR_LAST_SENDER
     );
 
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
     RecordingReceiver receiver = new RecordingReceiver();
 
     Payload.Call[] memory calls = new Payload.Call[](1);
@@ -210,7 +210,7 @@ contract SharedProxyTest is Test {
   function testFuzz_hydrateExecute_unknownHydrateFlag_reverts(uint8 flag) external {
     vm.assume(flag >= 0x0F);
 
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
     RecordingReceiver receiver = new RecordingReceiver();
 
     Payload.Call[] memory calls = new Payload.Call[](1);
@@ -225,12 +225,12 @@ contract SharedProxyTest is Test {
     });
 
     bytes memory hydratePayload = bytes.concat(bytes1(uint8(0)), bytes1(flag));
-    vm.expectRevert(abi.encodeWithSelector(SharedProxy.UnknownHydrateDataCommand.selector, uint256(flag)));
+    vm.expectRevert(abi.encodeWithSelector(HydrateProxy.UnknownHydrateDataCommand.selector, uint256(flag)));
     proxy.hydrateExecute(calls.packCalls(), hydratePayload);
   }
 
   function testFuzz_hydrateExecute_delegateCallNotAllowed_reverts(bytes calldata data) external {
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
 
     vm.assume(data.length <= 64);
 
@@ -245,12 +245,12 @@ contract SharedProxyTest is Test {
       behaviorOnError: Payload.BEHAVIOR_IGNORE_ERROR
     });
 
-    vm.expectRevert(abi.encodeWithSelector(SharedProxy.DelegateCallNotAllowed.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(HydrateProxy.DelegateCallNotAllowed.selector, uint256(0)));
     proxy.hydrateExecute(calls.packCalls(), "");
   }
 
   function testFuzz_hydrateExecute_notEnoughGas_reverts(uint256 delta) external {
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
 
     delta = bound(delta, 0, type(uint128).max);
     uint256 gasLimit = type(uint256).max - delta;
@@ -268,7 +268,7 @@ contract SharedProxyTest is Test {
     });
 
     (bool ok, bytes memory revertData) =
-      address(proxy).call(abi.encodeWithSelector(SharedProxy.hydrateExecute.selector, calls.packCalls(), ""));
+      address(proxy).call(abi.encodeWithSelector(HydrateProxy.hydrateExecute.selector, calls.packCalls(), ""));
     assertFalse(ok);
     assertEq(_selector(revertData), Calls.NotEnoughGas.selector);
   }
@@ -283,7 +283,7 @@ contract SharedProxyTest is Test {
         && dataD != SELECTOR_LAST_SENDER
     );
 
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
 
     RecordingReceiver recvA = new RecordingReceiver();
     RecordingReceiver recvB = new RecordingReceiver();
@@ -352,7 +352,7 @@ contract SharedProxyTest is Test {
   }
 
   function testFuzz_hydrateExecute_revertOnError_reverts(bytes calldata data) external {
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
 
     vm.assume(data.length <= 64);
     Payload.Call[] memory calls = new Payload.Call[](1);
@@ -367,13 +367,13 @@ contract SharedProxyTest is Test {
     });
 
     (bool ok, bytes memory revertData) =
-      address(proxy).call(abi.encodeWithSelector(SharedProxy.hydrateExecute.selector, calls.packCalls(), ""));
+      address(proxy).call(abi.encodeWithSelector(HydrateProxy.hydrateExecute.selector, calls.packCalls(), ""));
     assertFalse(ok);
     assertEq(_selector(revertData), Calls.Reverted.selector);
   }
 
   function testFuzz_hydrateExecute_abortOnError_aborts(bytes calldata data, bytes4 afterData) external {
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
 
     vm.assume(data.length <= 64);
 
@@ -403,7 +403,7 @@ contract SharedProxyTest is Test {
   }
 
   function testFuzz_hydrateExecute_behavior3_fallthrough_emitsSucceeded(bytes calldata data, bytes4 afterData) external {
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
     vm.assume(data.length <= 64);
     vm.assume(
       afterData != SELECTOR_CALLS && afterData != SELECTOR_RESET && afterData != SELECTOR_LAST_DATA
@@ -440,7 +440,7 @@ contract SharedProxyTest is Test {
     uint96 msgValue,
     uint128 tokenAmount
   ) external {
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
     MockERC20 token = new MockERC20();
     RecordingReceiver receiver = new RecordingReceiver();
 
@@ -477,7 +477,7 @@ contract SharedProxyTest is Test {
   }
 
   function testFuzz_hydrateExecuteAndSweep_explicitTarget_andNoBalances(address sweepTarget) external {
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
     RecordingReceiver receiver = new RecordingReceiver();
 
     vm.assume(sweepTarget != address(0));
@@ -500,7 +500,7 @@ contract SharedProxyTest is Test {
   }
 
   function testFuzz_hydrateExecuteAndSweep_revertsWhenEthSweepFails(uint96 msgValue) external {
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
     RejectEther rejector = new RejectEther();
     RecordingReceiver receiver = new RecordingReceiver();
 
@@ -526,7 +526,7 @@ contract SharedProxyTest is Test {
   function testFuzz_receive_acceptsEth(uint96 amount) external {
     amount = uint96(bound(amount, 0, 10 ether));
 
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
     address sender = makeAddr("sender");
     vm.deal(sender, amount);
 
@@ -541,7 +541,7 @@ contract SharedProxyTest is Test {
         && marker != SELECTOR_LAST_SENDER
     );
 
-    SharedProxy proxy = new SharedProxy();
+    HydrateProxy proxy = new HydrateProxy();
     RecordingReceiver receiver = new RecordingReceiver();
 
     Payload.Call[] memory calls = new Payload.Call[](1);

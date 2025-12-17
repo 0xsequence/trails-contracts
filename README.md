@@ -10,43 +10,13 @@ All modules are combined into a single [TrailsUtils.sol](src/TrailsUtils.sol) to
 
 ### Modules
 
-#### MalleableSapient
+#### HydrateProxy
 
-[MalleableSapient.sol](src/modules/MalleableSapient.sol) implements the [ISapient interface](https://github.com/0xsequence/wallet-contracts-v3/blob/master/src/modules/interfaces/ISapient.sol) used by Sequence Wallets to support singleton counter factual configurations derived at runtime.
-
-Sequence Wallets support preauthorization of entire payload digests. This does not support all Trails providers. Some information (e.g. commit / reveal bridges) do not allow the entire payload to be known when constructing the Intent supported Payloads.
-
-By allowing some portions of a Payload to be excluded, we can break the circular dependency and allow the data to be provided at execution time.
-
-> [!CAUTION]
-> Care must be taken not to relax the validation too much. Any Malleable field is effectively open to attack, as the wallet will approve any value in a Malleable section. Malleable sections should only be used for data that is able to be validated during execution.
-
-Using Hydrate logic via the `SharedProxy` is preferrable over using the `MalleableSigner`.
-
-#### RequireUtils
-
-[RequireUtils.sol](src/modules/RequireUtils.sol) allows a Payload to support preconditions, by reverting when not met.
-
-To use RequireUtils in a Payload, encode the precondition Call as follows:
-
-```
-to: RequireUtils (or implementation)
-data: abi.encode as normal
-behaviourOnError: BEHAVIOR_REVERT_ON_ERROR
-onlyFallback: false
-```
-
-`BEHAVIOR_REVERT_ON_ERROR` ensures the transaction reverts and does not consume the Payload's nonce.
-
-`onlyFallback` can be set to `true` for more complex interactions such as post-condition validation.
-
-#### SharedProxy
-
-[SharedProxy.sol](src/modules/SharedProxy.sol) is used as a proxy for Calls that may need modification at runtime.
+[HydrateProxy.sol](src/modules/HydrateProxy.sol) is used as a proxy for Calls that may need modification at runtime.
 
 Some Payload Calls require parameter encoding that is only available during execution. For example, a Call may require the ERC20 balance to be encoded, but the exact value may change due to slippage. Payloads may also have the circular dependency issue where the Call must encode the Intent Address, which is not known until the Payload is hashed.
 
-Hydrate allows Calls to be configured which predefined replacement identifiers. Unlike the `MalleableSigner`, these replacement identifiers are encoded in the Payload and included in the Intent configuration, reducing the attack surface.
+Hydrate allows Calls to be configured which predefined replacement identifiers. Unlike the `MalleableSapient`, these replacement identifiers are encoded in the Payload and included in the Intent configuration, reducing the attack surface.
 
 During execution, the Hydrate logic will replace the calldata with the predefined identifiers before processing the Call.
 
@@ -69,6 +39,36 @@ The Hydrator logic supports the replacement with:
   - tx.origin
 - Value:
   - msg.sender.balance
+
+#### MalleableSapient
+
+[MalleableSapient.sol](src/modules/MalleableSapient.sol) implements the [ISapient interface](https://github.com/0xsequence/wallet-contracts-v3/blob/master/src/modules/interfaces/ISapient.sol) used by Sequence Wallets to support singleton counter factual configurations derived at runtime.
+
+Sequence Wallets support preauthorization of entire payload digests. This does not support all Trails providers. Some information (e.g. commit / reveal bridges) do not allow the entire payload to be known when constructing the Intent supported Payloads.
+
+By allowing some portions of a Payload to be excluded, we can break the circular dependency and allow the data to be provided at execution time.
+
+> [!CAUTION]
+> Care must be taken not to relax the validation too much. Any Malleable field is effectively open to attack, as the wallet will approve any value in a Malleable section. Malleable sections should only be used for data that is able to be validated during execution.
+
+Using Hydrate logic via the `HydrateProxy` is preferrable over using the `MalleableSapient`.
+
+#### RequireUtils
+
+[RequireUtils.sol](src/modules/RequireUtils.sol) allows a Payload to support preconditions, by reverting when not met.
+
+To use RequireUtils in a Payload, encode the precondition Call as follows:
+
+```
+to: RequireUtils (or implementation)
+data: abi.encode as normal
+behaviourOnError: BEHAVIOR_REVERT_ON_ERROR
+onlyFallback: false
+```
+
+`BEHAVIOR_REVERT_ON_ERROR` ensures the transaction reverts and does not consume the Payload's nonce.
+
+`onlyFallback` can be set to `true` for more complex interactions such as post-condition validation.
 
 #### Sweep
 

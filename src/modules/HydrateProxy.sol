@@ -11,7 +11,7 @@ import {Calls} from "wallet-contracts-v3/modules/Calls.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 
 /**
- * @title SharedProxy
+ * @title HydrateProxy
  * @notice
  * A minimal execution proxy that "hydrates" a batch payload at execution time and then executes it.
  * @dev
@@ -27,7 +27,7 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
  * NOTE: This contract can temporarily hold funds during execution (e.g. as part of swaps) and can
  * optionally sweep them out via {hydrateExecuteAndSweep}.
  */
-contract SharedProxy is Sweep {
+contract HydrateProxy is Sweep {
   using LibBytes for bytes;
   using ReplaceBytes for bytes;
   using CalldataDecode for bytes;
