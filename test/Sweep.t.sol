@@ -7,7 +7,6 @@ import {Sweep} from "src/modules/Sweep.sol";
 import {MockERC20} from "test/helpers/Mocks.sol";
 
 contract SweepTest is Test {
-
   Sweep public sweep;
 
   function setUp() public {

@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
+contract Emitter {
+  event Emitted(address sender, bytes data, uint256 value);
+
+  function doEmit(bytes calldata data) external payable {
+    emit Emitted(msg.sender, data, msg.value);
+  }
+}
+
 contract RecordingReceiver {
   bytes public lastData;
   uint256 public lastValue;

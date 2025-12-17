@@ -60,6 +60,9 @@ contract HydrateProxy is Sweep {
   // Hydration flags for mutating a call's ETH value (`value`).
   uint256 private constant HYDRATE_AMOUNT_SELF_BALANCE = 0x0E;
 
+  // Cached address of this contract to detect delegatecall context
+  address internal immutable SELF = address(this);
+
   /**
    * @notice Hydrates `packedPayload` using `hydratePayload` and then executes the batch.
    * @dev
@@ -134,12 +137,18 @@ contract HydrateProxy is Sweep {
           revert Calls.NotEnoughGas(decoded, i, gasleft());
         }
 
-        if (call.delegateCall) {
-          // This proxy supports only `call` (not `delegatecall`) for payload execution.
+        if (call.delegateCall && address(this) == SELF) {
+          // Delegatecall is not allowed from this contract context.
           revert DelegateCallNotAllowed(i);
         }
 
-        bool success = LibOptim.call(call.to, call.value, gasLimit == 0 ? gasleft() : gasLimit, call.data);
+        bool success;
+        if (call.delegateCall) {
+          (success) = LibOptim.delegatecall(call.to, gasLimit == 0 ? gasleft() : gasLimit, call.data);
+        } else {
+          (success) = LibOptim.call(call.to, call.value, gasLimit == 0 ? gasleft() : gasLimit, call.data);
+        }
+
         if (!success) {
           if (call.behaviorOnError == Payload.BEHAVIOR_IGNORE_ERROR) {
             errorFlag = true;
@@ -264,5 +273,4 @@ contract HydrateProxy is Sweep {
 
     return (rindex, tindex);
   }
-
 }

@@ -92,6 +92,8 @@ All functions are intended to be used from the `TrailsUtils` context via a call 
 
 Delegatecall via the Intent Address is only able to access `hydrateExecute`. This is due to the Sequence Wallet wrapping of delegatecalls within `handleSequenceDelegateCall`.
 
+Delegatecalls are only allowed in a nested delegatecall context. The `TrailsUtils` will not process a delegatecall when executing from the context of it's own address.
+
 ### Intent Security
 
 The Trails contracts are flexible in what they allow a configuration to represent. Misuse can cause an Intent to be exploitable.

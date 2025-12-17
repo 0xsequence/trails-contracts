@@ -41,14 +41,7 @@ library PackedPayload {
     if (call.onlyFallback) flags |= 0x20;
     flags |= (uint8(call.behaviorOnError) & 0x03) << 6;
 
-    out = abi.encodePacked(
-      flags,
-      call.to,
-      call.value,
-      uint24(call.data.length),
-      call.data,
-      call.gasLimit
-    );
+    out = abi.encodePacked(flags, call.to, call.value, uint24(call.data.length), call.data, call.gasLimit);
   }
 }
 

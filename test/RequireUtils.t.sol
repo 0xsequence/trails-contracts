@@ -172,9 +172,13 @@ contract RequireUtilsTest is Test {
     utils.requireERC721Approval(address(token), owner, spender, tokenId);
   }
 
-  function testFuzz_requireERC721ApprovalSelf(address owner, address spender, uint256 tokenId, address approved, bool approvedForAll)
-    external
-  {
+  function testFuzz_requireERC721ApprovalSelf(
+    address owner,
+    address spender,
+    uint256 tokenId,
+    address approved,
+    bool approvedForAll
+  ) external {
     RequireUtils utils = new RequireUtils();
     MockERC721 token = new MockERC721();
 
@@ -243,7 +247,9 @@ contract RequireUtilsTest is Test {
     utils.requireMinERC1155BalanceBatch(address(token), address(this), tokenIds, minBalances);
   }
 
-  function testFuzz_requireMinERC1155BalanceBatch_passes(address wallet, uint256[] calldata tokenIds, bytes32 seed) external {
+  function testFuzz_requireMinERC1155BalanceBatch_passes(address wallet, uint256[] calldata tokenIds, bytes32 seed)
+    external
+  {
     RequireUtils utils = new RequireUtils();
     MockERC1155 token = new MockERC1155();
 
@@ -260,9 +266,11 @@ contract RequireUtilsTest is Test {
     utils.requireMinERC1155BalanceBatch(address(token), wallet, tokenIds, minBalances);
   }
 
-  function testFuzz_requireMinERC1155BalanceBatch_reverts_firstIndex(address wallet, uint256[] calldata tokenIds, bytes32 seed)
-    external
-  {
+  function testFuzz_requireMinERC1155BalanceBatch_reverts_firstIndex(
+    address wallet,
+    uint256[] calldata tokenIds,
+    bytes32 seed
+  ) external {
     RequireUtils utils = new RequireUtils();
     MockERC1155 token = new MockERC1155();
 

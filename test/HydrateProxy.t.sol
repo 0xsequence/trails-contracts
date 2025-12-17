@@ -9,10 +9,13 @@ import {Calls} from "wallet-contracts-v3/modules/Calls.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
 import {PackedPayload} from "test/helpers/PackedPayload.sol";
-import {MockERC20, RecordingReceiver, RevertingReceiver, RejectEther} from "test/helpers/Mocks.sol";
+import {MockERC20, RecordingReceiver, RevertingReceiver, RejectEther, Emitter} from "test/helpers/Mocks.sol";
 
 contract HydrateProxyCaller {
-  function hydrateExecute(HydrateProxy proxy, bytes calldata packedPayload, bytes calldata hydratePayload) external payable {
+  function hydrateExecute(HydrateProxy proxy, bytes calldata packedPayload, bytes calldata hydratePayload)
+    external
+    payable
+  {
     proxy.hydrateExecute{value: msg.value}(packedPayload, hydratePayload);
   }
 
@@ -24,6 +27,15 @@ contract HydrateProxyCaller {
     bytes calldata hydratePayload
   ) external payable {
     proxy.hydrateExecuteAndSweep{value: msg.value}(packedPayload, sweepTarget, tokensToSweep, hydratePayload);
+  }
+
+  function delegateHydrateExecute(HydrateProxy proxy, bytes calldata packedPayload, bytes calldata hydratePayload)
+    external
+    payable
+    returns (bool ok)
+  {
+    bytes memory data = abi.encodeWithSelector(HydrateProxy.hydrateExecute.selector, packedPayload, hydratePayload);
+    (ok,) = address(proxy).delegatecall(data);
   }
 }
 
@@ -86,10 +98,7 @@ contract HydrateProxyTest is Test {
       uint128(bound(uint256(keccak256(abi.encodePacked(seed, "anyTokenBalance"))), 0, 1_000_000 ether));
   }
 
-  function _hydrateAllFlagsPayload(
-    address anyAddr,
-    address token
-  ) private pure returns (bytes memory hydratePayload) {
+  function _hydrateAllFlagsPayload(address anyAddr, address token) private pure returns (bytes memory hydratePayload) {
     hydratePayload = abi.encodePacked(uint8(0));
 
     hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x01), uint16(0)));
@@ -185,8 +194,8 @@ contract HydrateProxyTest is Test {
 
   function testFuzz_hydrateExecute_emptyHydratePayload_executes(bytes4 marker) external {
     vm.assume(
-      marker != SELECTOR_CALLS && marker != SELECTOR_RESET && marker != SELECTOR_LAST_DATA && marker != SELECTOR_LAST_VALUE
-        && marker != SELECTOR_LAST_SENDER
+      marker != SELECTOR_CALLS && marker != SELECTOR_RESET && marker != SELECTOR_LAST_DATA
+        && marker != SELECTOR_LAST_VALUE && marker != SELECTOR_LAST_SENDER
     );
 
     HydrateProxy proxy = new HydrateProxy();
@@ -247,6 +256,32 @@ contract HydrateProxyTest is Test {
 
     vm.expectRevert(abi.encodeWithSelector(HydrateProxy.DelegateCallNotAllowed.selector, uint256(0)));
     proxy.hydrateExecute(calls.packCalls(), "");
+  }
+
+  function testFuzz_hydrateExecute_delegateCallAllowedInCallerContext_execute(bytes calldata data) external {
+    HydrateProxy proxy = new HydrateProxy();
+    HydrateProxyCaller caller = new HydrateProxyCaller();
+    Emitter emitter = new Emitter();
+
+    vm.assume(data.length <= 64);
+
+    bytes memory emitterData = abi.encodeWithSelector(Emitter.doEmit.selector, data);
+
+    Payload.Call[] memory calls = new Payload.Call[](1);
+    calls[0] = Payload.Call({
+      to: address(emitter),
+      value: 0,
+      data: emitterData,
+      gasLimit: 0,
+      delegateCall: true,
+      onlyFallback: false,
+      behaviorOnError: Payload.BEHAVIOR_IGNORE_ERROR
+    });
+
+    vm.expectEmit(true, true, true, true, address(caller));
+    emit Emitter.Emitted(address(this), data, 0);
+    bool ok = caller.delegateHydrateExecute(proxy, calls.packCalls(), "");
+    assertTrue(ok);
   }
 
   function testFuzz_hydrateExecute_notEnoughGas_reverts(uint256 delta) external {
@@ -402,7 +437,9 @@ contract HydrateProxyTest is Test {
     assertEq(afterReceiver.calls(), 0);
   }
 
-  function testFuzz_hydrateExecute_behavior3_fallthrough_emitsSucceeded(bytes calldata data, bytes4 afterData) external {
+  function testFuzz_hydrateExecute_behavior3_fallthrough_emitsSucceeded(bytes calldata data, bytes4 afterData)
+    external
+  {
     HydrateProxy proxy = new HydrateProxy();
     vm.assume(data.length <= 64);
     vm.assume(
@@ -537,8 +574,8 @@ contract HydrateProxyTest is Test {
 
   function testFuzz_handleSequenceDelegateCall_decodesAndExecutes(bytes4 marker) external {
     vm.assume(
-      marker != SELECTOR_CALLS && marker != SELECTOR_RESET && marker != SELECTOR_LAST_DATA && marker != SELECTOR_LAST_VALUE
-        && marker != SELECTOR_LAST_SENDER
+      marker != SELECTOR_CALLS && marker != SELECTOR_RESET && marker != SELECTOR_LAST_DATA
+        && marker != SELECTOR_LAST_VALUE && marker != SELECTOR_LAST_SENDER
     );
 
     HydrateProxy proxy = new HydrateProxy();
