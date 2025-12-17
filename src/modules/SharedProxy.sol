@@ -183,13 +183,13 @@ contract SharedProxy is Guest {
         } else if (flag == HYDRATE_TO_MESSAGE_SENDER_ADDRESS) {
           (tindex, rindex) = hydratePayload.readUint8(rindex);
 
-          // Mutate the call recipient (`to`). The address is read from `hydratePayload`.
-          (decoded.calls[tindex].to, rindex) = hydratePayload.readAddress(rindex);
+          // Mutate the call recipient (`to`) to the message sender.
+          decoded.calls[tindex].to = msg.sender;
         } else if (flag == HYDRATE_TO_TRANSACTION_ORIGIN_ADDRESS) {
           (tindex, rindex) = hydratePayload.readUint8(rindex);
 
-          // Mutate the call recipient (`to`). The address is read from `hydratePayload`.
-          (decoded.calls[tindex].to, rindex) = hydratePayload.readAddress(rindex);
+          // Mutate the call recipient (`to`) to the transaction origin.
+          decoded.calls[tindex].to = tx.origin;
         } else if (flag == HYDRATE_AMOUNT_SELF_BALANCE) {
           (tindex, rindex) = hydratePayload.readUint8(rindex);
 
