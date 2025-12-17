@@ -66,10 +66,7 @@ contract CalldataDecodeTest is Test {
     harness.decodeBytesBytes(data);
   }
 
-  function testFuzz_decodeBytesBytes_roundTrip(bytes32 seedA, bytes32 seedB, uint256 lenA, uint256 lenB)
-    public
-    view
-  {
+  function testFuzz_decodeBytesBytes_roundTrip(bytes32 seedA, bytes32 seedB, uint256 lenA, uint256 lenB) public view {
     lenA = bound(lenA, 0, 256);
     lenB = bound(lenB, 0, 256);
 

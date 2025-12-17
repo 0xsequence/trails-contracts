@@ -5,5 +5,13 @@ import {MalleableSapient} from "src/modules/MalleableSapient.sol";
 import {SharedProxy} from "src/modules/SharedProxy.sol";
 import {RequireUtils} from "src/modules/RequireUtils.sol";
 
-// Combine all tools in one so we don't have to touch different addresses when processing an intent.
+/**
+ * @title TrailsUtils
+ * @notice Convenience contract that bundles multiple utility modules under a single deployed address.
+ * @dev
+ * This contract intentionally contains no additional logic; it simply inherits:
+ * - {MalleableSapient} for malleable commitments
+ * - {SharedProxy} for hydrate + execute flows
+ * - {RequireUtils} for precondition checks
+ */
 contract TrailsUtils is MalleableSapient, SharedProxy, RequireUtils {}

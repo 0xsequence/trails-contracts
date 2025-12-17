@@ -8,20 +8,24 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {CalldataDecode} from "src/utils/CalldataDecode.sol";
 import {ReplaceBytes} from "src/utils/ReplaceBytes.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
-import {CalldataDecode} from "src/utils/CalldataDecode.sol";
 
 /**
- * @title Shared Proxy
- *
+ * @title SharedProxy
  * @notice
- * This contract provides a shared proxy that can be used by any intent address.
- * It is designed for scenarios where external contracts require off-chain quotes
- * and also need the `msg.sender` to be predetermined.
- *
+ * A minimal execution proxy that "hydrates" a batch payload at execution time and then dispatches it
+ * through the `Guest` module.
  * @dev
- * - Not intended to hold funds.
- * - Does not implement any business logic.
- * - Enables interaction with external contracts under the constraints described.
+ * This is designed for intent flows where:
+ * - The call bundle must be created/quoted off-chain.
+ * - Some values (balances, runtime addresses, etc.) are only known at execution time.
+ *
+ * The contract is intentionally generic: it contains no business logic beyond:
+ * 1) Decode `packedPayload` into `Payload.Decoded`.
+ * 2) Apply a set of "hydrate commands" to mutate each call's `to`/`value`/`data`.
+ * 3) Execute the resulting batch via `_dispatchGuest`.
+ *
+ * NOTE: This contract can temporarily hold funds during execution (e.g. as part of swaps) and can
+ * optionally sweep them out via {hydrateExecuteAndSweep}.
  */
 contract SharedProxy is Guest {
   using SafeERC20 for IERC20;
@@ -29,11 +33,13 @@ contract SharedProxy is Guest {
   using ReplaceBytes for bytes;
   using CalldataDecode for bytes;
 
+  // Custom errors keep failures cheap and make revert reasons machine-readable.
   error ArrayLengthMismatch();
   error ExecutionFailed(uint256 index, bytes result);
   error BalanceSweepFailed();
   error UnknownHydrateDataCommand(uint256 flag);
 
+  // Hydration flags for mutating call `data` in-place.
   uint8 private constant HYDRATE_DATA_SELF_ADDRESS = 0x00;
   uint8 private constant HYDRATE_DATA_MESSAGE_SENDER_ADDRESS = 0x01;
   uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_ADDRESS = 0x02;
@@ -48,17 +54,27 @@ contract SharedProxy is Guest {
   uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_TOKEN_BALANCE = 0x09;
   uint8 private constant HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE = 0x0A;
 
+  // Hydration flags for mutating a call's recipient (`to`).
   uint8 private constant HYDRATE_TO_MESSAGE_SENDER_ADDRESS = 0x0B;
   uint8 private constant HYDRATE_TO_TRANSACTION_ORIGIN_ADDRESS = 0x0C;
 
+  // Hydration flags for mutating a call's ETH value (`value`).
   uint8 private constant HYDRATE_AMOUNT_SELF_BALANCE = 0x0D;
 
-  // Useful in delegatecall contexts, since sweeping is not necessary
-  // yet it allows to dynamically hydrate the payload with information that was not known at the creation of the intent.
+  /**
+   * @notice Hydrates `packedPayload` using `hydratePayload` and then executes the batch.
+   * @dev
+   * `hydratePayload` is a byte stream of commands. Each command starts with a 1-byte `flag`.
+   * The supported flags are the `HYDRATE_*` constants in this file.
+   */
   function hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) external payable {
     _hydrateExecute(packedPayload, hydratePayload);
   }
 
+  /**
+   * @notice Hook used by Sequence wallets for delegatecall-based execution.
+   * @dev Expects `data` to be ABI-encoded as `(bytes packedPayload, bytes hydratePayload)`.
+   */
   function handleSequenceDelegateCall(bytes32, uint256, uint256, uint256, uint256, bytes calldata data)
     external
     virtual
@@ -67,6 +83,11 @@ contract SharedProxy is Guest {
     _hydrateExecute(packedPayload, hydratePayload);
   }
 
+  /**
+   * @notice Hydrates + executes, then sweeps ETH and a set of ERC20s to a recipient.
+   * @param sweepTarget If zero address, defaults to `msg.sender`.
+   * @param tokensToSweep Token list to sweep (each full balance of this contract).
+   */
   function hydrateExecuteAndSweep(
     bytes calldata packedPayload,
     address sweepTarget,
@@ -79,7 +100,7 @@ contract SharedProxy is Guest {
 
   function _hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) internal {
     unchecked {
-      // Guest module handles the batch of execution
+      // Guest handles execution dispatch for the decoded batch.
       Payload.Decoded memory decoded = Payload.fromPackedCalls(packedPayload);
       bytes32 opHash = Payload.hash(decoded);
 
@@ -90,7 +111,14 @@ contract SharedProxy is Guest {
 
   function _hydrate(Payload.Decoded memory decoded, bytes calldata hydratePayload) internal view {
     unchecked {
-      // Dynamically hydrate the payload with information only known at execution time
+      // `hydratePayload` is parsed sequentially with `rindex` as the read cursor.
+      //
+      // Common fields:
+      // - `tindex`: call index within `decoded.calls` (uint8).
+      // - `cindex`: calldata byte offset within `decoded.calls[tindex].data` (uint16).
+      //
+      // For flags in [0x00..0x0A] we always read: `tindex` + `cindex`, followed by
+      // flag-specific extra data.
       uint256 rindex;
       uint256 tindex;
       uint256 cindex;
@@ -100,81 +128,72 @@ contract SharedProxy is Guest {
         (flag, rindex) = hydratePayload.readUint8(rindex);
 
         if (flag <= HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE) {
-          // All hydrate data commands have a 1 byte transaction call index and a 2 byte
-          // calldata offset. The size is always determined by the kind of command.
+          // Data-hydration commands mutate `decoded.calls[tindex].data` in-place.
           (tindex, rindex) = hydratePayload.readUint8(rindex);
           (cindex, rindex) = hydratePayload.readUint16(rindex);
 
           if (flag == HYDRATE_DATA_SELF_ADDRESS) {
-            // Insert the contract's address at the specified offset
+            // Insert `address(this)` at `cindex` as a raw 20-byte address.
             decoded.calls[tindex].data.replaceAddress(cindex, address(this));
           } else if (flag == HYDRATE_DATA_MESSAGE_SENDER_ADDRESS) {
-            // Insert the message sender's address at the specified offset
+            // Insert `msg.sender` at `cindex` as a raw 20-byte address.
             decoded.calls[tindex].data.replaceAddress(cindex, msg.sender);
           } else if (flag == HYDRATE_DATA_TRANSACTION_ORIGIN_ADDRESS) {
-            // Insert the transaction origin's address at the specified offset
+            // Insert `tx.origin` at `cindex` as a raw 20-byte address.
             decoded.calls[tindex].data.replaceAddress(cindex, tx.origin);
           } else if (flag == HYDRATE_DATA_SELF_BALANCE) {
-            // Insert the contract's balance at the specified offset
+            // Insert `address(this).balance` at `cindex` as a uint256.
             decoded.calls[tindex].data.replaceUint256(cindex, address(this).balance);
           } else if (flag == HYDRATE_DATA_MESSAGE_SENDER_BALANCE) {
-            // Insert the message sender's balance at the specified offset
+            // Insert `msg.sender.balance` at `cindex` as a uint256.
             decoded.calls[tindex].data.replaceUint256(cindex, msg.sender.balance);
           } else if (flag == HYDRATE_DATA_TRANSACTION_ORIGIN_BALANCE) {
-            // Insert the transaction origin's balance at the specified offset
+            // Insert `tx.origin.balance` at `cindex` as a uint256.
             decoded.calls[tindex].data.replaceUint256(cindex, tx.origin.balance);
           } else if (flag == HYDRATE_DATA_ANY_ADDRESS_BALANCE) {
-            // Insert any address's balance at the specified offset
+            // Insert an arbitrary address's balance (address read from hydratePayload).
             address addr;
             (addr, rindex) = hydratePayload.readAddress(rindex);
-            uint256 bal = addr.balance;
-            decoded.calls[tindex].data.replaceUint256(cindex, bal);
+            decoded.calls[tindex].data.replaceUint256(cindex, addr.balance);
           } else if (flag == HYDRATE_DATA_SELF_TOKEN_BALANCE) {
-            // Insert this contract's ERC20 balance for the token address specified (extracted from calldata)
-            // Assume next 20 bytes in hydratePayload is the token address
+            // Insert this contract's ERC20 balance for a token read from hydratePayload.
             address token;
             (token, rindex) = hydratePayload.readAddress(rindex);
-            uint256 bal = IERC20(token).balanceOf(address(this));
-            decoded.calls[tindex].data.replaceUint256(cindex, bal);
+            decoded.calls[tindex].data.replaceUint256(cindex, IERC20(token).balanceOf(address(this)));
           } else if (flag == HYDRATE_DATA_MESSAGE_SENDER_TOKEN_BALANCE) {
-            // Insert the message sender's ERC20 balance for the token address specified (extracted from calldata)
-            // Assume next 20 bytes in hydratePayload is the token address
+            // Insert `msg.sender`'s ERC20 balance for a token read from hydratePayload.
             address token;
             (token, rindex) = hydratePayload.readAddress(rindex);
-            uint256 bal = IERC20(token).balanceOf(msg.sender);
-            decoded.calls[tindex].data.replaceUint256(cindex, bal);
+            decoded.calls[tindex].data.replaceUint256(cindex, IERC20(token).balanceOf(msg.sender));
           } else if (flag == HYDRATE_DATA_TRANSACTION_ORIGIN_TOKEN_BALANCE) {
-            // Insert the transaction origin's ERC20 balance for the token address specified (extracted from calldata)
-            // Assume next 20 bytes in hydratePayload is the token address
+            // Insert `tx.origin`'s ERC20 balance for a token read from hydratePayload.
             address token;
             (token, rindex) = hydratePayload.readAddress(rindex);
-            uint256 bal = IERC20(token).balanceOf(tx.origin);
-            decoded.calls[tindex].data.replaceUint256(cindex, bal);
+            decoded.calls[tindex].data.replaceUint256(cindex, IERC20(token).balanceOf(tx.origin));
           } else if (flag == HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE) {
-            // Insert any address's ERC20 balance for the token address specified (extracted from calldata)
-            // Assume next 20 bytes in hydratePayload is the token address
-            // and the next 20 bytes is the address to get the balance of
+            // Insert any address's ERC20 balance for:
+            // - `token` read from hydratePayload
+            // - `addr`  read from hydratePayload
             address token;
             address addr;
             (token, rindex) = hydratePayload.readAddress(rindex);
             (addr, rindex) = hydratePayload.readAddress(rindex);
-            uint256 bal = IERC20(token).balanceOf(addr);
-            decoded.calls[tindex].data.replaceUint256(cindex, bal);
+            decoded.calls[tindex].data.replaceUint256(cindex, IERC20(token).balanceOf(addr));
           }
         } else if (flag == HYDRATE_TO_MESSAGE_SENDER_ADDRESS) {
           (tindex, rindex) = hydratePayload.readUint8(rindex);
 
-          // The message sender address is the address that sent the message to the contract.
+          // Mutate the call recipient (`to`). The address is read from `hydratePayload`.
           (decoded.calls[tindex].to, rindex) = hydratePayload.readAddress(rindex);
         } else if (flag == HYDRATE_TO_TRANSACTION_ORIGIN_ADDRESS) {
           (tindex, rindex) = hydratePayload.readUint8(rindex);
 
-          // The transaction origin address is the address that originated the transaction.
+          // Mutate the call recipient (`to`). The address is read from `hydratePayload`.
           (decoded.calls[tindex].to, rindex) = hydratePayload.readAddress(rindex);
         } else if (flag == HYDRATE_AMOUNT_SELF_BALANCE) {
           (tindex, rindex) = hydratePayload.readUint8(rindex);
 
-          // The amount is the balance of the contract.
+          // Mutate the call value (`value`) to this contract's full ETH balance.
           decoded.calls[tindex].value = address(this).balance;
         } else {
           revert UnknownHydrateDataCommand(flag);

@@ -6,11 +6,34 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 
+/**
+ * @title MalleableSapient
+ * @notice
+ * An `ISapient` implementation that lets the caller declare which parts of a transaction bundle are
+ * "static" (committed to) and which parts are "malleable" (can be changed/hydrated at execution).
+ * @dev
+ * The returned `imageHash` is a rolling hash of:
+ * - the payload `space` + `nonce`
+ * - the current `block.chainid` (see note below)
+ * - each call's metadata (everything except `data`)
+ * - each "static section" of call `data` as described by `signature`
+ *
+ * `signature` format (repeated until exhausted):
+ * - `tindex` (uint8): call index in `payload.calls`
+ * - `cindex` (uint16): byte offset into `payload.calls[tindex].data`
+ * - `size`  (uint16): byte length of the static section
+ *
+ * This is *not* an ECDSA signature; it's a compact description of the committed sections.
+ */
 contract MalleableSapient is ISapient {
   error NonTransactionPayload();
 
   using LibBytes for bytes;
 
+  /**
+   * @notice Computes the `imageHash` for a transaction payload with a malleable `data` commitment.
+   * @dev Reverts if `payload.kind` is not `Payload.KIND_TRANSACTIONS`.
+   */
   function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata signature)
     external
     view
