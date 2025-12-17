@@ -9,6 +9,10 @@ optimizer = true
 optimizer_runs = 4294967295
 ignored_error_codes = [3628]
 
+[profile.integration]
+test = "itest"
+allow_paths = ["../wallet-contracts-v3"]
+
 [lint]
 exclude_lints = ["unsafe-cheatcode"]
 

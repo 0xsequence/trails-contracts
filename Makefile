@@ -1,4 +1,4 @@
-.PHONY: all install submodules update-submodules reset-submodules verify-deployment build lint fmt test install-foundry
+.PHONY: all install submodules update-submodules reset-submodules verify-deployment build lint fmt test test-integration test-all install-foundry
 
 all: deps
 
@@ -65,6 +65,11 @@ fmt:
 test:
 	forge test -vvv
 
+test-integration:
+	FOUNDRY_PROFILE=integration forge test -vvv
+
+test-all: test test-integration
+
 install-foundry:
 	@command -v forge > /dev/null 2>&1 || (echo "forge not found; installing Foundry..." && curl -L https://foundry.paradigm.xyz | bash)
 	@foundryup
@@ -75,4 +80,4 @@ storage-layout:
 	@forge inspect src/TrailsIntentEntrypoint.sol storage-layout
 
 coverage:
-	@forge coverage --ir-minimum --no-match-coverage "test/|script/"
+	@forge coverage --no-match-coverage "test/|itest/|script/"

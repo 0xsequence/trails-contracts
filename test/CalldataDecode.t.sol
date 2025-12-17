@@ -66,6 +66,77 @@ contract CalldataDecodeTest is Test {
     harness.decodeBytesBytes(data);
   }
 
+  function test_decodeBytesBytes_reverts_offsetsTooSmall() public {
+    bytes memory data = new bytes(64);
+    assembly {
+      mstore(add(data, 32), 32) // aRel (word-aligned, but < 64)
+      mstore(add(data, 64), 64) // bRel
+    }
+
+    vm.expectRevert();
+    harness.decodeBytesBytes(data);
+  }
+
+  function test_decodeBytesBytes_reverts_aDataRel_outOfBounds() public {
+    bytes memory data = new bytes(64);
+    assembly {
+      mstore(add(data, 32), 64) // aRel
+      mstore(add(data, 64), 64) // bRel
+    }
+
+    vm.expectRevert();
+    harness.decodeBytesBytes(data);
+  }
+
+  function test_decodeBytesBytes_reverts_aDataRel_overflow() public {
+    bytes memory data = new bytes(64);
+    uint256 huge = type(uint256).max - 31; // 2^256 - 32, word-aligned and >= 64
+    assembly {
+      mstore(add(data, 32), huge) // aRel
+      mstore(add(data, 64), 64) // bRel
+    }
+
+    vm.expectRevert();
+    harness.decodeBytesBytes(data);
+  }
+
+  function test_decodeBytesBytes_reverts_aEndRel_outOfBounds() public {
+    bytes memory data = new bytes(96);
+    assembly {
+      mstore(add(data, 32), 64) // aRel
+      mstore(add(data, 64), 64) // bRel
+      mstore(add(data, 96), 1) // aLen (aDataRel == len, so aLen must be 0 to pass; 1 forces aEndRel > len)
+    }
+
+    vm.expectRevert();
+    harness.decodeBytesBytes(data);
+  }
+
+  function test_decodeBytesBytes_reverts_bDataRel_outOfBounds() public {
+    bytes memory data = new bytes(96);
+    assembly {
+      mstore(add(data, 32), 64) // aRel
+      mstore(add(data, 64), 96) // bRel (bDataRel = 128 > len)
+      mstore(add(data, 96), 0) // aLen (so aEndRel == aDataRel == len)
+    }
+
+    vm.expectRevert();
+    harness.decodeBytesBytes(data);
+  }
+
+  function test_decodeBytesBytes_reverts_bEndRel_outOfBounds() public {
+    bytes memory data = new bytes(128);
+    assembly {
+      mstore(add(data, 32), 64) // aRel
+      mstore(add(data, 64), 96) // bRel (bDataRel == len)
+      mstore(add(data, 96), 0) // aLen (so aEndRel == aDataRel)
+      mstore(add(data, 128), 1) // bLen (so bEndRel > len)
+    }
+
+    vm.expectRevert();
+    harness.decodeBytesBytes(data);
+  }
+
   function testFuzz_decodeBytesBytes_roundTrip(bytes32 seedA, bytes32 seedB, uint256 lenA, uint256 lenB) public view {
     lenA = bound(lenA, 0, 256);
     lenB = bound(lenB, 0, 256);

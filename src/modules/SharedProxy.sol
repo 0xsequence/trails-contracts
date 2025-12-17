@@ -34,8 +34,6 @@ contract SharedProxy {
   using CalldataDecode for bytes;
 
   // Custom errors keep failures cheap and make revert reasons machine-readable.
-  error ArrayLengthMismatch();
-  error ExecutionFailed(uint256 index, bytes result);
   error BalanceSweepFailed();
   error UnknownHydrateDataCommand(uint256 flag);
   error DelegateCallNotAllowed(uint256 index);

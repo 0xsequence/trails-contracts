@@ -14,18 +14,13 @@ import {IERC1155} from "openzeppelin-contracts/contracts/token/ERC1155/IERC1155.
  */
 contract RequireUtils {
   error Expired(uint256 expiration, uint256 timestamp);
-  error NonceBelowRequired(uint256 space, uint256 current, uint256 required);
   error ERC20BalanceTooLow(address token, address wallet, uint256 balance, uint256 minBalance);
   error ERC20AllowanceTooLow(address token, address owner, address spender, uint256 allowance, uint256 minAllowance);
   error ERC721NotApproved(address token, uint256 tokenId, address owner, address spender);
   error ERC1155BalanceTooLow(address token, address wallet, uint256 tokenId, uint256 balance, uint256 minBalance);
-  error ERC1155ZeroBalance(address token, address wallet, uint256 tokenId);
   error LengthMismatch(uint256 a, uint256 b);
   error ERC1155BatchBalanceTooLow(uint256 index, uint256 balance, uint256 minBalance);
   error ERC1155NotApproved(address token, address owner, address operator);
-  error ERC1155IsApproved(address token, address owner, address operator);
-  error MsgValueTooLow(uint256 value, uint256 minValue);
-  error ZeroMsgValue();
   error NativeBalanceTooLow(address wallet, uint256 balance, uint256 minBalance);
 
   function _requireMinBalance(address wallet, uint256 minBalance) private view {

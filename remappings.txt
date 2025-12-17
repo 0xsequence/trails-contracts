@@ -1,2 +1,4 @@
 wallet-contracts-v3/=lib/wallet-contracts-v3/src/
+wallet-contracts-v3-external/=../wallet-contracts-v3/src/
+trails-test/=test/
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
