@@ -42,9 +42,7 @@ onlyFallback: false
 
 #### SharedProxy
 
-[SharedProxy.sol](src/modules/SharedProxy.sol) has multiple capabilities.
-
-##### Hydrate
+[SharedProxy.sol](src/modules/SharedProxy.sol) is used as a proxy for Calls that may need modification at runtime.
 
 Some Payload Calls require parameter encoding that is only available during execution. For example, a Call may require the ERC20 balance to be encoded, but the exact value may change due to slippage. Payloads may also have the circular dependency issue where the Call must encode the Intent Address, which is not known until the Payload is hashed.
 
@@ -72,11 +70,9 @@ The Hydrator logic supports the replacement with:
 - Value:
   - msg.sender.balance
 
-##### Sweep
+#### Sweep
 
-The `SharedProxy` also supports `Sweep` logic, allowing the entire balance (ERC20, address(this).balance) to another address.
-
-This is only accessible via `hydrateExecuteAndSweep`.
+[Sweep](src/modules/Sweep.sol) allows the entire balance (ERC20, address(this).balance) to be sent to another address.
 
 ## Glossary
 

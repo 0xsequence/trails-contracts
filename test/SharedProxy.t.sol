@@ -4,6 +4,7 @@ pragma solidity ^0.8.27;
 import {Test} from "forge-std/Test.sol";
 
 import {SharedProxy} from "src/modules/SharedProxy.sol";
+import {Sweep} from "src/modules/Sweep.sol";
 import {Calls} from "wallet-contracts-v3/modules/Calls.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
@@ -518,7 +519,7 @@ contract SharedProxyTest is Test {
 
     address[] memory tokens = new address[](0);
 
-    vm.expectRevert(SharedProxy.BalanceSweepFailed.selector);
+    vm.expectRevert(Sweep.BalanceSweepFailed.selector);
     proxy.hydrateExecuteAndSweep{value: msgValue}(calls.packCalls(), address(rejector), tokens, "");
   }
 
