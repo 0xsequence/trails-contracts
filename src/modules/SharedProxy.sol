@@ -221,4 +221,6 @@ contract SharedProxy is Guest {
       }
     }
   }
+
+  receive() external payable {}
 }
