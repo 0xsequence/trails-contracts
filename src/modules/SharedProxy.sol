@@ -5,8 +5,10 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Guest} from "wallet-contracts-v3/Guest.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
+import {CalldataDecode} from "src/utils/CalldataDecode.sol";
 import {ReplaceBytes} from "src/utils/ReplaceBytes.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
+import {CalldataDecode} from "src/utils/CalldataDecode.sol";
 
 /**
  * @title Shared Proxy
@@ -25,6 +27,7 @@ contract SharedProxy is Guest {
   using SafeERC20 for IERC20;
   using LibBytes for bytes;
   using ReplaceBytes for bytes;
+  using CalldataDecode for bytes;
 
   error ArrayLengthMismatch();
   error ExecutionFailed(uint256 index, bytes result);
@@ -33,24 +36,34 @@ contract SharedProxy is Guest {
 
   uint8 private constant HYDRATE_DATA_SELF_ADDRESS = 0x00;
   uint8 private constant HYDRATE_DATA_MESSAGE_SENDER_ADDRESS = 0x01;
-  uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_ADDRESS = 0x09;
+  uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_ADDRESS = 0x02;
 
-  uint8 private constant HYDRATE_DATA_SELF_BALANCE = 0x02;
-  uint8 private constant HYDRATE_DATA_MESSAGE_SENDER_BALANCE = 0x03;
-  uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_BALANCE = 0x0A;
-  uint8 private constant HYDRATE_DATA_ANY_ADDRESS_BALANCE = 0x04;
+  uint8 private constant HYDRATE_DATA_SELF_BALANCE = 0x03;
+  uint8 private constant HYDRATE_DATA_MESSAGE_SENDER_BALANCE = 0x04;
+  uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_BALANCE = 0x05;
+  uint8 private constant HYDRATE_DATA_ANY_ADDRESS_BALANCE = 0x06;
 
-  uint8 private constant HYDRATE_DATA_SELF_TOKEN_BALANCE = 0x05;
-  uint8 private constant HYDRATE_DATA_MESSAGE_SENDER_TOKEN_BALANCE = 0x06;
-  uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_TOKEN_BALANCE = 0x0B;
-  uint8 private constant HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE = 0x07;
+  uint8 private constant HYDRATE_DATA_SELF_TOKEN_BALANCE = 0x07;
+  uint8 private constant HYDRATE_DATA_MESSAGE_SENDER_TOKEN_BALANCE = 0x08;
+  uint8 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_TOKEN_BALANCE = 0x09;
+  uint8 private constant HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE = 0x0A;
 
-  uint8 private constant HYDRATE_TO_MESSAGE_SENDER_ADDRESS = 0x08;
+  uint8 private constant HYDRATE_TO_MESSAGE_SENDER_ADDRESS = 0x0B;
   uint8 private constant HYDRATE_TO_TRANSACTION_ORIGIN_ADDRESS = 0x0C;
+
+  uint8 private constant HYDRATE_AMOUNT_SELF_BALANCE = 0x0D;
 
   // Useful in delegatecall contexts, since sweeping is not necessary
   // yet it allows to dynamically hydrate the payload with information that was not known at the creation of the intent.
   function hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) external payable {
+    _hydrateExecute(packedPayload, hydratePayload);
+  }
+
+  function handleSequenceDelegateCall(bytes32, uint256, uint256, uint256, uint256, bytes calldata data)
+    external
+    virtual
+  {
+    (bytes calldata packedPayload, bytes calldata hydratePayload) = data.decodeBytesBytes();
     _hydrateExecute(packedPayload, hydratePayload);
   }
 
@@ -64,7 +77,7 @@ contract SharedProxy is Guest {
     _sweep(sweepTarget, tokensToSweep);
   }
 
-  function _hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) private {
+  function _hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) internal {
     unchecked {
       // Guest module handles the batch of execution
       Payload.Decoded memory decoded = Payload.fromPackedCalls(packedPayload);
@@ -158,6 +171,11 @@ contract SharedProxy is Guest {
 
           // The transaction origin address is the address that originated the transaction.
           (decoded.calls[tindex].to, rindex) = hydratePayload.readAddress(rindex);
+        } else if (flag == HYDRATE_AMOUNT_SELF_BALANCE) {
+          (tindex, rindex) = hydratePayload.readUint8(rindex);
+
+          // The amount is the balance of the contract.
+          decoded.calls[tindex].value = address(this).balance;
         } else {
           revert UnknownHydrateDataCommand(flag);
         }
