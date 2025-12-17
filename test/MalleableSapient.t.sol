@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {MalleableSapient} from "src/modules/MalleableSapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
@@ -145,6 +145,7 @@ contract MalleableSapientTest is Test {
       uint8 tindex = uint8(uint256(keccak256(abi.encodePacked(seed, "t", i))) % callCount);
       uint256 dataLen = payload.calls[tindex].data.length;
 
+      // forge-lint: disable-next-line(unsafe-typecast)
       uint16 cindex = uint16(uint256(keccak256(abi.encodePacked(seed, "c", i))) % dataLen);
       uint16 size = uint16(uint256(keccak256(abi.encodePacked(seed, "s", i))) % (dataLen - cindex + 1));
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {RequireUtils} from "src/modules/RequireUtils.sol";
 import {MockERC1155, MockERC20, MockERC721} from "test/helpers/Mocks.sol";

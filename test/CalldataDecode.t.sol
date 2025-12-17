@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {CalldataDecode} from "src/utils/CalldataDecode.sol";
 

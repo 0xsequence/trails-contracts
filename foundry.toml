@@ -14,7 +14,7 @@ test = "itest"
 allow_paths = ["../wallet-contracts-v3"]
 
 [lint]
-exclude_lints = ["unsafe-cheatcode"]
+exclude_lints = ["unsafe-cheatcode", "mixed-case-function", "asm-keccak256"]
 
 [fmt]
 tab_width = 2

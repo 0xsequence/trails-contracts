@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {SharedProxy} from "src/modules/SharedProxy.sol";
 import {Calls} from "wallet-contracts-v3/modules/Calls.sol";
@@ -66,7 +66,7 @@ contract SharedProxyTest is Test {
     }
   }
 
-  function _hydrateAllFlagsCase(bytes32 seed) private returns (HydrateAllFlagsCase memory c) {
+  function _hydrateAllFlagsCase(bytes32 seed) private pure returns (HydrateAllFlagsCase memory c) {
     c.anyAddr = address(uint160(uint256(keccak256(abi.encodePacked(seed, "any")))));
     vm.assume(c.anyAddr != address(0));
 
