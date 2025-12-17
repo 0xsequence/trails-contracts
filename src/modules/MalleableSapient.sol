@@ -6,7 +6,6 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 
-
 contract MalleableSapient is ISapient {
   error NonTransactionPayload();
 
