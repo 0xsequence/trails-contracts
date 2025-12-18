@@ -94,15 +94,17 @@ contract HydrateProxy is Sweep {
    * @notice Hydrates + executes, then sweeps ETH and a set of ERC20s to a recipient.
    * @param sweepTarget If zero address, defaults to `msg.sender`.
    * @param tokensToSweep Token list to sweep (each full balance of this contract).
+   * @param sweepNative Whether to sweep native tokens
    */
   function hydrateExecuteAndSweep(
     bytes calldata packedPayload,
     address sweepTarget,
     address[] calldata tokensToSweep,
+    bool sweepNative,
     bytes calldata hydratePayload
   ) external payable {
     _hydrateExecute(packedPayload, hydratePayload);
-    _sweep(sweepTarget, tokensToSweep);
+    _sweep(sweepTarget, tokensToSweep, sweepNative);
   }
 
   function _hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) internal {

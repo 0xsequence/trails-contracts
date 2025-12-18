@@ -15,11 +15,12 @@ contract Sweep {
   /// @notice Sweeps balances to a target address
   /// @param sweepTarget The address to sweep the balances to
   /// @param tokensToSweep The tokens to sweep
-  function sweep(address sweepTarget, address[] calldata tokensToSweep) external {
-    _sweep(sweepTarget, tokensToSweep);
+  /// @param sweepNative Whether to sweep native tokens
+  function sweep(address sweepTarget, address[] calldata tokensToSweep, bool sweepNative) external {
+    _sweep(sweepTarget, tokensToSweep, sweepNative);
   }
 
-  function _sweep(address sweepTarget, address[] calldata tokensToSweep) internal {
+  function _sweep(address sweepTarget, address[] calldata tokensToSweep, bool sweepNative) internal {
     unchecked {
       // Either automatically sweep to the msg.sender, or to the specified address
       address sweepToAddress = sweepTarget == address(0) ? msg.sender : sweepTarget;
@@ -30,7 +31,7 @@ contract Sweep {
       }
 
       // If we have balance, sweep it too
-      if (address(this).balance > 0) {
+      if (sweepNative && address(this).balance > 0) {
         (bool success,) = sweepToAddress.call{value: address(this).balance}("");
         if (!success) {
           revert BalanceSweepFailed();

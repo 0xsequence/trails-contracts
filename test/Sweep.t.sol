@@ -13,7 +13,7 @@ contract SweepTest is Test {
     sweep = new Sweep();
   }
 
-  function testFuzz_sweep(address sweepTarget, uint256[] memory tokenAmounts, uint256 balance) external {
+  function testFuzz_sweep(address sweepTarget, uint256[] memory tokenAmounts, uint256 balance, bool sweepNative) external {
     assumeUnusedAddress(sweepTarget);
 
     vm.assume(tokenAmounts.length > 0);
@@ -33,14 +33,19 @@ contract SweepTest is Test {
 
     vm.deal(address(sweep), balance);
 
-    sweep.sweep(sweepTarget, tokens);
+    sweep.sweep(sweepTarget, tokens, sweepNative);
 
     for (uint256 i = 0; i < tokenAmounts.length; i++) {
       assertEq(MockERC20(tokens[i]).balanceOf(sweepTarget), tokenAmounts[i]);
       assertEq(MockERC20(tokens[i]).balanceOf(address(sweep)), 0);
     }
-    assertEq(sweepTarget.balance, balance);
-    assertEq(address(sweep).balance, 0);
+    if (sweepNative) {
+      assertEq(sweepTarget.balance, balance);
+      assertEq(address(sweep).balance, 0);
+    } else {
+      assertEq(sweepTarget.balance, 0);
+      assertEq(address(sweep).balance, balance);
+    }
   }
 }
 
