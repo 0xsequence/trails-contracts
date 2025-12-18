@@ -34,6 +34,8 @@ contract HydrateProxy is Sweep {
 
   error UnknownHydrateDataCommand(uint256 flag);
   error DelegateCallNotAllowed(uint256 index);
+  error OnlyDelegateCallAllowed();
+  error DelegateCallFailed(bytes result);
 
   // Hydration stream delimiter: ends the current call's hydration section.
   uint256 private constant SIGNAL_NEXT_HYDRATE = 0x00;
@@ -86,8 +88,13 @@ contract HydrateProxy is Sweep {
     external
     virtual
   {
-    (bytes calldata packedPayload, bytes calldata hydratePayload) = data.decodeBytesBytes();
-    _hydrateExecute(packedPayload, hydratePayload);
+    if (address(this) == SELF) {
+      revert OnlyDelegateCallAllowed();
+    }
+    (bool success, bytes memory result) = SELF.delegatecall(data);
+    if (!success) {
+      revert DelegateCallFailed(result);
+    }
   }
 
   /**
