@@ -38,6 +38,27 @@ contract HydrateProxyCaller {
     bytes memory data = abi.encodeWithSelector(HydrateProxy.hydrateExecute.selector, packedPayload, hydratePayload);
     (ok,) = address(proxy).delegatecall(data);
   }
+
+  function handleSequenceDelegateCall(
+    HydrateProxy proxy,
+    bytes32 opHash,
+    uint256 startingGas,
+    uint256 index,
+    uint256 numCalls,
+    uint256 space,
+    bytes calldata data
+  ) external payable returns (bool ok) {
+    bytes memory callData = abi.encodeWithSelector(
+      HydrateProxy.handleSequenceDelegateCall.selector,
+      opHash,
+      startingGas,
+      index,
+      numCalls,
+      space,
+      data
+    );
+    (ok,) = address(proxy).delegatecall(callData);
+  }
 }
 
 contract HydrateProxyTest is Test {
@@ -580,6 +601,7 @@ contract HydrateProxyTest is Test {
     );
 
     HydrateProxy proxy = new HydrateProxy();
+    HydrateProxyCaller caller = new HydrateProxyCaller();
     RecordingReceiver receiver = new RecordingReceiver();
 
     Payload.Call[] memory calls = new Payload.Call[](1);
@@ -594,9 +616,16 @@ contract HydrateProxyTest is Test {
     });
 
     bytes memory packed = calls.packCalls();
-    bytes memory data = abi.encode(packed, bytes(""));
+    // The data parameter should be the full calldata to call hydrateExecute,
+    // including the function selector, which will be passed to SELF.delegatecall(data)
+    // inside handleSequenceDelegateCall
+    bytes memory data = abi.encodeWithSelector(HydrateProxy.hydrateExecute.selector, packed, bytes(""));
 
-    proxy.handleSequenceDelegateCall(bytes32(0), 0, 0, 0, 0, data);
+    // Call via delegatecall to simulate Sequence wallet behavior
+    // When called via delegatecall, address(this) inside handleSequenceDelegateCall will be
+    // the caller contract's address (not SELF), so the check passes
+    bool ok = caller.handleSequenceDelegateCall(proxy, bytes32(0), 0, 0, 0, 0, data);
+    assertTrue(ok);
     assertEq(receiver.calls(), 1);
   }
 }
