@@ -39,9 +39,11 @@ contract MalleableSapient is ISapient {
     bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(payload.nonce));
 
     // Roll chainId
-    // TODO: This bounds the intent to a single chain,
-    // do we need more flexibility?
-    root = LibOptim.fkeccak256(root, bytes32(block.chainid));
+    if (payload.noChainId) {
+      root = LibOptim.fkeccak256(root, bytes32(0));
+    } else {
+      root = LibOptim.fkeccak256(root, bytes32(block.chainid));
+    }
 
     unchecked {
       // Roll all calls except their `data`

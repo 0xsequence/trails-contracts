@@ -33,7 +33,11 @@ contract MalleableSapientTest is Test {
 
   function _expectedImageHash(Payload.Decoded memory payload, bytes memory signature) private view returns (bytes32) {
     bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(payload.nonce));
-    root = LibOptim.fkeccak256(root, bytes32(block.chainid));
+    if (payload.noChainId) {
+      root = LibOptim.fkeccak256(root, bytes32(0));
+    } else {
+      root = LibOptim.fkeccak256(root, bytes32(block.chainid));
+    }
 
     for (uint256 i = 0; i < payload.calls.length; i++) {
       Payload.Call memory call = payload.calls[i];
@@ -157,5 +161,120 @@ contract MalleableSapientTest is Test {
     bytes32 got = sapient.recoverSapientSignature(payload, signature);
     bytes32 expected = _expectedImageHash(payload, signature);
     assertEq(got, expected);
+  }
+
+  function test_recoverSapientSignature_chainId_included() external {
+    MalleableSapient sapient = new MalleableSapient();
+
+    Payload.Decoded memory payload;
+    payload.kind = Payload.KIND_TRANSACTIONS;
+    payload.space = 1;
+    payload.nonce = 2;
+    payload.noChainId = false;
+    payload.calls = new Payload.Call[](1);
+    payload.calls[0] = Payload.Call({
+      to: address(0x1234),
+      value: 0,
+      data: "",
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: 0
+    });
+
+    bytes32 hash = sapient.recoverSapientSignature(payload, "");
+    bytes32 expected = _expectedImageHash(payload, "");
+
+    // Hash should match expected (which includes block.chainid)
+    assertEq(hash, expected);
+
+    // Verify the hash includes chain ID by checking it's different from noChainId version
+    payload.noChainId = true;
+    bytes32 hashNoChainId = sapient.recoverSapientSignature(payload, "");
+    assertNotEq(hash, hashNoChainId);
+  }
+
+  function test_recoverSapientSignature_noChainId_zeroUsed() external {
+    MalleableSapient sapient = new MalleableSapient();
+
+    Payload.Decoded memory payload;
+    payload.kind = Payload.KIND_TRANSACTIONS;
+    payload.space = 1;
+    payload.nonce = 2;
+    payload.noChainId = true;
+    payload.calls = new Payload.Call[](1);
+    payload.calls[0] = Payload.Call({
+      to: address(0x1234),
+      value: 0,
+      data: "",
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: 0
+    });
+
+    bytes32 hash = sapient.recoverSapientSignature(payload, "");
+    bytes32 expected = _expectedImageHash(payload, "");
+
+    // Hash should match expected (which uses bytes32(0) for chain ID)
+    assertEq(hash, expected);
+
+    // Verify the hash uses zero by manually computing with zero
+    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(payload.nonce));
+    root = LibOptim.fkeccak256(root, bytes32(0)); // Should use zero, not block.chainid
+    root = LibOptim.fkeccak256(
+      root,
+      keccak256(abi.encode("call", uint256(0), payload.calls[0].to, payload.calls[0].value, payload.calls[0].gasLimit, payload.calls[0].delegateCall, payload.calls[0].onlyFallback, payload.calls[0].behaviorOnError))
+    );
+    assertEq(hash, root);
+  }
+
+  function testFuzz_recoverSapientSignature_chainId_vs_noChainId(
+    bytes32 seed,
+    uint256 space,
+    uint256 nonce,
+    uint8 callCount
+  ) external {
+    callCount = uint8(bound(callCount, 1, 3));
+
+    Payload.Decoded memory payloadWithChainId;
+    payloadWithChainId.kind = Payload.KIND_TRANSACTIONS;
+    payloadWithChainId.space = space;
+    payloadWithChainId.nonce = nonce;
+    payloadWithChainId.noChainId = false;
+    payloadWithChainId.calls = new Payload.Call[](callCount);
+
+    Payload.Decoded memory payloadNoChainId;
+    payloadNoChainId.kind = Payload.KIND_TRANSACTIONS;
+    payloadNoChainId.space = space;
+    payloadNoChainId.nonce = nonce;
+    payloadNoChainId.noChainId = true;
+    payloadNoChainId.calls = new Payload.Call[](callCount);
+
+    for (uint256 i = 0; i < callCount; i++) {
+      Payload.Call memory call = Payload.Call({
+        to: address(uint160(uint256(keccak256(abi.encodePacked(seed, "to", i))))),
+        value: uint256(keccak256(abi.encodePacked(seed, "value", i))),
+        data: _randomBytes(bound(uint256(uint8(seed[i])), 0, 64), keccak256(abi.encodePacked(seed, "data", i))),
+        gasLimit: uint256(keccak256(abi.encodePacked(seed, "gas", i))),
+        delegateCall: (uint256(keccak256(abi.encodePacked(seed, "dc", i))) & 1) == 1,
+        onlyFallback: (uint256(keccak256(abi.encodePacked(seed, "fb", i))) & 1) == 1,
+        behaviorOnError: uint256(uint8(uint256(keccak256(abi.encodePacked(seed, "boe", i)))))
+      });
+      payloadWithChainId.calls[i] = call;
+      payloadNoChainId.calls[i] = call;
+    }
+
+    MalleableSapient sapient = new MalleableSapient();
+
+    bytes32 hashWithChainId = sapient.recoverSapientSignature(payloadWithChainId, "");
+    bytes32 hashNoChainId = sapient.recoverSapientSignature(payloadNoChainId, "");
+
+    // Hashes should be different because one includes chain ID and the other uses zero
+    assertNotEq(hashWithChainId, hashNoChainId);
+
+    // Verify they match expected values
+    assertEq(hashWithChainId, _expectedImageHash(payloadWithChainId, ""));
+    assertEq(hashNoChainId, _expectedImageHash(payloadNoChainId, ""));
   }
 }
