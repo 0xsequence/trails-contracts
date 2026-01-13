@@ -3,7 +3,6 @@ pragma solidity ^0.8.27;
 
 /// @notice Helpers for decoding ABI-encoded calldata without copying.
 library CalldataDecode {
-
   /// @notice Decodes ABI `(bytes,bytes)` from `data` into calldata slices.
   /// @dev Reverts with empty data on malformed input.
   function decodeBytesBytes(bytes calldata data) internal pure returns (bytes calldata a, bytes calldata b) {
@@ -45,4 +44,3 @@ library CalldataDecode {
     }
   }
 }
-

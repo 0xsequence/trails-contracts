@@ -58,7 +58,7 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
   // Hydration flags for mutating a call's ETH value (`value`).
   uint256 private constant HYDRATE_AMOUNT_SELF_BALANCE = 0x0E;
 
-  // Cached address of this contract to detect delegatecall context
+  // Cached address of this contract to detect delegatecall context.
   address internal immutable SELF = address(this);
 
   /// @notice Hydrates `packedPayload` using `hydratePayload` and then executes the batch.

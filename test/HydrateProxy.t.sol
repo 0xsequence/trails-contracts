@@ -27,7 +27,9 @@ contract HydrateProxyCaller {
     bool sweepNative,
     bytes calldata hydratePayload
   ) external payable {
-    proxy.hydrateExecuteAndSweep{value: msg.value}(packedPayload, hydratePayload, sweepTarget, tokensToSweep, sweepNative);
+    proxy.hydrateExecuteAndSweep{value: msg.value}(
+      packedPayload, hydratePayload, sweepTarget, tokensToSweep, sweepNative
+    );
   }
 
   function delegateHydrateExecute(HydrateProxy proxy, bytes calldata packedPayload, bytes calldata hydratePayload)
@@ -49,13 +51,7 @@ contract HydrateProxyCaller {
     bytes calldata data
   ) external payable returns (bool ok) {
     bytes memory callData = abi.encodeWithSelector(
-      HydrateProxy.handleSequenceDelegateCall.selector,
-      opHash,
-      startingGas,
-      index,
-      numCalls,
-      space,
-      data
+      HydrateProxy.handleSequenceDelegateCall.selector, opHash, startingGas, index, numCalls, space, data
     );
     (ok,) = address(proxy).delegatecall(callData);
   }

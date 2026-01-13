@@ -7,8 +7,7 @@ import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 
 /// @title MalleableSapient
-/// @notice
-/// An `ISapient` implementation that lets the caller declare which parts of a transaction bundle are "static" (committed to) and which parts are "malleable" (can be changed/hydrated at execution).
+/// @notice An `ISapient` implementation that lets the caller declare which parts of a transaction bundle are "static" (committed to) and which parts are "malleable" (can be changed/hydrated at execution).
 /// @dev The returned `imageHash` is a rolling hash of:
 /// - the payload `space` + `nonce`
 /// - the current `block.chainid`

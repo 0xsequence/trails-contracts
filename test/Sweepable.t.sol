@@ -13,7 +13,9 @@ contract SweepableTest is Test {
     sweepable = new Sweepable();
   }
 
-  function testFuzz_sweep(address sweepTarget, uint256[] memory tokenAmounts, uint256 balance, bool sweepNative) external {
+  function testFuzz_sweep(address sweepTarget, uint256[] memory tokenAmounts, uint256 balance, bool sweepNative)
+    external
+  {
     assumeUnusedAddress(sweepTarget);
 
     vm.assume(tokenAmounts.length > 0);
@@ -60,7 +62,7 @@ contract SweepableTest is Test {
     }
   }
 
-  function testFuzz_sweepZeroBalances(address sweepTarget, uint256 tokenCount,bool sweepNative) external {
+  function testFuzz_sweepZeroBalances(address sweepTarget, uint256 tokenCount, bool sweepNative) external {
     assumeUnusedAddress(sweepTarget);
 
     tokenCount = bound(tokenCount, 0, 10);

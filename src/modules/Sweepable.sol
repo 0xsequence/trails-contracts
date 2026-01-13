@@ -15,7 +15,6 @@ contract Sweepable {
   /// @notice Event emitted when a balance is swept
   event Sweep(address indexed token, address indexed recipient, uint256 amount);
 
-
   /// @notice Sweeps balances to a target address
   /// @param sweepTarget The address to sweep the balances to
   /// @param tokensToSweep The tokens to sweep

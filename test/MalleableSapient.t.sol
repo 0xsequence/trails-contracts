@@ -173,13 +173,7 @@ contract MalleableSapientTest is Test {
     payload.noChainId = false;
     payload.calls = new Payload.Call[](1);
     payload.calls[0] = Payload.Call({
-      to: address(0x1234),
-      value: 0,
-      data: "",
-      gasLimit: 0,
-      delegateCall: false,
-      onlyFallback: false,
-      behaviorOnError: 0
+      to: address(0x1234), value: 0, data: "", gasLimit: 0, delegateCall: false, onlyFallback: false, behaviorOnError: 0
     });
 
     bytes32 hash = sapient.recoverSapientSignature(payload, "");
@@ -204,13 +198,7 @@ contract MalleableSapientTest is Test {
     payload.noChainId = true;
     payload.calls = new Payload.Call[](1);
     payload.calls[0] = Payload.Call({
-      to: address(0x1234),
-      value: 0,
-      data: "",
-      gasLimit: 0,
-      delegateCall: false,
-      onlyFallback: false,
-      behaviorOnError: 0
+      to: address(0x1234), value: 0, data: "", gasLimit: 0, delegateCall: false, onlyFallback: false, behaviorOnError: 0
     });
 
     bytes32 hash = sapient.recoverSapientSignature(payload, "");
@@ -224,7 +212,18 @@ contract MalleableSapientTest is Test {
     root = LibOptim.fkeccak256(root, bytes32(0)); // Should use zero, not block.chainid
     root = LibOptim.fkeccak256(
       root,
-      keccak256(abi.encode("call", uint256(0), payload.calls[0].to, payload.calls[0].value, payload.calls[0].gasLimit, payload.calls[0].delegateCall, payload.calls[0].onlyFallback, payload.calls[0].behaviorOnError))
+      keccak256(
+        abi.encode(
+          "call",
+          uint256(0),
+          payload.calls[0].to,
+          payload.calls[0].value,
+          payload.calls[0].gasLimit,
+          payload.calls[0].delegateCall,
+          payload.calls[0].onlyFallback,
+          payload.calls[0].behaviorOnError
+        )
+      )
     );
     assertEq(hash, root);
   }
