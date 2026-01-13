@@ -5,22 +5,28 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "openzeppelin-contracts/contracts/token/ERC1155/IERC1155.sol";
 
-/**
- * @title RequireUtils
- * @notice
- * A set of small, composable precondition checks intended to be called from an intent's call batch.
- * @dev
- * Each function reverts with a custom error (cheap + structured) on failure.
- */
+/// @title RequireUtils
+/// @notice A set of small, composable precondition checks intended to be called from an intent's call batch.
+/// @dev Each function reverts with a custom error (cheap + structured) on failure.
 contract RequireUtils {
+
+  /// @notice The transaction is expired.
   error Expired(uint256 expiration, uint256 timestamp);
+  /// @notice The ERC20 balance is too low.
   error ERC20BalanceTooLow(address token, address wallet, uint256 balance, uint256 minBalance);
+  /// @notice The ERC20 allowance is too low.
   error ERC20AllowanceTooLow(address token, address owner, address spender, uint256 allowance, uint256 minAllowance);
+  /// @notice The ERC721 is not approved.
   error ERC721NotApproved(address token, uint256 tokenId, address owner, address spender);
+  /// @notice The ERC1155 balance is too low.
   error ERC1155BalanceTooLow(address token, address wallet, uint256 tokenId, uint256 balance, uint256 minBalance);
+  /// @notice The length mismatch.
   error LengthMismatch(uint256 a, uint256 b);
+  /// @notice The ERC1155 batch balance is too low.
   error ERC1155BatchBalanceTooLow(uint256 index, uint256 balance, uint256 minBalance);
+  /// @notice The ERC1155 is not approved.
   error ERC1155NotApproved(address token, address owner, address operator);
+  /// @notice The native balance is too low.
   error NativeBalanceTooLow(address wallet, uint256 balance, uint256 minBalance);
 
   function _requireMinBalance(address wallet, uint256 minBalance) private view {

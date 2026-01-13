@@ -7,33 +7,30 @@ import {Sweepable} from "src/modules/Sweepable.sol";
 import {CalldataDecode} from "src/utils/CalldataDecode.sol";
 import {ReplaceBytes} from "src/utils/ReplaceBytes.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
+import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
 import {Calls} from "wallet-contracts-v3/modules/Calls.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 
-/**
- * @title HydrateProxy
- * @notice
- * A minimal execution proxy that "hydrates" a batch payload at execution time and then executes it.
- * @dev
- * This is designed for intent flows where:
- * - The call bundle must be created/quoted off-chain.
- * - Some values (balances, runtime addresses, etc.) are only known at execution time.
- *
- * The contract is intentionally generic: it contains no business logic beyond:
- * 1) Decode `packedPayload` into `Payload.Decoded`.
- * 2) Apply a set of "hydrate commands" to mutate each call's `to`/`value`/`data`.
- * 3) Execute the resulting batch (sequential `call`s with `Payload.Call` semantics).
- *
- * NOTE: This contract can temporarily hold funds during execution (e.g. as part of swaps). Unswept funds should be considered lost.
- */
-contract HydrateProxy is Sweepable {
+/// @title HydrateProxy
+/// @notice A minimal execution proxy that "hydrates" a batch payload at execution time and then executes it.
+/// @dev This is designed for intent flows where:
+/// - The call bundle must be created/quoted off-chain.
+/// - Some values (balances, runtime addresses, etc.) are only known at execution time.
+contract HydrateProxy is Sweepable, IDelegatedExtension {
   using LibBytes for bytes;
   using ReplaceBytes for bytes;
   using CalldataDecode for bytes;
 
+  /// @notice An unknown hydration data flag is encountered.
   error UnknownHydrateDataCommand(uint256 flag);
+
+  /// @notice Delegatecall is requested from the HydrateProxy's context.
   error DelegateCallNotAllowed(uint256 index);
+
+  /// @notice Call context is required to be the HydrateProxy but is not.
   error OnlyDelegateCallAllowed();
+
+  /// @notice Delegate call failed.
   error DelegateCallFailed(bytes result);
 
   // Hydration stream delimiter: ends the current call's hydration section.
@@ -64,24 +61,20 @@ contract HydrateProxy is Sweepable {
   // Cached address of this contract to detect delegatecall context
   address internal immutable SELF = address(this);
 
-  /**
-   * @notice Hydrates `packedPayload` using `hydratePayload` and then executes the batch.
-   * @dev
-   * `hydratePayload` is a byte stream grouped by call index:
-   * - Starts with a 1-byte `tindex` (the call to hydrate).
-   * - Followed by commands for that call. Each command starts with a 1-byte `flag`.
-   * - A `SIGNAL_NEXT_HYDRATE` (0x00) ends the current call's section; if more bytes remain, the next
-   *   byte is the next `tindex`.
-   *
-   * The supported command flags are the `HYDRATE_*` constants in this file.
-   */
+  /// @notice Hydrates `packedPayload` using `hydratePayload` and then executes the batch.
+  /// @param packedPayload The packed payload to hydrate.
+  /// @param hydratePayload The hydrate payload to use.
+  /// @dev `hydratePayload` is a byte stream grouped by call index:
+  /// - Starts with a 1-byte `tindex` (the call to hydrate).
+  /// - Followed by commands for that call. Each command starts with a 1-byte `flag`.
+  /// - A `SIGNAL_NEXT_HYDRATE` (0x00) ends the current call's section; if more bytes remain, the next byte is the next `tindex`.
+  /// - The supported command flags are the `HYDRATE_*` constants in this file.
   function hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) external payable {
     _hydrateExecute(packedPayload, hydratePayload);
   }
 
-  /**
-   * @notice Hook used by Sequence wallets for delegatecall-based execution.
-   */
+  /// @inheritdoc IDelegatedExtension
+  /// @dev Delegate calls are allowed to all functions on this contract
   function handleSequenceDelegateCall(bytes32, uint256, uint256, uint256, uint256, bytes calldata data)
     external
     virtual
@@ -95,12 +88,12 @@ contract HydrateProxy is Sweepable {
     }
   }
 
-  /**
-   * @notice Hydrates + executes, then sweeps ETH and a set of ERC20s to a recipient.
-   * @param sweepTarget If zero address, defaults to `msg.sender`.
-   * @param tokensToSweep Token list to sweep (each full balance of this contract).
-   * @param sweepNative Whether to sweep native tokens
-   */
+  /// @notice Hydrates and executes, then sweeps remaining funds to a recipient.
+  /// @param packedPayload The packed payload to hydrate and execute.
+  /// @param hydratePayload The hydrate payload to use.
+  /// @param sweepTarget The address to sweep the remaining funds to.
+  /// @param tokensToSweep Token list to sweep (each full balance of this contract).
+  /// @param sweepNative Whether to sweep native tokens
   function hydrateExecuteAndSweep(
     bytes calldata packedPayload,
     address sweepTarget,
