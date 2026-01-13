@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import {Test} from "forge-std/Test.sol";
 
 import {HydrateProxy} from "src/modules/HydrateProxy.sol";
-import {Sweep} from "src/modules/Sweep.sol";
+import {Sweepable} from "src/modules/Sweepable.sol";
 import {Calls} from "wallet-contracts-v3/modules/Calls.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
@@ -578,7 +578,7 @@ contract HydrateProxyTest is Test {
 
     address[] memory tokens = new address[](0);
 
-    vm.expectRevert(Sweep.BalanceSweepFailed.selector);
+    vm.expectRevert(Sweepable.NativeSweepFailed.selector);
     proxy.hydrateExecuteAndSweep{value: msgValue}(calls.packCalls(), address(rejector), tokens, true, "");
   }
 

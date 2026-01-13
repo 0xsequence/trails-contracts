@@ -3,7 +3,7 @@ pragma solidity ^0.8.27;
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
-import {Sweep} from "src/modules/Sweep.sol";
+import {Sweepable} from "src/modules/Sweepable.sol";
 import {CalldataDecode} from "src/utils/CalldataDecode.sol";
 import {ReplaceBytes} from "src/utils/ReplaceBytes.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
@@ -24,10 +24,9 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
  * 2) Apply a set of "hydrate commands" to mutate each call's `to`/`value`/`data`.
  * 3) Execute the resulting batch (sequential `call`s with `Payload.Call` semantics).
  *
- * NOTE: This contract can temporarily hold funds during execution (e.g. as part of swaps) and can
- * optionally sweep them out via {hydrateExecuteAndSweep}.
+ * NOTE: This contract can temporarily hold funds during execution (e.g. as part of swaps). Unswept funds should be considered lost.
  */
-contract HydrateProxy is Sweep {
+contract HydrateProxy is Sweepable {
   using LibBytes for bytes;
   using ReplaceBytes for bytes;
   using CalldataDecode for bytes;
@@ -82,7 +81,6 @@ contract HydrateProxy is Sweep {
 
   /**
    * @notice Hook used by Sequence wallets for delegatecall-based execution.
-   * @dev Expects `data` to be ABI-encoded as `(bytes packedPayload, bytes hydratePayload)`.
    */
   function handleSequenceDelegateCall(bytes32, uint256, uint256, uint256, uint256, bytes calldata data)
     external
