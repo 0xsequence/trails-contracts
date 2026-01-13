@@ -27,7 +27,7 @@ contract HydrateProxyCaller {
     bool sweepNative,
     bytes calldata hydratePayload
   ) external payable {
-    proxy.hydrateExecuteAndSweep{value: msg.value}(packedPayload, sweepTarget, tokensToSweep, sweepNative, hydratePayload);
+    proxy.hydrateExecuteAndSweep{value: msg.value}(packedPayload, hydratePayload, sweepTarget, tokensToSweep, sweepNative);
   }
 
   function delegateHydrateExecute(HydrateProxy proxy, bytes calldata packedPayload, bytes calldata hydratePayload)
@@ -528,7 +528,7 @@ contract HydrateProxyTest is Test {
 
     vm.txGasPrice(0);
     vm.prank(sweepCaller);
-    proxy.hydrateExecuteAndSweep{value: msgValue}(calls.packCalls(), address(0), tokens, true, "");
+    proxy.hydrateExecuteAndSweep{value: msgValue}(calls.packCalls(), "", address(0), tokens, true);
 
     assertEq(token.balanceOf(sweepCaller), tokenAmount);
     assertEq(sweepCaller.balance, sweepCallerEthBefore);
@@ -554,7 +554,7 @@ contract HydrateProxyTest is Test {
 
     address[] memory tokens = new address[](0);
 
-    proxy.hydrateExecuteAndSweep(calls.packCalls(), sweepTarget, tokens, true, "");
+    proxy.hydrateExecuteAndSweep(calls.packCalls(), "", sweepTarget, tokens, true);
     assertEq(receiver.calls(), 1);
   }
 
@@ -579,7 +579,7 @@ contract HydrateProxyTest is Test {
     address[] memory tokens = new address[](0);
 
     vm.expectRevert(Sweepable.NativeSweepFailed.selector);
-    proxy.hydrateExecuteAndSweep{value: msgValue}(calls.packCalls(), address(rejector), tokens, true, "");
+    proxy.hydrateExecuteAndSweep{value: msgValue}(calls.packCalls(), "", address(rejector), tokens, true);
   }
 
   function testFuzz_receive_acceptsEth(uint96 amount) external {

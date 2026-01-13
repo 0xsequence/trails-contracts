@@ -96,10 +96,10 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
   /// @param sweepNative Whether to sweep native tokens
   function hydrateExecuteAndSweep(
     bytes calldata packedPayload,
+    bytes calldata hydratePayload,
     address sweepTarget,
     address[] calldata tokensToSweep,
-    bool sweepNative,
-    bytes calldata hydratePayload
+    bool sweepNative
   ) external payable {
     _hydrateExecute(packedPayload, hydratePayload);
     _sweep(sweepTarget, tokensToSweep, sweepNative);
