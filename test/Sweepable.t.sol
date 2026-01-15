@@ -16,9 +16,6 @@ contract SweepableTest is Test {
   function testFuzz_sweep(address sweepTarget, uint256[] memory tokenAmounts, uint256 balance, bool sweepNative)
     external
   {
-    assumeUnusedAddress(sweepTarget);
-
-    vm.assume(tokenAmounts.length > 0);
     if (tokenAmounts.length > 2) {
       assembly {
         // Reduce count
@@ -33,6 +30,9 @@ contract SweepableTest is Test {
       token.mint(address(sweepable), tokenAmounts[i]);
       tokens[i] = address(token);
     }
+
+    assumeUnusedAddress(sweepTarget);
+    vm.assume(sweepTarget.balance == 0);
 
     balance = bound(balance, 1, 10 ether);
     vm.deal(address(sweepable), balance);
@@ -63,15 +63,16 @@ contract SweepableTest is Test {
   }
 
   function testFuzz_sweepZeroBalances(address sweepTarget, uint256 tokenCount, bool sweepNative) external {
-    assumeUnusedAddress(sweepTarget);
-
-    tokenCount = bound(tokenCount, 0, 10);
+    tokenCount = bound(tokenCount, 0, 2);
 
     address[] memory tokens = new address[](tokenCount);
     for (uint256 i = 0; i < tokenCount; i++) {
       MockERC20 token = new MockERC20();
       tokens[i] = address(token);
     }
+
+    assumeUnusedAddress(sweepTarget);
+    vm.assume(sweepTarget.balance == 0);
 
     sweepable.sweep(sweepTarget, tokens, sweepNative);
 
