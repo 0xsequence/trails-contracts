@@ -16,29 +16,29 @@ All modules are combined into a single [TrailsUtils.sol](src/TrailsUtils.sol) to
 
 Some Payload Calls require parameter encoding that is only available during execution. For example, a Call may require the ERC20 balance to be encoded, but the exact value may change due to slippage. Payloads may also have the circular dependency issue where the Call must encode the Intent Address, which is not known until the Payload is hashed.
 
-Hydrate allows Calls to be configured which predefined replacement identifiers. Unlike the `MalleableSapient`, these replacement identifiers are encoded in the Payload and included in the Intent configuration, reducing the attack surface.
+Hydrate allows Calls to be configured with predefined replacement commands encoded in a `hydratePayload` byte stream. Unlike the `MalleableSapient`, these replacement commands are included in the Intent configuration and hashed with the payload, reducing the attack surface.
 
-During execution, the Hydrate logic will replace the calldata with the predefined identifiers before processing the Call.
+During execution, the Hydrate logic processes the `hydratePayload` to replace calldata, `to`, and `value` fields before processing each Call.
 
-The Hydrator logic supports the replacement with:
+The `hydratePayload` is structured as a byte stream grouped by call index:
+- Starts with a 1-byte call index (`tindex`)
+- Followed by hydration commands for that call
+- Each command starts with a 1-byte flag (type in top nibble, data source in bottom nibble)
+- A `SIGNAL_NEXT_HYDRATE` (0x00) ends the current call's section; if more bytes remain, the next byte is the next call index
 
-- Calldata:
-  - address(self)
-  - msg.sender
-  - tx.origin
-  - ERC20(token).balanceOf(address(self))
-  - ERC20(token).balanceOf(msg.sender)
-  - ERC20(token).balanceOf(tx.origin)
-  - ERC20(token).balanceOf(predefined_address)
-  - address(self).balance
-  - msg.sender.balance
-  - tx.origin.balance
-  - address(predefined_address).balance
+Address sources: All address parameters can reference `address(this)`, `msg.sender`, `tx.origin`, or a predefined address encoded in the `hydratePayload`.
+
+The Hydrator logic supports the following replacements:
+
+- Calldata (with byte offset):
+  - address (any address source)
+  - balance (any address source)
+  - ERC20(token).balanceOf(any address source)
+  - ERC20(token).allowance(owner, spender) where owner and spender are any address source
 - To:
-  - msg.sender
-  - tx.origin
+  - any address source
 - Value:
-  - msg.sender.balance
+  - balance of any address source
 
 #### MalleableSapient
 
