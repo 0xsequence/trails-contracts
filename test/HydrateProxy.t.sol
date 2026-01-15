@@ -70,6 +70,11 @@ contract HydrateProxyTest is Test {
     uint128 callerTokenBalance;
     uint128 originTokenBalance;
     uint128 anyTokenBalance;
+    uint128 proxyTokenApproval;
+    uint128 callerTokenApproval;
+    uint128 originTokenApproval;
+    uint128 anyTokenApproval;
+    address spenderAddr;
   }
 
   bytes4 private constant SELECTOR_CALLS = bytes4(keccak256("calls()"));
@@ -114,9 +119,25 @@ contract HydrateProxyTest is Test {
       uint128(bound(uint256(keccak256(abi.encodePacked(seed, "originTokenBalance"))), 0, 1_000_000 ether));
     c.anyTokenBalance =
       uint128(bound(uint256(keccak256(abi.encodePacked(seed, "anyTokenBalance"))), 0, 1_000_000 ether));
+
+    c.spenderAddr = address(uint160(uint256(keccak256(abi.encodePacked(seed, "spender")))));
+    vm.assume(c.spenderAddr != address(0));
+
+    c.proxyTokenApproval =
+      uint128(bound(uint256(keccak256(abi.encodePacked(seed, "proxyTokenApproval"))), 0, 1_000_000 ether));
+    c.callerTokenApproval =
+      uint128(bound(uint256(keccak256(abi.encodePacked(seed, "callerTokenApproval"))), 0, 1_000_000 ether));
+    c.originTokenApproval =
+      uint128(bound(uint256(keccak256(abi.encodePacked(seed, "originTokenApproval"))), 0, 1_000_000 ether));
+    c.anyTokenApproval =
+      uint128(bound(uint256(keccak256(abi.encodePacked(seed, "anyTokenApproval"))), 0, 1_000_000 ether));
   }
 
-  function _hydrateAllFlagsPayload(address anyAddr, address token) private pure returns (bytes memory hydratePayload) {
+  function _hydrateAllFlagsPayload(address anyAddr, address token, address spenderAddr)
+    private
+    pure
+    returns (bytes memory hydratePayload)
+  {
     hydratePayload = abi.encodePacked(uint8(0));
 
     hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x01), uint16(0)));
@@ -133,7 +154,13 @@ contract HydrateProxyTest is Test {
     hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x0A), uint16(288), token));
     hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x0B), uint16(320), token, anyAddr));
 
-    hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x0C), uint8(0x0D), uint8(0x0E)));
+    hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x0C), uint16(352), token, spenderAddr));
+    hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x0D), uint16(384), token, spenderAddr));
+    hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x0E), uint16(416), token, spenderAddr));
+    hydratePayload =
+      bytes.concat(hydratePayload, abi.encodePacked(uint8(0x0F), uint16(448), token, anyAddr, spenderAddr));
+
+    hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x10), uint8(0x11), uint8(0x12)));
 
     // End hydrate for call 0; next hydrate targets call 1; call 1 has an empty section.
     hydratePayload = bytes.concat(hydratePayload, abi.encodePacked(uint8(0x00), uint8(1), uint8(0x00)));
@@ -159,11 +186,20 @@ contract HydrateProxyTest is Test {
     token.mint(address(originReceiver), c.originTokenBalance);
     token.mint(c.anyAddr, c.anyTokenBalance);
 
+    vm.prank(address(proxy));
+    token.approve(c.spenderAddr, c.proxyTokenApproval);
+    vm.prank(address(caller));
+    token.approve(c.spenderAddr, c.callerTokenApproval);
+    vm.prank(address(originReceiver));
+    token.approve(c.spenderAddr, c.originTokenApproval);
+    vm.prank(c.anyAddr);
+    token.approve(c.spenderAddr, c.anyTokenApproval);
+
     Payload.Call[] memory calls = new Payload.Call[](2);
     calls[0] = Payload.Call({
       to: address(msgSenderReceiver),
       value: 0,
-      data: new bytes(400),
+      data: new bytes(480),
       gasLimit: 0,
       delegateCall: false,
       onlyFallback: false,
@@ -188,7 +224,9 @@ contract HydrateProxyTest is Test {
     // Call via a contract so `msg.sender` inside the proxy is a contract address.
     // Force tx.origin to be `originReceiver` to cover HYDRATE_TO_TRANSACTION_ORIGIN_ADDRESS.
     vm.prank(outerSender, address(originReceiver));
-    caller.hydrateExecute{value: c.msgValue}(proxy, packed, _hydrateAllFlagsPayload(c.anyAddr, address(token)));
+    caller.hydrateExecute{value: c.msgValue}(
+      proxy, packed, _hydrateAllFlagsPayload(c.anyAddr, address(token), c.spenderAddr)
+    );
 
     bytes memory got = originReceiver.lastData();
 
@@ -205,6 +243,11 @@ contract HydrateProxyTest is Test {
     assertEq(_readUint256(got, 256), uint256(c.callerTokenBalance));
     assertEq(_readUint256(got, 288), uint256(c.originTokenBalance));
     assertEq(_readUint256(got, 320), uint256(c.anyTokenBalance));
+
+    assertEq(_readUint256(got, 352), uint256(c.proxyTokenApproval));
+    assertEq(_readUint256(got, 384), uint256(c.callerTokenApproval));
+    assertEq(_readUint256(got, 416), uint256(c.originTokenApproval));
+    assertEq(_readUint256(got, 448), uint256(c.anyTokenApproval));
 
     // HYDRATE_AMOUNT_SELF_BALANCE sets call.value to the proxy's balance at hydration time.
     assertEq(originReceiver.lastValue(), c.msgValue);
@@ -235,7 +278,7 @@ contract HydrateProxyTest is Test {
   }
 
   function testFuzz_hydrateExecute_unknownHydrateFlag_reverts(uint8 flag) external {
-    vm.assume(flag >= 0x0F);
+    vm.assume(flag >= 0x13);
 
     HydrateProxy proxy = new HydrateProxy();
     RecordingReceiver receiver = new RecordingReceiver();

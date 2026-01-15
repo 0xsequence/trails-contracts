@@ -51,12 +51,17 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
   uint256 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_TOKEN_BALANCE = 0x0A;
   uint256 private constant HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE = 0x0B;
 
+  uint256 private constant HYDRATE_DATA_SELF_TOKEN_APPROVAL = 0x0C;
+  uint256 private constant HYDRATE_DATA_MESSAGE_SENDER_TOKEN_APPROVAL = 0x0D;
+  uint256 private constant HYDRATE_DATA_TRANSACTION_ORIGIN_TOKEN_APPROVAL = 0x0E;
+  uint256 private constant HYDRATE_DATA_ANY_ADDRESS_TOKEN_APPROVAL = 0x0F;
+
   // Hydration flags for mutating a call's recipient (`to`).
-  uint256 private constant HYDRATE_TO_MESSAGE_SENDER_ADDRESS = 0x0C;
-  uint256 private constant HYDRATE_TO_TRANSACTION_ORIGIN_ADDRESS = 0x0D;
+  uint256 private constant HYDRATE_TO_MESSAGE_SENDER_ADDRESS = 0x10;
+  uint256 private constant HYDRATE_TO_TRANSACTION_ORIGIN_ADDRESS = 0x11;
 
   // Hydration flags for mutating a call's ETH value (`value`).
-  uint256 private constant HYDRATE_AMOUNT_SELF_BALANCE = 0x0E;
+  uint256 private constant HYDRATE_AMOUNT_SELF_BALANCE = 0x12;
 
   // Cached address of this contract to detect delegatecall context.
   address internal immutable SELF = address(this);
@@ -196,7 +201,7 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
         break;
       }
 
-      if (flag <= HYDRATE_DATA_ANY_ADDRESS_TOKEN_BALANCE) {
+      if (flag <= HYDRATE_DATA_ANY_ADDRESS_TOKEN_APPROVAL) {
         // Data-hydration commands mutate `decoded.calls[tindex].data` in-place.
         (cindex, rindex) = hydratePayload.readUint16(rindex);
 
@@ -247,6 +252,39 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
           (token, rindex) = hydratePayload.readAddress(rindex);
           (addr, rindex) = hydratePayload.readAddress(rindex);
           decoded.calls[tindex].data.replaceUint256(cindex, IERC20(token).balanceOf(addr));
+        } else if (flag == HYDRATE_DATA_SELF_TOKEN_APPROVAL) {
+          // Insert this contract's ERC20 approval for a token read from hydratePayload.
+          address token;
+          address spender;
+          (token, rindex) = hydratePayload.readAddress(rindex);
+          (spender, rindex) = hydratePayload.readAddress(rindex);
+          decoded.calls[tindex].data.replaceUint256(cindex, IERC20(token).allowance(address(this), spender));
+        } else if (flag == HYDRATE_DATA_MESSAGE_SENDER_TOKEN_APPROVAL) {
+          // Insert `msg.sender`'s ERC20 approval for a token read from hydratePayload.
+          address token;
+          address spender;
+          (token, rindex) = hydratePayload.readAddress(rindex);
+          (spender, rindex) = hydratePayload.readAddress(rindex);
+          decoded.calls[tindex].data.replaceUint256(cindex, IERC20(token).allowance(msg.sender, spender));
+        } else if (flag == HYDRATE_DATA_TRANSACTION_ORIGIN_TOKEN_APPROVAL) {
+          // Insert `tx.origin`'s ERC20 approval for a token read from hydratePayload.
+          address token;
+          address spender;
+          (token, rindex) = hydratePayload.readAddress(rindex);
+          (spender, rindex) = hydratePayload.readAddress(rindex);
+          decoded.calls[tindex].data.replaceUint256(cindex, IERC20(token).allowance(tx.origin, spender));
+        } else if (flag == HYDRATE_DATA_ANY_ADDRESS_TOKEN_APPROVAL) {
+          // Insert any address's ERC20 approval for:
+          // - `token` read from hydratePayload
+          // - `addr`  read from hydratePayload
+          // - `spender` read from hydratePayload
+          address token;
+          address addr;
+          address spender;
+          (token, rindex) = hydratePayload.readAddress(rindex);
+          (addr, rindex) = hydratePayload.readAddress(rindex);
+          (spender, rindex) = hydratePayload.readAddress(rindex);
+          decoded.calls[tindex].data.replaceUint256(cindex, IERC20(token).allowance(addr, spender));
         }
       } else if (flag == HYDRATE_TO_MESSAGE_SENDER_ADDRESS) {
         // Mutate the call recipient (`to`) to the message sender.
