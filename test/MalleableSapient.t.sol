@@ -62,9 +62,24 @@ contract MalleableSapientTest is Test {
       uint256 size = uint256(_readU16(signature, rindex));
       rindex += 2;
 
-      bytes memory segment = _slice(payload.calls[tindex].data, cindex, size);
-      bytes32 sectionRoot = keccak256(abi.encode("static-section", tindex, cindex, segment));
-      root = LibOptim.fkeccak256(root, sectionRoot);
+      // Top bit of tindex indicates whether this is a "repeat-section" or a "static-section"
+      bool repeatSection = (tindex & 0x80) != 0;
+      tindex = tindex & 0x7F;
+
+      if (repeatSection) {
+        uint256 tindex2 = uint256(uint8(signature[rindex]));
+        rindex += 1;
+
+        uint256 cindex2 = uint256(_readU16(signature, rindex));
+        rindex += 2;
+
+        bytes32 sectionRoot = keccak256(abi.encode("repeat-section", tindex, cindex, tindex2, cindex2));
+        root = LibOptim.fkeccak256(root, sectionRoot);
+      } else {
+        bytes memory segment = _slice(payload.calls[tindex].data, cindex, size);
+        bytes32 sectionRoot = keccak256(abi.encode("static-section", tindex, cindex, segment));
+        root = LibOptim.fkeccak256(root, sectionRoot);
+      }
     }
 
     return root;
@@ -116,6 +131,14 @@ contract MalleableSapientTest is Test {
     assertEq(got, expected);
   }
 
+  struct SignatureParts {
+    uint8 tindex;
+    uint16 cindex;
+    uint16 size;
+    uint8 tindex2;
+    uint16 cindex2;
+  }
+
   function testFuzz_recoverSapientSignature_withSections_matchesExpected(
     bytes32 seed,
     uint256 space,
@@ -123,7 +146,7 @@ contract MalleableSapientTest is Test {
     uint8 callCount,
     uint8 sections
   ) external {
-    callCount = uint8(bound(callCount, 1, 3));
+    callCount = uint8(bound(callCount, 1, 10));
     sections = uint8(bound(sections, 1, 3));
 
     Payload.Decoded memory payload;
@@ -144,16 +167,53 @@ contract MalleableSapientTest is Test {
       });
     }
 
+    // Prevent overlap by requring separate tindex for each repeat section
+    uint256[] memory tindexWithRepeat = new uint256[](sections * 2);
+
+    SignatureParts memory parts;
     bytes memory signature;
     for (uint256 i = 0; i < sections; i++) {
-      uint8 tindex = uint8(uint256(keccak256(abi.encodePacked(seed, "t", i))) % callCount);
-      uint256 dataLen = payload.calls[tindex].data.length;
+      parts.tindex = uint8(uint256(keccak256(abi.encodePacked(seed, "t", i))) % callCount);
+      uint256 dataLen = payload.calls[parts.tindex].data.length;
 
       // forge-lint: disable-next-line(unsafe-typecast)
-      uint16 cindex = uint16(uint256(keccak256(abi.encodePacked(seed, "c", i))) % dataLen);
-      uint16 size = uint16(uint256(keccak256(abi.encodePacked(seed, "s", i))) % (dataLen - cindex + 1));
+      parts.cindex = uint16(uint256(keccak256(abi.encodePacked(seed, "c", i))) % dataLen);
+      parts.size = uint16(uint256(keccak256(abi.encodePacked(seed, "s", i))) % (dataLen - parts.cindex + 1));
 
-      signature = bytes.concat(signature, abi.encodePacked(tindex, cindex, size));
+      bool isRepeatSection = (uint256(keccak256(abi.encodePacked(seed, "rs", i))) & 1) == 1;
+      if (isRepeatSection) {
+        parts.tindex2 = uint8(uint256(keccak256(abi.encodePacked(seed, "t2", i))) % callCount);
+        // Prevent collision by checking tindex is not repeated
+        vm.assume(parts.tindex != parts.tindex2);
+        for (uint256 j = 0; j < i * 2; j++) {
+          vm.assume(parts.tindex != tindexWithRepeat[j]);
+          vm.assume(parts.tindex2 != tindexWithRepeat[j]);
+        }
+        tindexWithRepeat[i] = parts.tindex;
+        tindexWithRepeat[i + 1] = parts.tindex2;
+
+        uint256 dataLen2 = payload.calls[parts.tindex2].data.length;
+        // forge-lint: disable-next-line(unsafe-typecast)
+        parts.cindex2 = uint16(uint256(keccak256(abi.encodePacked(seed, "c2", i))) % dataLen2);
+        uint16 size2 = uint16(uint256(keccak256(abi.encodePacked(seed, "s2", i))) % (dataLen2 - parts.cindex2 + 1));
+        if (parts.size > size2) {
+          // Use the smaller size
+          parts.size = size2;
+        }
+        uint8 flaggedTindex = parts.tindex | 0x80;
+        signature = bytes.concat(
+          signature, abi.encodePacked(flaggedTindex, parts.cindex, parts.size, parts.tindex2, parts.cindex2)
+        );
+
+        // Ensure the section is repeated
+        bytes memory repeatSection = _slice(payload.calls[parts.tindex].data, parts.cindex, parts.size);
+        bytes memory sectionA = _slice(payload.calls[parts.tindex2].data, 0, parts.cindex2);
+        bytes memory sectionB =
+          _slice(payload.calls[parts.tindex2].data, parts.cindex2 + parts.size, dataLen2 - parts.cindex2 - parts.size);
+        payload.calls[parts.tindex2].data = bytes.concat(sectionA, repeatSection, sectionB);
+      } else {
+        signature = bytes.concat(signature, abi.encodePacked(parts.tindex, parts.cindex, parts.size));
+      }
     }
 
     MalleableSapient sapient = new MalleableSapient();
