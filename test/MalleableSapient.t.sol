@@ -223,6 +223,97 @@ contract MalleableSapientTest is Test {
     assertEq(got, expected);
   }
 
+  struct InvalidRepeatSectionParts {
+    uint8 tindex;
+    uint16 cindex;
+    uint16 size;
+    uint8 tindex2;
+    uint16 cindex2;
+  }
+
+  function test_recoverSapientSignature_invalidRepeatSection_reverts(
+    bytes32 seed,
+    uint256 space,
+    uint256 nonce,
+    uint8 callCount,
+    uint8 sections
+  ) external {
+    callCount = uint8(bound(callCount, 1, 10));
+    sections = uint8(bound(sections, 1, 3));
+
+    Payload.Decoded memory payload;
+    payload.kind = Payload.KIND_TRANSACTIONS;
+    payload.space = space;
+    payload.nonce = nonce;
+    payload.calls = new Payload.Call[](callCount);
+
+    for (uint256 i = 0; i < callCount; i++) {
+      payload.calls[i] = Payload.Call({
+        to: address(uint160(uint256(keccak256(abi.encodePacked(seed, "to", i))))),
+        value: uint256(keccak256(abi.encodePacked(seed, "value", i))),
+        data: _randomBytes(bound(uint256(uint8(seed[i])), 1, 64), keccak256(abi.encodePacked(seed, "data", i))),
+        gasLimit: uint256(keccak256(abi.encodePacked(seed, "gas", i))),
+        delegateCall: (uint256(keccak256(abi.encodePacked(seed, "dc", i))) & 1) == 1,
+        onlyFallback: (uint256(keccak256(abi.encodePacked(seed, "fb", i))) & 1) == 1,
+        behaviorOnError: uint256(uint8(uint256(keccak256(abi.encodePacked(seed, "boe", i)))))
+      });
+    }
+
+    InvalidRepeatSectionParts memory invalidParts;
+    SignatureParts memory parts;
+    bytes memory signature;
+    for (uint256 i = 0; i < sections; i++) {
+      parts.tindex = uint8(uint256(keccak256(abi.encodePacked(seed, "t", i))) % callCount);
+      uint256 dataLen = payload.calls[parts.tindex].data.length;
+
+      // forge-lint: disable-next-line(unsafe-typecast)
+      parts.cindex = uint16(uint256(keccak256(abi.encodePacked(seed, "c", i))) % dataLen);
+      parts.size = uint16(uint256(keccak256(abi.encodePacked(seed, "s", i))) % (dataLen - parts.cindex + 1));
+
+      parts.tindex2 = uint8(uint256(keccak256(abi.encodePacked(seed, "t2", i))) % callCount);
+      uint256 dataLen2 = payload.calls[parts.tindex2].data.length;
+      // forge-lint: disable-next-line(unsafe-typecast)
+      parts.cindex2 = uint16(uint256(keccak256(abi.encodePacked(seed, "c2", i))) % dataLen2);
+      uint16 size2 = uint16(uint256(keccak256(abi.encodePacked(seed, "s2", i))) % (dataLen2 - parts.cindex2 + 1));
+      if (parts.size > size2) {
+        // Use the smaller size
+        parts.size = size2;
+      }
+      uint8 flaggedTindex = parts.tindex | 0x80;
+      signature = bytes.concat(
+        signature, abi.encodePacked(flaggedTindex, parts.cindex, parts.size, parts.tindex2, parts.cindex2)
+      );
+
+      if (invalidParts.size == 0) {
+        // Check if the section is a repeat
+        bytes memory section = _slice(payload.calls[parts.tindex].data, parts.cindex, parts.size);
+        bytes memory section2 = _slice(payload.calls[parts.tindex2].data, parts.cindex2, parts.size);
+        if (keccak256(section) != keccak256(section2)) {
+          invalidParts = InvalidRepeatSectionParts({
+            tindex: parts.tindex, cindex: parts.cindex, size: parts.size, tindex2: parts.tindex2, cindex2: parts.cindex2
+          });
+        }
+      }
+    }
+
+    // At least one of the repeat sections must be invalid
+    vm.assume(invalidParts.size != 0);
+
+    MalleableSapient sapient = new MalleableSapient();
+
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        MalleableSapient.InvalidRepeatSection.selector,
+        invalidParts.tindex,
+        invalidParts.cindex,
+        invalidParts.size,
+        invalidParts.tindex2,
+        invalidParts.cindex2
+      )
+    );
+    sapient.recoverSapientSignature(payload, signature);
+  }
+
   function test_recoverSapientSignature_chainId_included() external {
     MalleableSapient sapient = new MalleableSapient();
 
