@@ -7,19 +7,27 @@ import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 
 /// @title MalleableSapient
-/// @notice An `ISapient` implementation that lets the caller declare which parts of a transaction bundle are "static" (committed to) and which parts are "malleable" (can be changed/hydrated at execution).
+/// @notice An `ISapient` implementation that lets the caller declare which parts of a transaction bundle are "static" (committed to),
+/// which parts are "malleable" (can be changed/hydrated at execution), and which parts are "repeatable" (for malleable sections that must match).
 /// @dev The returned `imageHash` is a rolling hash of:
 /// - the payload `space` + `nonce`
 /// - the current `block.chainid`
 /// - each call's metadata (everything except `data`)
 /// - each "static section" of call `data` as described by `signature`
-/// - `signature` format (repeated until exhausted):
-/// - `tindex` (uint8): call index in `payload.calls`
+/// - `tindex` (uint8): call index in `payload.calls` (top bit `0`)
 /// - `cindex` (uint16): byte offset into `payload.calls[tindex].data`
 /// - `size`  (uint16): byte length of the static section
+/// - each "repeat section" is described by:
+/// - `tindex` (uint8): call index in `payload.calls` (top bit `1`)
+/// - `cindex` (uint16): byte offset into `payload.calls[tindex].data`
+/// - `size`  (uint16): byte length of the repeat section
+/// - `tindex2` (uint8): call index in `payload.calls`
+/// - `cindex2` (uint16): byte offset into `payload.calls[tindex2].data`
 /// - This is *not* an ECDSA signature; it's a compact description of the committed sections.
 contract MalleableSapient is ISapient {
   error NonTransactionPayload();
+
+  error InvalidRepeatSection(uint256 _tindex, uint256 _cindex, uint256 _size, uint256 _tindex2, uint256 _cindex2);
 
   using LibBytes for bytes;
 
@@ -60,7 +68,9 @@ contract MalleableSapient is ISapient {
 
       uint256 rindex;
       uint256 tindex;
+      uint256 tindex2;
       uint256 cindex;
+      uint256 cindex2;
       uint256 size;
 
       while (rindex < signature.length) {
@@ -68,13 +78,39 @@ contract MalleableSapient is ISapient {
         (cindex, rindex) = signature.readUint16(rindex);
         (size, rindex) = signature.readUint16(rindex);
 
-        // Roll only the data defined as static, everything else is malleable
-        bytes32 sectionRoot = _staticSection(tindex, cindex, payload.calls[tindex].data[cindex:cindex + size]);
-        root = LibOptim.fkeccak256(root, sectionRoot);
+        // Top bit of tindex indicates whether this is a "repeat-section" or a "static-section"
+        bool repeatSection = (tindex & 0x80) != 0;
+        tindex = tindex & 0x7F;
+
+        bytes calldata section = payload.calls[tindex].data[cindex:cindex + size];
+
+        if (repeatSection) {
+          // Ensure a section is repeated
+          (tindex2, rindex) = signature.readUint8(rindex);
+          (cindex2, rindex) = signature.readUint16(rindex);
+
+          bytes calldata section2 = payload.calls[tindex2].data[cindex2:cindex2 + size];
+          if (keccak256(section) != keccak256(section2)) {
+            revert InvalidRepeatSection(tindex, cindex, size, tindex2, cindex2);
+          }
+
+          root = LibOptim.fkeccak256(root, _repeatSection(tindex, cindex, size, tindex2, cindex2));
+        } else {
+          // Roll only the data defined as static, everything else is malleable
+          root = LibOptim.fkeccak256(root, _staticSection(tindex, cindex, section));
+        }
       }
 
       return root;
     }
+  }
+
+  function _repeatSection(uint256 _tindex, uint256 _cindex, uint256 _size, uint256 _tindex2, uint256 _cindex2)
+    internal
+    pure
+    returns (bytes32)
+  {
+    return keccak256(abi.encode("repeat-section", _tindex, _cindex, _size, _tindex2, _cindex2));
   }
 
   function _staticSection(uint256 _tindex, uint256 _cindex, bytes calldata _data) internal pure returns (bytes32) {
