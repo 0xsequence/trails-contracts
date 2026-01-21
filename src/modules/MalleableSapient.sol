@@ -14,12 +14,11 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 /// - the current `block.chainid`
 /// - each call's metadata (everything except `data`)
 /// - each "static section" of call `data` as described by `signature`
-/// - `signature` format (repeated until exhausted):
-/// - `tindex` (uint8): call index in `payload.calls`
+/// - `tindex` (uint8): call index in `payload.calls` (top bit `0`)
 /// - `cindex` (uint16): byte offset into `payload.calls[tindex].data`
 /// - `size`  (uint16): byte length of the static section
-/// - each repeat section is described by:
-/// - `tindex` (uint8): call index in `payload.calls`
+/// - each "repeat section" is described by:
+/// - `tindex` (uint8): call index in `payload.calls` (top bit `1`)
 /// - `cindex` (uint16): byte offset into `payload.calls[tindex].data`
 /// - `tindex2` (uint8): call index in `payload.calls`
 /// - `cindex2` (uint16): byte offset into `payload.calls[tindex2].data`
@@ -98,8 +97,7 @@ contract MalleableSapient is ISapient {
           root = LibOptim.fkeccak256(root, _repeatSection(tindex, cindex, tindex2, cindex2));
         } else {
           // Roll only the data defined as static, everything else is malleable
-          bytes32 sectionRoot = _staticSection(tindex, cindex, section);
-          root = LibOptim.fkeccak256(root, sectionRoot);
+          root = LibOptim.fkeccak256(root, _staticSection(tindex, cindex, section));
         }
       }
 
