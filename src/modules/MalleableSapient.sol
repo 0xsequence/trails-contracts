@@ -20,9 +20,9 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 /// - each "repeat section" is described by:
 /// - `tindex` (uint8): call index in `payload.calls` (top bit `1`)
 /// - `cindex` (uint16): byte offset into `payload.calls[tindex].data`
+/// - `size`  (uint16): byte length of the repeat section
 /// - `tindex2` (uint8): call index in `payload.calls`
 /// - `cindex2` (uint16): byte offset into `payload.calls[tindex2].data`
-/// - `size`  (uint16): byte length of the repeat section
 /// - This is *not* an ECDSA signature; it's a compact description of the committed sections.
 contract MalleableSapient is ISapient {
   error NonTransactionPayload();
