@@ -94,7 +94,7 @@ contract MalleableSapient is ISapient {
             revert InvalidRepeatSection(tindex, cindex, size, tindex2, cindex2);
           }
 
-          root = LibOptim.fkeccak256(root, _repeatSection(tindex, cindex, tindex2, cindex2));
+          root = LibOptim.fkeccak256(root, _repeatSection(tindex, cindex, size, tindex2, cindex2));
         } else {
           // Roll only the data defined as static, everything else is malleable
           root = LibOptim.fkeccak256(root, _staticSection(tindex, cindex, section));
@@ -105,12 +105,12 @@ contract MalleableSapient is ISapient {
     }
   }
 
-  function _repeatSection(uint256 _tindex, uint256 _cindex, uint256 _tindex2, uint256 _cindex2)
+  function _repeatSection(uint256 _tindex, uint256 _cindex, uint256 _size, uint256 _tindex2, uint256 _cindex2)
     internal
     pure
     returns (bytes32)
   {
-    return keccak256(abi.encode("repeat-section", _tindex, _cindex, _tindex2, _cindex2));
+    return keccak256(abi.encode("repeat-section", _tindex, _cindex, _size, _tindex2, _cindex2));
   }
 
   function _staticSection(uint256 _tindex, uint256 _cindex, bytes calldata _data) internal pure returns (bytes32) {

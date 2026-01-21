@@ -73,7 +73,7 @@ contract MalleableSapientTest is Test {
         uint256 cindex2 = uint256(_readU16(signature, rindex));
         rindex += 2;
 
-        bytes32 sectionRoot = keccak256(abi.encode("repeat-section", tindex, cindex, tindex2, cindex2));
+        bytes32 sectionRoot = keccak256(abi.encode("repeat-section", tindex, cindex, size, tindex2, cindex2));
         root = LibOptim.fkeccak256(root, sectionRoot);
       } else {
         bytes memory segment = _slice(payload.calls[tindex].data, cindex, size);
