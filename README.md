@@ -46,12 +46,14 @@ The Hydrator logic supports the following replacements:
 
 Sequence Wallets support preauthorization of entire payload digests. This does not support all Trails providers. Some information (e.g. commit / reveal bridges) do not allow the entire payload to be known when constructing the Intent supported Payloads.
 
-By allowing some portions of a Payload to be excluded, we can break the circular dependency and allow the data to be provided at execution time.
+By allowing some portions of a Payload to be excluded from the derived configuration image hash, we can break the circular dependency and allow the data to be provided at execution time.
+
+The `MalleableSapient` supports "static sections" of payload calldata which roll up to the image hash, and "repeat sections" which require two sections of payload calldata match. Any unconfigured section is considered a "malleable section" and is excluded from validation.
 
 > [!CAUTION]
-> Care must be taken not to relax the validation too much. Any Malleable field is effectively open to attack, as the wallet will approve any value in a Malleable section. Malleable sections should only be used for data that is able to be validated during execution.
+> Care must be taken not to relax the validation too much. Any malleable field is effectively open to attack, as the wallet will approve any value in an malleable section. malleable sections should only be used for data that is able to be validated during execution.
 
-Using Hydrate logic via the `HydrateProxy` is preferrable over using the `MalleableSapient`.
+Using Hydrate logic via the `HydrateProxy` is preferrable over using the `MalleableSapient`. Both features can be used in conjunction.
 
 #### RequireUtils
 
@@ -88,11 +90,13 @@ onlyFallback: false
 
 ### Call Context
 
-All functions are intended to be used from the `TrailsUtils` context via a call from the Intent Address.
+All functions are able to be used from the `TrailsUtils` context via a call from the Intent Address via a `delegatecall`.
 
 Delegatecall via the Intent Address is only able to access `hydrateExecute`. This is due to the Sequence Wallet wrapping of delegatecalls within `handleSequenceDelegateCall`.
 
 Delegatecalls are only allowed in a nested delegatecall context. The `TrailsUtils` will not process a delegatecall when executing from the context of it's own address.
+
+Any funds accumulated in the `TrailsUtils` context, via a `call` should be swept during batched execution. Remaining funds are to be considered lost.
 
 ### Intent Security
 
