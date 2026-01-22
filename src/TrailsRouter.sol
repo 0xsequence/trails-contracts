@@ -119,6 +119,36 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         }
     }
 
+    /// @inheritdoc ITrailsRouter
+    function pullAmountAndExecuteFrom(address token, address from, uint256 amount, bytes calldata data)
+        public
+        payable
+        returns (IMulticall3.Result[] memory returnResults)
+    {
+        _validateRouterCall(data);
+        if (token == address(0)) {
+            if (msg.value != amount) revert IncorrectValue(amount, msg.value);
+        } else {
+            address pullFrom = from == address(0) ? msg.sender : from;
+            _safeTransferFrom(token, pullFrom, address(this), amount);
+        }
+
+        (bool success, bytes memory returnData) = MULTICALL3.delegatecall(data);
+        if (!success) revert TargetCallFailed(returnData);
+        returnResults = abi.decode(returnData, (IMulticall3.Result[]));
+
+        // Sweep remaining balance back to msg.sender to prevent dust from EXACT_OUTPUT swaps getting stuck.
+        uint256 remaining = _getSelfBalance(token);
+        if (remaining > 0) {
+            if (token == address(0)) {
+                _transferNative(msg.sender, remaining);
+            } else {
+                _transferERC20(token, msg.sender, remaining);
+            }
+            emit Sweep(token, msg.sender, remaining);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Balance Injection Functions
     // -------------------------------------------------------------------------
