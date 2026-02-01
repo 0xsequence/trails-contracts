@@ -13,8 +13,6 @@ contract RequireUtilsTest is Test {
     vm.warp(uint256(nowTs));
     if (uint256(nowTs) >= uint256(expiration)) {
       vm.expectRevert(abi.encodeWithSelector(RequireUtils.Expired.selector, uint256(expiration), uint256(nowTs)));
-      utils.requireNonExpired(uint256(expiration));
-      return;
     }
 
     utils.requireNonExpired(uint256(expiration));
@@ -28,8 +26,6 @@ contract RequireUtilsTest is Test {
       vm.expectRevert(
         abi.encodeWithSelector(RequireUtils.NativeBalanceTooLow.selector, wallet, uint256(balance), uint256(minBalance))
       );
-      utils.requireMinBalance(wallet, minBalance);
-      return;
     }
 
     utils.requireMinBalance(wallet, minBalance);
@@ -44,8 +40,6 @@ contract RequireUtilsTest is Test {
       vm.expectRevert(
         abi.encodeWithSelector(RequireUtils.NativeBalanceTooLow.selector, sender, uint256(balance), uint256(minBalance))
       );
-      utils.requireMinBalanceSelf(minBalance);
-      return;
     }
 
     utils.requireMinBalanceSelf(minBalance);
@@ -63,8 +57,6 @@ contract RequireUtilsTest is Test {
           RequireUtils.ERC20BalanceTooLow.selector, address(token), wallet, uint256(bal), uint256(minBal)
         )
       );
-      utils.requireMinERC20Balance(address(token), wallet, minBal);
-      return;
     }
 
     utils.requireMinERC20Balance(address(token), wallet, minBal);
@@ -83,8 +75,6 @@ contract RequireUtilsTest is Test {
           RequireUtils.ERC20BalanceTooLow.selector, address(token), sender, uint256(bal), uint256(minBal)
         )
       );
-      utils.requireMinERC20BalanceSelf(address(token), minBal);
-      return;
     }
 
     utils.requireMinERC20BalanceSelf(address(token), minBal);
@@ -110,8 +100,6 @@ contract RequireUtilsTest is Test {
           uint256(minAllowance)
         )
       );
-      utils.requireMinERC20Allowance(address(token), owner, spender, minAllowance);
-      return;
     }
 
     utils.requireMinERC20Allowance(address(token), owner, spender, minAllowance);
@@ -141,8 +129,6 @@ contract RequireUtilsTest is Test {
           uint256(minAllowance)
         )
       );
-      utils.requireMinERC20AllowanceSelf(address(token), spender, minAllowance);
-      return;
     }
 
     utils.requireMinERC20AllowanceSelf(address(token), spender, minAllowance);
@@ -165,8 +151,6 @@ contract RequireUtilsTest is Test {
       vm.expectRevert(
         abi.encodeWithSelector(RequireUtils.ERC721NotApproved.selector, address(token), tokenId, owner, spender)
       );
-      utils.requireERC721Approval(address(token), owner, spender, tokenId);
-      return;
     }
 
     utils.requireERC721Approval(address(token), owner, spender, tokenId);
@@ -190,8 +174,6 @@ contract RequireUtilsTest is Test {
       vm.expectRevert(
         abi.encodeWithSelector(RequireUtils.ERC721NotApproved.selector, address(token), tokenId, owner, spender)
       );
-      utils.requireERC721ApprovalSelf(address(token), spender, tokenId);
-      return;
     }
 
     utils.requireERC721ApprovalSelf(address(token), spender, tokenId);
@@ -209,8 +191,6 @@ contract RequireUtilsTest is Test {
           RequireUtils.ERC1155BalanceTooLow.selector, address(token), wallet, tokenId, uint256(bal), uint256(minBal)
         )
       );
-      utils.requireMinERC1155Balance(address(token), wallet, tokenId, minBal);
-      return;
     }
 
     utils.requireMinERC1155Balance(address(token), wallet, tokenId, minBal);
@@ -229,8 +209,6 @@ contract RequireUtilsTest is Test {
           RequireUtils.ERC1155BalanceTooLow.selector, address(token), owner, tokenId, uint256(bal), uint256(minBal)
         )
       );
-      utils.requireMinERC1155BalanceSelf(address(token), tokenId, minBal);
-      return;
     }
 
     utils.requireMinERC1155BalanceSelf(address(token), tokenId, minBal);
@@ -345,8 +323,6 @@ contract RequireUtilsTest is Test {
 
     if (!approved) {
       vm.expectRevert(abi.encodeWithSelector(RequireUtils.ERC1155NotApproved.selector, address(token), owner, operator));
-      utils.requireERC1155Approval(address(token), owner, operator);
-      return;
     }
 
     utils.requireERC1155Approval(address(token), owner, operator);
@@ -361,8 +337,6 @@ contract RequireUtilsTest is Test {
     vm.prank(owner);
     if (!approved) {
       vm.expectRevert(abi.encodeWithSelector(RequireUtils.ERC1155NotApproved.selector, address(token), owner, operator));
-      utils.requireERC1155ApprovalSelf(address(token), operator);
-      return;
     }
 
     utils.requireERC1155ApprovalSelf(address(token), operator);
