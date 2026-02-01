@@ -18,17 +18,17 @@ contract RequireUtilsTest is Test {
     utils.requireNonExpired(uint256(expiration));
   }
 
-  function testFuzz_requireMinBalance(address wallet, uint96 balance, uint96 minBalance) external {
+  function testFuzz_requireMinBalance(address owner, uint96 balance, uint96 minBalance) external {
     RequireUtils utils = new RequireUtils();
-    vm.deal(wallet, balance);
+    vm.deal(owner, balance);
 
     if (balance < minBalance) {
       vm.expectRevert(
-        abi.encodeWithSelector(RequireUtils.NativeBalanceTooLow.selector, wallet, uint256(balance), uint256(minBalance))
+        abi.encodeWithSelector(RequireUtils.NativeBalanceTooLow.selector, owner, uint256(balance), uint256(minBalance))
       );
     }
 
-    utils.requireMinBalance(wallet, minBalance);
+    utils.requireMinBalance(owner, minBalance);
   }
 
   function testFuzz_requireMinBalanceSelf(address sender, uint96 balance, uint96 minBalance) external {
@@ -45,21 +45,21 @@ contract RequireUtilsTest is Test {
     utils.requireMinBalanceSelf(minBalance);
   }
 
-  function testFuzz_requireMinERC20Balance(address wallet, uint128 bal, uint128 minBal) external {
+  function testFuzz_requireMinERC20Balance(address owner, uint128 bal, uint128 minBal) external {
     RequireUtils utils = new RequireUtils();
     MockERC20 token = new MockERC20();
 
-    token.mint(wallet, bal);
+    token.mint(owner, bal);
 
     if (bal < minBal) {
       vm.expectRevert(
         abi.encodeWithSelector(
-          RequireUtils.ERC20BalanceTooLow.selector, address(token), wallet, uint256(bal), uint256(minBal)
+          RequireUtils.ERC20BalanceTooLow.selector, address(token), owner, uint256(bal), uint256(minBal)
         )
       );
     }
 
-    utils.requireMinERC20Balance(address(token), wallet, minBal);
+    utils.requireMinERC20Balance(address(token), owner, minBal);
   }
 
   function testFuzz_requireMinERC20BalanceSelf(address sender, uint128 bal, uint128 minBal) external {
@@ -134,40 +134,8 @@ contract RequireUtilsTest is Test {
     utils.requireMinERC20AllowanceSelf(address(token), spender, minAllowance);
   }
 
-  function testFuzz_requireMinERC20BalanceAllowance(address wallet, address spender, uint128 bal, uint128 allowance, uint128 minAmount)
-    external
-  {
-    RequireUtils utils = new RequireUtils();
-    MockERC20 token = new MockERC20();
-
-    token.mint(wallet, bal);
-    vm.prank(wallet);
-    token.approve(spender, allowance);
-
-    if (bal < minAmount) {
-      vm.expectRevert(
-        abi.encodeWithSelector(
-          RequireUtils.ERC20BalanceTooLow.selector, address(token), wallet, uint256(bal), uint256(minAmount)
-        )
-      );
-    } else if (allowance < minAmount) {
-      vm.expectRevert(
-        abi.encodeWithSelector(
-          RequireUtils.ERC20AllowanceTooLow.selector,
-          address(token),
-          wallet,
-          spender,
-          uint256(allowance),
-          uint256(minAmount)
-        )
-      );
-    }
-
-    utils.requireMinERC20BalanceAllowance(address(token), wallet, spender, minAmount);
-  }
-
-  function testFuzz_requireMinERC20BalanceAllowanceSelf(
-    address wallet,
+  function testFuzz_requireMinERC20BalanceAllowance(
+    address owner,
     address spender,
     uint128 bal,
     uint128 allowance,
@@ -176,15 +144,14 @@ contract RequireUtilsTest is Test {
     RequireUtils utils = new RequireUtils();
     MockERC20 token = new MockERC20();
 
-    token.mint(wallet, bal);
-    vm.prank(wallet);
+    token.mint(owner, bal);
+    vm.prank(owner);
     token.approve(spender, allowance);
 
-    vm.prank(wallet);
     if (bal < minAmount) {
       vm.expectRevert(
         abi.encodeWithSelector(
-          RequireUtils.ERC20BalanceTooLow.selector, address(token), wallet, uint256(bal), uint256(minAmount)
+          RequireUtils.ERC20BalanceTooLow.selector, address(token), owner, uint256(bal), uint256(minAmount)
         )
       );
     } else if (allowance < minAmount) {
@@ -192,7 +159,44 @@ contract RequireUtilsTest is Test {
         abi.encodeWithSelector(
           RequireUtils.ERC20AllowanceTooLow.selector,
           address(token),
-          wallet,
+          owner,
+          spender,
+          uint256(allowance),
+          uint256(minAmount)
+        )
+      );
+    }
+
+    utils.requireMinERC20BalanceAllowance(address(token), owner, spender, minAmount);
+  }
+
+  function testFuzz_requireMinERC20BalanceAllowanceSelf(
+    address owner,
+    address spender,
+    uint128 bal,
+    uint128 allowance,
+    uint128 minAmount
+  ) external {
+    RequireUtils utils = new RequireUtils();
+    MockERC20 token = new MockERC20();
+
+    token.mint(owner, bal);
+    vm.prank(owner);
+    token.approve(spender, allowance);
+
+    vm.prank(owner);
+    if (bal < minAmount) {
+      vm.expectRevert(
+        abi.encodeWithSelector(
+          RequireUtils.ERC20BalanceTooLow.selector, address(token), owner, uint256(bal), uint256(minAmount)
+        )
+      );
+    } else if (allowance < minAmount) {
+      vm.expectRevert(
+        abi.encodeWithSelector(
+          RequireUtils.ERC20AllowanceTooLow.selector,
+          address(token),
+          owner,
           spender,
           uint256(allowance),
           uint256(minAmount)
@@ -344,21 +348,21 @@ contract RequireUtilsTest is Test {
     utils.requireERC721OwnerApprovalSelf(address(token), spender, tokenId);
   }
 
-  function testFuzz_requireMinERC1155Balance(address wallet, uint256 tokenId, uint128 bal, uint128 minBal) external {
+  function testFuzz_requireMinERC1155Balance(address owner, uint256 tokenId, uint128 bal, uint128 minBal) external {
     RequireUtils utils = new RequireUtils();
     MockERC1155 token = new MockERC1155();
 
-    token.mint(wallet, tokenId, bal);
+    token.mint(owner, tokenId, bal);
 
     if (bal < minBal) {
       vm.expectRevert(
         abi.encodeWithSelector(
-          RequireUtils.ERC1155BalanceTooLow.selector, address(token), wallet, tokenId, uint256(bal), uint256(minBal)
+          RequireUtils.ERC1155BalanceTooLow.selector, address(token), owner, tokenId, uint256(bal), uint256(minBal)
         )
       );
     }
 
-    utils.requireMinERC1155Balance(address(token), wallet, tokenId, minBal);
+    utils.requireMinERC1155Balance(address(token), owner, tokenId, minBal);
   }
 
   function testFuzz_requireMinERC1155BalanceSelf(address owner, uint256 tokenId, uint128 bal, uint128 minBal) external {
@@ -390,7 +394,7 @@ contract RequireUtilsTest is Test {
     utils.requireMinERC1155BalanceBatch(address(token), address(this), tokenIds, minBalances);
   }
 
-  function testFuzz_requireMinERC1155BalanceBatch_passes(address wallet, uint256[] calldata tokenIds, bytes32 seed)
+  function testFuzz_requireMinERC1155BalanceBatch_passes(address owner, uint256[] calldata tokenIds, bytes32 seed)
     external
   {
     RequireUtils utils = new RequireUtils();
@@ -402,15 +406,15 @@ contract RequireUtilsTest is Test {
     uint256[] memory minBalances = new uint256[](tokenIds.length);
     for (uint256 i = 0; i < tokenIds.length; i++) {
       uint256 bal = uint256(keccak256(abi.encodePacked(seed, i))) % 1_000_000;
-      token.mint(wallet, tokenIds[i], bal);
-      minBalances[i] = token.balanceOf(wallet, tokenIds[i]);
+      token.mint(owner, tokenIds[i], bal);
+      minBalances[i] = token.balanceOf(owner, tokenIds[i]);
     }
 
-    utils.requireMinERC1155BalanceBatch(address(token), wallet, tokenIds, minBalances);
+    utils.requireMinERC1155BalanceBatch(address(token), owner, tokenIds, minBalances);
   }
 
   function testFuzz_requireMinERC1155BalanceBatch_reverts_firstIndex(
-    address wallet,
+    address owner,
     uint256[] calldata tokenIds,
     bytes32 seed
   ) external {
@@ -423,15 +427,15 @@ contract RequireUtilsTest is Test {
     uint256[] memory minBalances = new uint256[](tokenIds.length);
     for (uint256 i = 0; i < tokenIds.length; i++) {
       uint256 bal = uint256(keccak256(abi.encodePacked(seed, i))) % 1_000_000;
-      token.mint(wallet, tokenIds[i], bal);
+      token.mint(owner, tokenIds[i], bal);
       minBalances[i] = 0;
     }
 
-    uint256 bal0 = token.balanceOf(wallet, tokenIds[0]);
+    uint256 bal0 = token.balanceOf(owner, tokenIds[0]);
     minBalances[0] = bal0 + 1;
 
     vm.expectRevert(abi.encodeWithSelector(RequireUtils.ERC1155BatchBalanceTooLow.selector, uint256(0), bal0, bal0 + 1));
-    utils.requireMinERC1155BalanceBatch(address(token), wallet, tokenIds, minBalances);
+    utils.requireMinERC1155BalanceBatch(address(token), owner, tokenIds, minBalances);
   }
 
   function testFuzz_requireMinERC1155BalanceBatchSelf_passes(address owner, uint256[] calldata tokenIds, bytes32 seed)
