@@ -4,7 +4,6 @@ pragma solidity ^0.8.27;
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {Sweepable} from "src/modules/Sweepable.sol";
-import {CalldataDecode} from "src/utils/CalldataDecode.sol";
 import {ReplaceBytes} from "src/utils/ReplaceBytes.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
@@ -19,7 +18,6 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 contract HydrateProxy is Sweepable, IDelegatedExtension {
   using LibBytes for bytes;
   using ReplaceBytes for bytes;
-  using CalldataDecode for bytes;
 
   /// @notice An unknown hydration type flag is encountered.
   error UnknownHydrateTypeCommand(uint256 flag);
