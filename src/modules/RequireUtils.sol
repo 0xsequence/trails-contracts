@@ -15,6 +15,8 @@ contract RequireUtils {
   error ERC20BalanceTooLow(address token, address wallet, uint256 balance, uint256 minBalance);
   /// @notice The ERC20 allowance is too low.
   error ERC20AllowanceTooLow(address token, address owner, address spender, uint256 allowance, uint256 minAllowance);
+  /// @notice The ERC721 is not owned.
+  error ERC721NotOwner(address token, uint256 tokenId, address owner, address requiredOwner);
   /// @notice The ERC721 is not approved.
   error ERC721NotApproved(address token, uint256 tokenId, address owner, address spender);
   /// @notice The ERC1155 balance is too low.
@@ -46,6 +48,13 @@ contract RequireUtils {
     uint256 allowance = IERC20(token).allowance(owner, spender);
     if (allowance < minAllowance) {
       revert ERC20AllowanceTooLow(token, owner, spender, allowance, minAllowance);
+    }
+  }
+
+  function _requireERC721Owner(address token, address requiredOwner, uint256 tokenId) private view {
+    address owner = IERC721(token).ownerOf(tokenId);
+    if (owner != requiredOwner) {
+      revert ERC721NotOwner(token, tokenId, owner, requiredOwner);
     }
   }
 
@@ -129,6 +138,16 @@ contract RequireUtils {
   /// @notice Reverts if `msg.sender` has granted `spender` less than `minAllowance` for `token`.
   function requireMinERC20AllowanceSelf(address token, address spender, uint256 minAllowance) external view {
     _requireMinERC20Allowance(token, msg.sender, spender, minAllowance);
+  }
+
+  /// @notice Reverts if `owner` is not the owner of `tokenId` on `token` (ERC721).
+  function requireERC721Owner(address token, address owner, uint256 tokenId) external view {
+    _requireERC721Owner(token, owner, tokenId);
+  }
+
+  /// @notice Reverts if `msg.sender` is not the owner of `tokenId` on `token` (ERC721).
+  function requireERC721OwnerSelf(address token, uint256 tokenId) external view {
+    _requireERC721Owner(token, msg.sender, tokenId);
   }
 
   /// @notice Reverts if `spender` is not approved to transfer `tokenId` from `owner` on `token` (ERC721).

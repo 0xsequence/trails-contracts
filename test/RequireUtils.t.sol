@@ -179,6 +179,45 @@ contract RequireUtilsTest is Test {
     utils.requireERC721ApprovalSelf(address(token), spender, tokenId);
   }
 
+  function testFuzz_requireERC721Owner(
+    address actualOwner,
+    uint256 tokenId,
+    address requiredOwner
+  ) external {
+    RequireUtils utils = new RequireUtils();
+    MockERC721 token = new MockERC721();
+
+    token.setOwner(tokenId, actualOwner);
+
+    if (actualOwner != requiredOwner) {
+      vm.expectRevert(
+        abi.encodeWithSelector(RequireUtils.ERC721NotOwner.selector, address(token), tokenId, actualOwner, requiredOwner)
+      );
+    }
+
+    utils.requireERC721Owner(address(token), requiredOwner, tokenId);
+  }
+
+  function testFuzz_requireERC721OwnerSelf(
+    address actualOwner,
+    uint256 tokenId,
+    address requiredOwner
+  ) external {
+    RequireUtils utils = new RequireUtils();
+    MockERC721 token = new MockERC721();
+
+    token.setOwner(tokenId, actualOwner);
+
+    vm.prank(requiredOwner);
+    if (actualOwner != requiredOwner) {
+      vm.expectRevert(
+        abi.encodeWithSelector(RequireUtils.ERC721NotOwner.selector, address(token), tokenId, actualOwner, requiredOwner)
+      );
+    }
+
+    utils.requireERC721OwnerSelf(address(token), tokenId);
+  }
+
   function testFuzz_requireMinERC1155Balance(address wallet, uint256 tokenId, uint128 bal, uint128 minBal) external {
     RequireUtils utils = new RequireUtils();
     MockERC1155 token = new MockERC1155();
