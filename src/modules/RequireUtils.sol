@@ -115,9 +115,9 @@ contract RequireUtils {
     _requireMinBalance(owner, minBalance);
   }
 
-  /// @notice Reverts if `msg.sender` has less than `minBalance` native tokens.
+  /// @notice Reverts if `address(this)` has less than `minBalance` native tokens.
   function requireMinBalanceSelf(uint256 minBalance) external view {
-    _requireMinBalance(msg.sender, minBalance);
+    _requireMinBalance(address(this), minBalance);
   }
 
   /// @notice Reverts if `owner` has less than `minBalance` of `token`.
@@ -125,9 +125,9 @@ contract RequireUtils {
     _requireMinERC20Balance(token, owner, minBalance);
   }
 
-  /// @notice Reverts if `msg.sender` has less than `minBalance` of `token`.
+  /// @notice Reverts if `address(this)` has less than `minBalance` of `token`.
   function requireMinERC20BalanceSelf(address token, uint256 minBalance) external view {
-    _requireMinERC20Balance(token, msg.sender, minBalance);
+    _requireMinERC20Balance(token, address(this), minBalance);
   }
 
   /// @notice Reverts if `owner` has granted `spender` less than `minAllowance` for `token`.
@@ -135,9 +135,9 @@ contract RequireUtils {
     _requireMinERC20Allowance(token, owner, spender, minAllowance);
   }
 
-  /// @notice Reverts if `msg.sender` has granted `spender` less than `minAllowance` for `token`.
+  /// @notice Reverts if `address(this)` has granted `spender` less than `minAllowance` for `token`.
   function requireMinERC20AllowanceSelf(address token, address spender, uint256 minAllowance) external view {
-    _requireMinERC20Allowance(token, msg.sender, spender, minAllowance);
+    _requireMinERC20Allowance(token, address(this), spender, minAllowance);
   }
 
   /// @notice Reverts if `owner` has less than `minAmount` of `token` and granted `spender` less than `minAmount` for `token`.
@@ -149,10 +149,10 @@ contract RequireUtils {
     _requireMinERC20Allowance(token, owner, spender, minAmount);
   }
 
-  /// @notice Reverts if `msg.sender` has less than `minAmount` of `token` and granted `spender` less than `minAmount` for `token`.
+  /// @notice Reverts if `address(this)` has less than `minAmount` of `token` and granted `spender` less than `minAmount` for `token`.
   function requireMinERC20BalanceAllowanceSelf(address token, address spender, uint256 minAmount) external view {
-    _requireMinERC20Balance(token, msg.sender, minAmount);
-    _requireMinERC20Allowance(token, msg.sender, spender, minAmount);
+    _requireMinERC20Balance(token, address(this), minAmount);
+    _requireMinERC20Allowance(token, address(this), spender, minAmount);
   }
 
   /// @notice Reverts if `owner` is not the owner of `tokenId` on `token` (ERC721).
@@ -160,9 +160,9 @@ contract RequireUtils {
     _requireERC721Owner(token, owner, tokenId);
   }
 
-  /// @notice Reverts if `msg.sender` is not the owner of `tokenId` on `token` (ERC721).
+  /// @notice Reverts if `address(this)` is not the owner of `tokenId` on `token` (ERC721).
   function requireERC721OwnerSelf(address token, uint256 tokenId) external view {
-    _requireERC721Owner(token, msg.sender, tokenId);
+    _requireERC721Owner(token, address(this), tokenId);
   }
 
   /// @notice Reverts if `spender` is not approved to transfer `tokenId` from `owner` on `token` (ERC721).
@@ -170,9 +170,9 @@ contract RequireUtils {
     _requireERC721Approval(token, owner, spender, tokenId);
   }
 
-  /// @notice Reverts if `spender` is not approved to transfer `tokenId` from `msg.sender` on `token` (ERC721).
+  /// @notice Reverts if `spender` is not approved to transfer `tokenId` from `address(this)` on `token` (ERC721).
   function requireERC721ApprovalSelf(address token, address spender, uint256 tokenId) external view {
-    _requireERC721Approval(token, msg.sender, spender, tokenId);
+    _requireERC721Approval(token, address(this), spender, tokenId);
   }
 
   /// @notice Reverts if `owner` is not the owner of `tokenId` on `token` (ERC721) and `spender` is not approved to transfer `tokenId` from `owner` on `token`.
@@ -181,10 +181,10 @@ contract RequireUtils {
     _requireERC721Approval(token, owner, spender, tokenId);
   }
 
-  /// @notice Reverts if `msg.sender` is not the owner of `tokenId` on `token` (ERC721) and `spender` is not approved to transfer `tokenId` from `msg.sender` on `token`.
+  /// @notice Reverts if `address(this)` is not the owner of `tokenId` on `token` (ERC721) and `spender` is not approved to transfer `tokenId` from `address(this)` on `token`.
   function requireERC721OwnerApprovalSelf(address token, address spender, uint256 tokenId) external view {
-    _requireERC721Owner(token, msg.sender, tokenId);
-    _requireERC721Approval(token, msg.sender, spender, tokenId);
+    _requireERC721Owner(token, address(this), tokenId);
+    _requireERC721Approval(token, address(this), spender, tokenId);
   }
 
   /// @notice Reverts if `owner` has less than `minBalance` of `tokenId` on `token` (ERC1155).
@@ -192,9 +192,9 @@ contract RequireUtils {
     _requireMinERC1155Balance(token, owner, tokenId, minBalance);
   }
 
-  /// @notice Reverts if `msg.sender` has less than `minBalance` of `tokenId` on `token` (ERC1155).
+  /// @notice Reverts if `address(this)` has less than `minBalance` of `tokenId` on `token` (ERC1155).
   function requireMinERC1155BalanceSelf(address token, uint256 tokenId, uint256 minBalance) external view {
-    _requireMinERC1155Balance(token, msg.sender, tokenId, minBalance);
+    _requireMinERC1155Balance(token, address(this), tokenId, minBalance);
   }
 
   /// @notice Reverts if any `tokenIds[i]` balance of `owner` is below `minBalances[i]` (ERC1155 batch).
@@ -207,12 +207,12 @@ contract RequireUtils {
     _requireMinERC1155BalanceBatch(token, owner, tokenIds, minBalances);
   }
 
-  /// @notice Reverts if any `tokenIds[i]` balance of `msg.sender` is below `minBalances[i]` (ERC1155 batch).
+  /// @notice Reverts if any `tokenIds[i]` balance of `address(this)` is below `minBalances[i]` (ERC1155 batch).
   function requireMinERC1155BalanceBatchSelf(address token, uint256[] calldata tokenIds, uint256[] calldata minBalances)
     external
     view
   {
-    _requireMinERC1155BalanceBatch(token, msg.sender, tokenIds, minBalances);
+    _requireMinERC1155BalanceBatch(token, address(this), tokenIds, minBalances);
   }
 
   /// @notice Reverts if `operator` is not approved for all of `owner`'s tokens on `token` (ERC1155).
@@ -220,9 +220,9 @@ contract RequireUtils {
     _requireERC1155Approval(token, owner, operator);
   }
 
-  /// @notice Reverts if `operator` is not approved for all of `msg.sender`'s tokens on `token` (ERC1155).
+  /// @notice Reverts if `operator` is not approved for all of `address(this)`'s tokens on `token` (ERC1155).
   function requireERC1155ApprovalSelf(address token, address operator) external view {
-    _requireERC1155Approval(token, msg.sender, operator);
+    _requireERC1155Approval(token, address(this), operator);
   }
 
   /// @notice Reverts if `owner` has less than `minBalance` of `tokenId` on `token` (ERC1155) and `operator` is not approved to transfer `tokenId` from `owner` on `token` (ERC1155).
@@ -237,13 +237,13 @@ contract RequireUtils {
     _requireERC1155Approval(token, owner, operator);
   }
 
-  /// @notice Reverts if `msg.sender` has less than `minBalance` of `tokenId` on `token` (ERC1155) and `operator` is not approved to transfer `tokenId` from `msg.sender` on `token` (ERC1155).
+  /// @notice Reverts if `address(this)` has less than `minBalance` of `tokenId` on `token` (ERC1155) and `operator` is not approved to transfer `tokenId` from `address(this)` on `token` (ERC1155).
   function requireMinERC1155BalanceApprovalSelf(address token, uint256 tokenId, uint256 minBalance, address operator)
     external
     view
   {
-    _requireMinERC1155Balance(token, msg.sender, tokenId, minBalance);
-    _requireERC1155Approval(token, msg.sender, operator);
+    _requireMinERC1155Balance(token, address(this), tokenId, minBalance);
+    _requireERC1155Approval(token, address(this), operator);
   }
 
   /// @notice Reverts if any `tokenIds[i]` balance of `owner` is below `minBalances[i]` (ERC1155 batch) and `operator` is not approved to transfer `tokenIds[i]` from `owner` on `token` (ERC1155).
@@ -258,14 +258,14 @@ contract RequireUtils {
     _requireERC1155Approval(token, owner, operator);
   }
 
-  /// @notice Reverts if any `tokenIds[i]` balance of `msg.sender` is below `minBalances[i]` (ERC1155 batch) and `operator` is not approved to transfer `tokenIds[i]` from `msg.sender` on `token` (ERC1155).
+  /// @notice Reverts if any `tokenIds[i]` balance of `address(this)` is below `minBalances[i]` (ERC1155 batch) and `operator` is not approved to transfer `tokenIds[i]` from `address(this)` on `token` (ERC1155).
   function requireMinERC1155BalanceApprovalBatchSelf(
     address token,
     uint256[] calldata tokenIds,
     uint256[] calldata minBalances,
     address operator
   ) external view {
-    _requireMinERC1155BalanceBatch(token, msg.sender, tokenIds, minBalances);
-    _requireERC1155Approval(token, msg.sender, operator);
+    _requireMinERC1155BalanceBatch(token, address(this), tokenIds, minBalances);
+    _requireERC1155Approval(token, address(this), operator);
   }
 }
