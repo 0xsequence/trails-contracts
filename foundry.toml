@@ -8,5 +8,8 @@ via-ir = true
 optimizer = true
 optimizer_runs = 4294967295
 
+[profile.ci]
+ffi = false
+
 [lint]
 exclude_lints = ["unsafe-cheatcode"]
