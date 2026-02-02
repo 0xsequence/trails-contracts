@@ -98,7 +98,6 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
         if (token == address(0)) {
             if (msg.value != amount) revert IncorrectValue(amount, msg.value);
         } else {
-            if (msg.value != 0) revert IncorrectValue(0, msg.value);
             _safeTransferFrom(token, msg.sender, address(this), amount);
         }
 
@@ -116,6 +115,14 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
                 _transferERC20(token, msg.sender, remaining);
             }
             emit Sweep(token, msg.sender, remaining);
+        }
+
+        if (msg.value > 0) {
+            uint256 remainingNative = _getSelfBalance(address(0));
+            if (remainingNative > 0) {
+                _transferNative(msg.sender, remainingNative);
+                emit Sweep(address(0), msg.sender, remainingNative);
+            }
         }
     }
 

@@ -774,12 +774,12 @@ contract TrailsRouterTest is Test {
         router.pullAndExecute(address(0), callData);
     }
 
-    function test_pullAndExecute_WithToken_IncorrectValue() public {
-        uint256 transferAmount = 100e18;
-        uint256 incorrectValue = 1 ether;
+    function test_pullAndExecute_WithToken_AndETH_SweepsBackETH() public {
+        uint256 ethValue = 1 ether;
 
+        // Approve full balance since pullAndExecute pulls entire balance
         vm.prank(user);
-        mockToken.approve(address(router), transferAmount);
+        mockToken.approve(address(router), type(uint256).max);
 
         IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
         calls[0] = IMulticall3.Call3Value({
@@ -788,10 +788,18 @@ contract TrailsRouterTest is Test {
 
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
-        vm.deal(user, incorrectValue);
+        vm.deal(user, ethValue);
+        uint256 userTokenBalanceBefore = mockToken.balanceOf(user);
+
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, 0, incorrectValue));
-        router.pullAndExecute{value: incorrectValue}(address(mockToken), callData);
+        router.pullAndExecute{value: ethValue}(address(mockToken), callData);
+
+        // ETH should be swept back to user
+        assertEq(user.balance, ethValue);
+        assertEq(address(router).balance, 0);
+        // Tokens should also be swept back
+        assertEq(mockToken.balanceOf(user), userTokenBalanceBefore);
+        assertEq(mockToken.balanceOf(address(router)), 0);
     }
 
     function test_pullAmountAndExecute_WithETH_ShouldTransferAndExecute() public {
@@ -852,9 +860,9 @@ contract TrailsRouterTest is Test {
         assertEq(mockToken.balanceOf(user), 1000e18);
     }
 
-    function test_pullAmountAndExecute_WithToken_IncorrectValue() public {
+    function test_pullAmountAndExecute_WithToken_AndETH_SweepsBackETH() public {
         uint256 transferAmount = 100e18;
-        uint256 incorrectValue = 1 ether;
+        uint256 ethValue = 1 ether;
 
         vm.prank(user);
         mockToken.approve(address(router), transferAmount);
@@ -866,10 +874,18 @@ contract TrailsRouterTest is Test {
 
         bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
 
-        vm.deal(user, incorrectValue);
+        vm.deal(user, ethValue);
+        uint256 userTokenBalanceBefore = mockToken.balanceOf(user);
+
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(TrailsRouter.IncorrectValue.selector, 0, incorrectValue));
-        router.pullAmountAndExecute{value: incorrectValue}(address(mockToken), transferAmount, callData);
+        router.pullAmountAndExecute{value: ethValue}(address(mockToken), transferAmount, callData);
+
+        // ETH should be swept back to user
+        assertEq(user.balance, ethValue);
+        assertEq(address(router).balance, 0);
+        // Tokens should also be swept back (since multicall didn't consume them)
+        assertEq(mockToken.balanceOf(user), userTokenBalanceBefore);
+        assertEq(mockToken.balanceOf(address(router)), 0);
     }
 
     function testExecute_WithFailingMulticall() public {
