@@ -96,8 +96,13 @@ contract MockERC20 {
 }
 
 contract MockERC721 {
+  mapping(uint256 => address) public ownerOf;
   mapping(uint256 => address) public getApproved;
   mapping(address => mapping(address => bool)) public isApprovedForAll;
+
+  function setOwner(uint256 tokenId, address owner) external {
+    ownerOf[tokenId] = owner;
+  }
 
   function setApproved(uint256 tokenId, address spender) external {
     getApproved[tokenId] = spender;

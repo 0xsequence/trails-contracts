@@ -92,9 +92,9 @@ onlyFallback: false
 
 All functions are able to be used from the `TrailsUtils` context via a call from the Intent Address via a `delegatecall`.
 
-Delegatecall via the Intent Address is only able to access `hydrateExecute`. This is due to the Sequence Wallet wrapping of delegatecalls within `handleSequenceDelegateCall`.
+`TrailsUtils` supports the `handleSequenceDelegateCall` interface, allowing an Intent to interact within it's own context. This interface is required to support the Sequence Wallet wrapping of delegatecalls. This pattern exposes all functions on `TrailsUtils`.
 
-Delegatecalls are only allowed in a nested delegatecall context. The `TrailsUtils` will not process a delegatecall when executing from the context of it's own address.
+Delegatecalls from `TrailsUtils` via the `HydrateProxy` execution logic, are only allowed in a nested delegatecall context. The `TrailsUtils` will not process a delegatecall when executing from the context of it's own address.
 
 Any funds accumulated in the `TrailsUtils` context, via a `call` should be swept during batched execution. Remaining funds are to be considered lost.
 
@@ -102,7 +102,7 @@ Any funds accumulated in the `TrailsUtils` context, via a `call` should be swept
 
 The Trails contracts are flexible in what they allow a configuration to represent. Misuse can cause an Intent to be exploitable.
 
-`RequireUtils`, `Hydrate` and `MalleableSapient` are tools to help create functionally complete and secure Intent configurations. The actual creation of the configuration must be done with care and is out of scope of this repository.
+`RequireUtils`, `HydrateProxy` and `MalleableSapient` are tools to help create functionally complete and secure Intent configurations. The actual creation of the configuration must be done with care and is out of scope of this repository.
 
 ### Token Handling
 

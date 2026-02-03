@@ -4,7 +4,6 @@ pragma solidity ^0.8.27;
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {Sweepable} from "src/modules/Sweepable.sol";
-import {CalldataDecode} from "src/utils/CalldataDecode.sol";
 import {ReplaceBytes} from "src/utils/ReplaceBytes.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
 import {IDelegatedExtension} from "wallet-contracts-v3/modules/interfaces/IDelegatedExtension.sol";
@@ -19,7 +18,6 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 contract HydrateProxy is Sweepable, IDelegatedExtension {
   using LibBytes for bytes;
   using ReplaceBytes for bytes;
-  using CalldataDecode for bytes;
 
   /// @notice An unknown hydration type flag is encountered.
   error UnknownHydrateTypeCommand(uint256 flag);
@@ -101,79 +99,75 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
   }
 
   function _hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) internal {
-    unchecked {
-      // Decode + hash the payload, then apply hydration and execute each call sequentially.
-      Payload.Decoded memory decoded = Payload.fromPackedCalls(packedPayload);
-      bytes32 opHash = Payload.hash(decoded);
-      bytes32 hydratableOpHash = LibOptim.fkeccak256(opHash, keccak256(hydratePayload));
+    // Decode + hash the payload, then apply hydration and execute each call sequentially.
+    Payload.Decoded memory decoded = Payload.fromPackedCalls(packedPayload);
+    bytes32 opHash = Payload.hash(decoded);
+    bytes32 hydratableOpHash = LibOptim.fkeccak256(opHash, keccak256(hydratePayload));
 
-      (uint256 rindex, uint256 tindex) = _firstHydrateCall(hydratePayload);
-      bool errorFlag = false;
+    (uint256 rindex, uint256 tindex) = _firstHydrateCall(hydratePayload);
+    bool errorFlag = false;
 
-      uint256 numCalls = decoded.calls.length;
-      for (uint256 i = 0; i < numCalls; i++) {
-        if (tindex == i) {
-          (rindex, tindex) = _hydrate(decoded, hydratePayload, rindex, tindex);
-        }
+    uint256 numCalls = decoded.calls.length;
+    for (uint256 i = 0; i < numCalls; i++) {
+      if (tindex == i) {
+        (rindex, tindex) = _hydrate(decoded, hydratePayload, rindex, tindex);
+      }
 
-        Payload.Call memory call = decoded.calls[i];
+      Payload.Call memory call = decoded.calls[i];
 
-        // Skip `onlyFallback` calls unless the immediately preceding call failed and was ignored.
-        if (call.onlyFallback && !errorFlag) {
-          emit Calls.CallSkipped(hydratableOpHash, i);
+      // Skip `onlyFallback` calls unless the immediately preceding call failed and was ignored.
+      if (call.onlyFallback && !errorFlag) {
+        emit Calls.CallSkipped(hydratableOpHash, i);
+        continue;
+      }
+
+      // `onlyFallback` only inspects the immediately preceding call.
+      errorFlag = false;
+
+      uint256 gasLimit = call.gasLimit;
+      if (gasLimit != 0 && gasleft() < gasLimit) {
+        revert Calls.NotEnoughGas(decoded, i, gasleft());
+      }
+
+      if (call.delegateCall && address(this) == SELF) {
+        // Delegatecall is not allowed from this contract context.
+        revert DelegateCallNotAllowed(i);
+      }
+
+      bool success;
+      if (call.delegateCall) {
+        (success) = LibOptim.delegatecall(call.to, gasLimit == 0 ? gasleft() : gasLimit, call.data);
+      } else {
+        (success) = LibOptim.call(call.to, call.value, gasLimit == 0 ? gasleft() : gasLimit, call.data);
+      }
+
+      if (!success) {
+        if (call.behaviorOnError == Payload.BEHAVIOR_IGNORE_ERROR) {
+          errorFlag = true;
+          emit Calls.CallFailed(hydratableOpHash, i, LibOptim.returnData());
           continue;
         }
 
-        // `onlyFallback` only inspects the immediately preceding call.
-        errorFlag = false;
-
-        uint256 gasLimit = call.gasLimit;
-        if (gasLimit != 0 && gasleft() < gasLimit) {
-          revert Calls.NotEnoughGas(decoded, i, gasleft());
+        if (call.behaviorOnError == Payload.BEHAVIOR_REVERT_ON_ERROR) {
+          revert Calls.Reverted(decoded, i, LibOptim.returnData());
         }
 
-        if (call.delegateCall && address(this) == SELF) {
-          // Delegatecall is not allowed from this contract context.
-          revert DelegateCallNotAllowed(i);
+        if (call.behaviorOnError == Payload.BEHAVIOR_ABORT_ON_ERROR) {
+          emit Calls.CallAborted(hydratableOpHash, i, LibOptim.returnData());
+          break;
         }
-
-        bool success;
-        if (call.delegateCall) {
-          (success) = LibOptim.delegatecall(call.to, gasLimit == 0 ? gasleft() : gasLimit, call.data);
-        } else {
-          (success) = LibOptim.call(call.to, call.value, gasLimit == 0 ? gasleft() : gasLimit, call.data);
-        }
-
-        if (!success) {
-          if (call.behaviorOnError == Payload.BEHAVIOR_IGNORE_ERROR) {
-            errorFlag = true;
-            emit Calls.CallFailed(hydratableOpHash, i, LibOptim.returnData());
-            continue;
-          }
-
-          if (call.behaviorOnError == Payload.BEHAVIOR_REVERT_ON_ERROR) {
-            revert Calls.Reverted(decoded, i, LibOptim.returnData());
-          }
-
-          if (call.behaviorOnError == Payload.BEHAVIOR_ABORT_ON_ERROR) {
-            emit Calls.CallAborted(hydratableOpHash, i, LibOptim.returnData());
-            break;
-          }
-        }
-
-        emit Calls.CallSucceeded(hydratableOpHash, i);
       }
+
+      emit Calls.CallSucceeded(hydratableOpHash, i);
     }
   }
 
   function _firstHydrateCall(bytes calldata hydratePayload) internal pure returns (uint256 rindex, uint256 tindex) {
-    unchecked {
-      if (hydratePayload.length == 0) {
-        return (0, type(uint256).max);
-      }
-
-      return (1, uint256(uint8(hydratePayload[0])));
+    if (hydratePayload.length == 0) {
+      return (0, type(uint256).max);
     }
+
+    return (1, uint256(uint8(hydratePayload[0])));
   }
 
   function _hydrate(Payload.Decoded memory decoded, bytes calldata hydratePayload, uint256 rindex, uint256 tindex)
