@@ -7,14 +7,6 @@ out/
 # Forge artifacts
 broadcast/
 .gas-snapshot
-audits/
-
-# Docs
-# docs/
 
 # Dotenv file
 .env
-
-# Abi file
-abi.json
-abi.txt
