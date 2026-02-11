@@ -7,6 +7,14 @@ solc_version = "0.8.30"
 via-ir = true
 optimizer = true
 optimizer_runs = 4294967295
+ignored_error_codes = [3628]
+
+[profile.integration]
+test = "itest"
+allow_paths = ["../wallet-contracts-v3"]
 
 [lint]
-exclude_lints = ["unsafe-cheatcode"]
+exclude_lints = ["unsafe-cheatcode", "mixed-case-function", "asm-keccak256"]
+
+[fmt]
+tab_width = 2
