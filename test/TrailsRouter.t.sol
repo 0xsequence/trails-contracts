@@ -838,6 +838,35 @@ contract TrailsRouterTest is Test {
         router.pullAmountAndExecute{value: sentAmount}(address(0), requiredAmount, callData);
     }
 
+    /// @notice Covers msg.value > 0, token == address(0), and remaining > 0: multicall consumes part of sent ETH, remainder is swept back.
+    function test_pullAmountAndExecute_WithETH_RemainingSweptBack() public {
+        uint256 totalSent = 2 ether;
+        uint256 usedByMulticall = 1 ether;
+        uint256 expectedRemaining = totalSent - usedByMulticall;
+
+        vm.deal(user, totalSent);
+
+        IMulticall3.Call3Value[] memory calls = new IMulticall3.Call3Value[](1);
+        calls[0] = IMulticall3.Call3Value({
+            target: address(targetEth),
+            allowFailure: false,
+            value: usedByMulticall,
+            callData: abi.encodeWithSignature("depositEth(uint256,address)", usedByMulticall, user)
+        });
+
+        bytes memory callData = abi.encodeWithSignature("aggregate3Value((address,bool,uint256,bytes)[])", calls);
+
+        vm.prank(user);
+        router.pullAmountAndExecute{value: totalSent}(address(0), totalSent, callData);
+
+        // Multicall used 1 ether: targetEth received it
+        assertEq(targetEth.receivedEth(), usedByMulticall);
+        assertEq(address(targetEth).balance, usedByMulticall);
+        // Remaining 1 ether was swept back to user
+        assertEq(user.balance, expectedRemaining);
+        assertEq(address(router).balance, 0);
+    }
+
     function test_pullAmountAndExecute_WithToken_ShouldTransferAndExecute() public {
         uint256 transferAmount = 100e18;
 
