@@ -107,17 +107,14 @@ contract TrailsRouter is IDelegatedExtension, ITrailsRouter, DelegatecallGuard, 
 
         // Sweep remaining balance back to msg.sender to prevent dust from EXACT_OUTPUT swaps getting stuck.
         // We sweep the full balance (not tracking initial) since TrailsRouter is stateless by design.
-        uint256 remaining = _getSelfBalance(token);
-        if (remaining > 0) {
-            if (token == address(0)) {
-                _transferNative(msg.sender, remaining);
-            } else {
+        if (token != address(0)) {
+            uint256 remaining = _getSelfBalance(token);
+            if (remaining > 0) {
                 _transferERC20(token, msg.sender, remaining);
+                emit Sweep(token, msg.sender, remaining);
             }
-            emit Sweep(token, msg.sender, remaining);
         }
-
-        if (msg.value > 0) {
+        if (token == address(0) || msg.value > 0) {
             uint256 remainingNative = _getSelfBalance(address(0));
             if (remainingNative > 0) {
                 _transferNative(msg.sender, remainingNative);
