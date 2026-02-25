@@ -41,6 +41,9 @@ A consolidated router contract that combines three key functionalities:
 - Conditional refunds when bridge operations fail
 - Balance-dependent protocol interactions (DeFi deposits/withdrawals)
 
+> [!WARNING]
+> A caller should only interact with the `TrailsRouter` in such a way that funds they care about are recovered as part of the transaction (via batching, nested execution, etc). The `TrailsRouter` is intentionally stateless and permissionless, and does not have a recovery mechanism.
+
 #### TrailsRouterShim
 **Location:** [`src/TrailsRouterShim.sol`](src/TrailsRouterShim.sol)
 

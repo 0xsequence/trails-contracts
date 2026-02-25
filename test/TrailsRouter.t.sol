@@ -111,6 +111,26 @@ contract MockTargetETH {
     receive() external payable {}
 }
 
+/// @notice Mock DEX: pulls ERC20 from msg.sender and sends fixed ETH to msg.sender (simulates ERC20->ETH swap).
+contract MockDexSwapForEth {
+    uint256 public ethOut = 1 ether;
+
+    function swapTokenForEth(address token, uint256 amount) external {
+        MockERC20(token).transferFrom(msg.sender, address(this), amount);
+        payable(msg.sender).transfer(ethOut);
+    }
+
+    receive() external payable {}
+}
+
+/// @notice Mock DEX: pulls tokenA from msg.sender, sends tokenB to msg.sender (simulates tokenA->tokenB swap).
+contract MockDexSwapTokenForToken {
+    function swap(address tokenA, address tokenB, uint256 amountA, uint256 amountB) external {
+        MockERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
+        MockERC20(tokenB).transfer(msg.sender, amountB);
+    }
+}
+
 contract MockWallet {
     function delegateCallBalanceInjector(
         address router,
@@ -915,6 +935,153 @@ contract TrailsRouterTest is Test {
         // Tokens should also be swept back (since multicall didn't consume them)
         assertEq(mockToken.balanceOf(user), userTokenBalanceBefore);
         assertEq(mockToken.balanceOf(address(router)), 0);
+    }
+
+    /// @notice ERC20→ETH swap: ETH returned to caller (wallet) via nested pullAmountAndExecute(0, 0, empty).
+    /// Uses holder as execution context so the nested call's msg.sender is the wallet; shows exact calldata construction.
+    function test_ERC20ToETH_NestedPullAmountAndExecute_SweepsETHToWallet() public {
+        MockDexSwapForEth mockDex = new MockDexSwapForEth();
+        vm.deal(address(mockDex), mockDex.ethOut());
+
+        uint256 swapAmount = 100e18;
+        // Holder (wallet) must approve mockDex so the swap can pull tokens from holder during multicall.
+        vm.prank(holder);
+        mockToken.approve(address(mockDex), swapAmount);
+
+        // Empty multicall payload for the nested pullAmountAndExecute: valid aggregate3 with one no-op call.
+        IMulticall3.Call3[] memory emptyCalls = new IMulticall3.Call3[](1);
+        emptyCalls[0] = IMulticall3.Call3({
+            target: address(getter),
+            allowFailure: false,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        bytes memory emptyPayload = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", emptyCalls);
+
+        // Outer multicall: (1) swap ERC20 for ETH (DEX sends ETH to wallet), (2) nested pullAmountAndExecute(0, 0, empty) to trigger native sweep to wallet.
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](2);
+        calls[0] = IMulticall3.Call3({
+            target: address(mockDex),
+            allowFailure: false,
+            callData: abi.encodeWithSignature("swapTokenForEth(address,uint256)", address(mockToken), swapAmount)
+        });
+        calls[1] = IMulticall3.Call3({
+            target: holder,
+            allowFailure: false,
+            callData: abi.encodeWithSelector(
+                TrailsRouter.pullAmountAndExecute.selector,
+                address(0),
+                uint256(0),
+                emptyPayload
+            )
+        });
+        bytes memory multicallData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
+
+        vm.prank(user);
+        mockToken.approve(holder, swapAmount);
+
+        uint256 holderEthBefore = holder.balance;
+        vm.prank(user);
+        TrailsRouter(holder).pullAmountAndExecute(address(mockToken), swapAmount, multicallData);
+
+        // Wallet (holder) receives the ETH from the swap via the nested sweep.
+        assertEq(holder.balance, holderEthBefore + mockDex.ethOut(), "Wallet must receive ETH from ERC20->ETH swap");
+        assertEq(mockToken.balanceOf(holder), 0, "Spent tokens should be gone");
+        assertEq(mockToken.balanceOf(address(mockDex)), swapAmount, "DEX should have received tokens");
+    }
+
+    /// @notice ERC20 + msg.value > 0 with pre-existing ETH in router: pre-existing ETH is recovered by next caller.
+    function test_ERC20_WithMsgValue_PreExistingETH_NotSentToCaller() public {
+        uint256 preExistingEth = 1 ether;
+        uint256 userSentValue = 0.5 ether;
+        vm.deal(address(router), preExistingEth);
+        vm.deal(user, userSentValue);
+
+        vm.prank(user);
+        mockToken.approve(address(router), 100e18);
+
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter),
+            allowFailure: false,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
+
+        vm.prank(user);
+        router.pullAmountAndExecute{value: userSentValue}(address(mockToken), 100e18, callData);
+
+        // Pre-existing ETH sent to caller
+        assertEq(address(router).balance, 0, "Pre-existing ETH must not be sent to caller");
+        assertEq(
+            user.balance,
+            userSentValue + preExistingEth,
+            "Caller must not receive more than caller_eth_before + msg.value"
+        );
+    }
+
+    /// @notice Invariant: for any ERC20-path call, caller_eth_after <= caller_eth_before + msg.value.
+    function test_Invariant_CallerEthAfterLeqBeforePlusMsgValue_ERC20Path() public {
+        vm.prank(user);
+        mockToken.approve(address(router), 100e18);
+
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = IMulticall3.Call3({
+            target: address(getter),
+            allowFailure: false,
+            callData: abi.encodeWithSignature("getSender()")
+        });
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
+
+        uint256 userEthBefore = user.balance;
+        uint256 msgValue = 0.1 ether;
+        vm.deal(user, msgValue);
+
+        vm.prank(user);
+        router.pullAmountAndExecute{value: msgValue}(address(mockToken), 100e18, callData);
+
+        assertLe(
+            user.balance,
+            userEthBefore + msgValue,
+            "Invariant: caller_eth_after <= caller_eth_before + msg.value for ERC20 path"
+        );
+    }
+
+    /// @notice pullAmountAndExecute pulls tokenA; multicall runs approve, dex.swap(tokenA, tokenB, amountA, amountB), then tokenB.transfer(caller, amountB).
+    function test_IntermediateTokenSweep_ShouldSweepToCaller() public {
+        MockERC20 tokenB = new MockERC20("TokenB", "TKB", 18);
+        uint256 amountA = 100e18;
+        uint256 amountB = 50e18;
+        MockDexSwapTokenForToken dex = new MockDexSwapTokenForToken();
+        tokenB.mint(address(dex), amountB);
+
+        vm.prank(user);
+        mockToken.approve(address(router), amountA);
+
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](3);
+        calls[0] = IMulticall3.Call3({
+            target: address(mockToken),
+            allowFailure: false,
+            callData: abi.encodeWithSignature("approve(address,uint256)", address(dex), amountA)
+        });
+        calls[1] = IMulticall3.Call3({
+            target: address(dex),
+            allowFailure: false,
+            callData: abi.encodeWithSignature("swap(address,address,uint256,uint256)", address(mockToken), address(tokenB), amountA, amountB)
+        });
+        calls[2] = IMulticall3.Call3({
+            target: address(tokenB),
+            allowFailure: false,
+            callData: abi.encodeWithSignature("transfer(address,uint256)", user, amountB)
+        });
+        bytes memory callData = abi.encodeWithSignature("aggregate3((address,bool,bytes)[])", calls);
+
+        vm.prank(user);
+        router.pullAmountAndExecute(address(mockToken), amountA, callData);
+
+        assertEq(tokenB.balanceOf(user), amountB, "Caller must receive tokenB from swap");
+        assertEq(mockToken.balanceOf(address(dex)), amountA, "DEX must have received tokenA");
+        assertEq(mockToken.balanceOf(address(router)), 0, "Router must have no tokenA left");
+        assertEq(tokenB.balanceOf(address(router)), 0, "Router must have no tokenB left");
     }
 
     function testExecute_WithFailingMulticall() public {
