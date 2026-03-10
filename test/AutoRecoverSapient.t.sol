@@ -51,14 +51,65 @@ contract AutoRecoverSapientTest is Test {
 
   function test_recoverSapientSignature_returnsRoot_forAllowlistedSigner() external {
     Payload.Decoded memory payload = _payload();
-    bytes32 payloadHash = Payload.hashFor(payload, wallet);
-    bytes memory allowSignature = _compactSignature(payloadHash, SIGNER_PK);
-    bytes memory signature = abi.encode(destination, uint256(0), allowSignature);
+    bytes memory signature = _signatureFor(payload);
 
     vm.prank(wallet);
     bytes32 got = sapient.recoverSapientSignature(payload, signature);
 
     assertEq(got, keccak256(abi.encode("auto-recover", destination, uint256(0))));
+  }
+
+  function test_recoverSapientSignature_reverts_invalidBehaviorOnError() external {
+    Payload.Decoded memory payload = _payload();
+    payload.calls[0].behaviorOnError = Payload.BEHAVIOR_IGNORE_ERROR;
+
+    vm.prank(wallet);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        AutoRecoverSapient.InvalidBehaviorOnError.selector, uint256(0), uint256(Payload.BEHAVIOR_IGNORE_ERROR)
+      )
+    );
+    sapient.recoverSapientSignature(payload, _signatureFor(payload));
+  }
+
+  function test_recoverSapientSignature_reverts_delegateCallNotAllowed() external {
+    Payload.Decoded memory payload = _payload();
+    payload.calls[0].delegateCall = true;
+
+    vm.prank(wallet);
+    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.DelegateCallNotAllowed.selector, uint256(0)));
+    sapient.recoverSapientSignature(payload, _signatureFor(payload));
+  }
+
+  function test_recoverSapientSignature_reverts_onlyFallbackNotAllowed() external {
+    Payload.Decoded memory payload = _payload();
+    payload.calls[0].onlyFallback = true;
+
+    vm.prank(wallet);
+    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.OnlyFallbackNotAllowed.selector, uint256(0)));
+    sapient.recoverSapientSignature(payload, _signatureFor(payload));
+  }
+
+  function test_recoverSapientSignature_reverts_gasLimitNotZero() external {
+    Payload.Decoded memory payload = _payload();
+    payload.calls[0].gasLimit = 1;
+
+    vm.prank(wallet);
+    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.GasLimitNotZero.selector, uint256(0), uint256(1)));
+    sapient.recoverSapientSignature(payload, _signatureFor(payload));
+  }
+
+  function test_recoverSapientSignature_reverts_nativeTransferDataNotEmpty() external {
+    Payload.Decoded memory payload = _payload();
+    payload.calls[0].to = destination;
+    payload.calls[0].value = 1;
+    payload.calls[0].data = hex"deadbeef";
+
+    vm.prank(wallet);
+    vm.expectRevert(
+      abi.encodeWithSelector(AutoRecoverSapient.NativeTransferDataNotEmpty.selector, uint256(0), uint256(4))
+    );
+    sapient.recoverSapientSignature(payload, _signatureFor(payload));
   }
 
   function _payload() private returns (Payload.Decoded memory payload) {
@@ -73,6 +124,12 @@ contract AutoRecoverSapientTest is Test {
       onlyFallback: false,
       behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
     });
+  }
+
+  function _signatureFor(Payload.Decoded memory payload) private returns (bytes memory) {
+    bytes32 payloadHash = Payload.hashFor(payload, wallet);
+    bytes memory allowSignature = _compactSignature(payloadHash, SIGNER_PK);
+    return abi.encode(destination, uint256(0), allowSignature);
   }
 
   function _compactSignature(bytes32 digest, uint256 privateKey) private returns (bytes memory) {

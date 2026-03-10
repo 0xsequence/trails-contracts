@@ -21,6 +21,11 @@ contract AutoRecoverSapient is ISapient {
   error InvalidPayloadKind(uint8 _kind);
   error InvalidAllowSignatureLength(uint256 _length);
   error InvalidRecoveredSigner();
+  error InvalidBehaviorOnError(uint256 _i, uint256 _behaviorOnError);
+  error DelegateCallNotAllowed(uint256 _i);
+  error OnlyFallbackNotAllowed(uint256 _i);
+  error GasLimitNotZero(uint256 _i, uint256 _gasLimit);
+  error NativeTransferDataNotEmpty(uint256 _i, uint256 _dataLength);
 
   function _rootForAutoRecover(
     address _destination,
@@ -62,10 +67,12 @@ contract AutoRecoverSapient is ISapient {
     if (payload.kind != Payload.KIND_TRANSACTIONS) revert InvalidPayloadKind(payload.kind);
     for (uint256 i = 0; i < payload.calls.length; i++) {
       Payload.Call calldata call = payload.calls[i];
-      require(call.behaviorOnError == Payload.BEHAVIOR_REVERT_ON_ERROR, "must revert on error");
-      require(!call.delegateCall, "delegateCall not allowed");
-      require(!call.onlyFallback, "onlyFallback not allowed");
-      require(call.gasLimit == 0, "gas limit must be zero");
+      if (call.behaviorOnError != Payload.BEHAVIOR_REVERT_ON_ERROR) {
+        revert InvalidBehaviorOnError(i, call.behaviorOnError);
+      }
+      if (call.delegateCall) revert DelegateCallNotAllowed(i);
+      if (call.onlyFallback) revert OnlyFallbackNotAllowed(i);
+      if (call.gasLimit != 0) revert GasLimitNotZero(i, call.gasLimit);
 
       bytes calldata data = call.data;
 
@@ -79,7 +86,7 @@ contract AutoRecoverSapient is ISapient {
       } else {
         // Native transfer: recipient must be "destination"
         if (call.to != destination) revert UnauthorizedTransaction(i);
-        require(data.length == 0, "data must be empty");
+        if (data.length != 0) revert NativeTransferDataNotEmpty(i, data.length);
       }
     }
 
