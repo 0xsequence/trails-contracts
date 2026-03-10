@@ -5,13 +5,15 @@ import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {Allowlist} from "./Allowlist.sol";
 
-
 contract AutoRecoverSapient is ISapient {
+  // uint160(uint256(keccak256("trails.auto-recover.nonce-space")) | (uint256(1) << 159))
+  uint256 public constant AUTO_RECOVER_NONCE_SPACE = uint256(uint160(0xd4293BAca84405796eE71A163f47A7EF32Ee5De6));
+
   Allowlist immutable ALLOWLIST;
 
   uint256 private constant COMPACT_SIGNATURE_LENGTH = 64;
 
-  constructor (Allowlist _allowlist) {
+  constructor(Allowlist _allowlist) {
     ALLOWLIST = _allowlist;
   }
 
@@ -19,6 +21,7 @@ contract AutoRecoverSapient is ISapient {
   error SignerNotAllowed(address _signer);
   error ThresholdNotReached(uint256 _threshold, uint256 _timestamp);
   error InvalidPayloadKind(uint8 _kind);
+  error InvalidNonceSpace(uint256 _space, uint256 _expected);
   error InvalidAllowSignatureLength(uint256 _length);
   error InvalidRecoveredSigner();
   error InvalidBehaviorOnError(uint256 _i, uint256 _behaviorOnError);
@@ -27,10 +30,7 @@ contract AutoRecoverSapient is ISapient {
   error GasLimitNotZero(uint256 _i, uint256 _gasLimit);
   error NativeTransferDataNotEmpty(uint256 _i, uint256 _dataLength);
 
-  function _rootForAutoRecover(
-    address _destination,
-    uint256 _threshold
-  ) internal pure returns (bytes32) {
+  function _rootForAutoRecover(address _destination, uint256 _threshold) internal pure returns (bytes32) {
     return keccak256(abi.encode("auto-recover", _destination, _threshold));
   }
 
@@ -54,8 +54,14 @@ contract AutoRecoverSapient is ISapient {
     view
     returns (bytes32 imageHash)
   {
-    (address destination, uint256 threshold, bytes memory allowSignature) = abi.decode(signature, (address, uint256, bytes));
+    (address destination, uint256 threshold, bytes memory allowSignature) =
+      abi.decode(signature, (address, uint256, bytes));
     if (allowSignature.length != COMPACT_SIGNATURE_LENGTH) revert InvalidAllowSignatureLength(allowSignature.length);
+
+    if (payload.kind != Payload.KIND_TRANSACTIONS) revert InvalidPayloadKind(payload.kind);
+    if (payload.space != AUTO_RECOVER_NONCE_SPACE) {
+      revert InvalidNonceSpace(payload.space, AUTO_RECOVER_NONCE_SPACE);
+    }
 
     address signer = recoverSigner(Payload.hashFor(payload, msg.sender), allowSignature);
     if (signer == address(0)) revert InvalidRecoveredSigner();
@@ -64,7 +70,6 @@ contract AutoRecoverSapient is ISapient {
 
     // Verify if payload is exclusively composed of transfers to owner
     // either ERC20s or native transfers
-    if (payload.kind != Payload.KIND_TRANSACTIONS) revert InvalidPayloadKind(payload.kind);
     for (uint256 i = 0; i < payload.calls.length; i++) {
       Payload.Call calldata call = payload.calls[i];
       if (call.behaviorOnError != Payload.BEHAVIOR_REVERT_ON_ERROR) {

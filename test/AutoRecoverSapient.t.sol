@@ -88,6 +88,19 @@ contract AutoRecoverSapientTest is Test {
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
+  function test_recoverSapientSignature_reverts_invalidNonceSpace() external {
+    Payload.Decoded memory payload = _erc20Payload();
+    payload.space = sapient.AUTO_RECOVER_NONCE_SPACE() ^ 1;
+
+    vm.prank(wallet);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        AutoRecoverSapient.InvalidNonceSpace.selector, payload.space, sapient.AUTO_RECOVER_NONCE_SPACE()
+      )
+    );
+    sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
+  }
+
   function test_recoverSapientSignature_returnsRoot_forErc20TransferPayload() external {
     Payload.Decoded memory payload = _erc20Payload();
     uint256 threshold = block.timestamp;
@@ -213,7 +226,7 @@ contract AutoRecoverSapientTest is Test {
 
   function _erc20Payload() private view returns (Payload.Decoded memory payload) {
     payload.kind = Payload.KIND_TRANSACTIONS;
-    payload.space = 7;
+    payload.space = sapient.AUTO_RECOVER_NONCE_SPACE();
     payload.nonce = 42;
     payload.calls = new Payload.Call[](1);
     payload.calls[0] = _erc20TransferCall(123);
@@ -221,7 +234,7 @@ contract AutoRecoverSapientTest is Test {
 
   function _nativePayload() private view returns (Payload.Decoded memory payload) {
     payload.kind = Payload.KIND_TRANSACTIONS;
-    payload.space = 7;
+    payload.space = sapient.AUTO_RECOVER_NONCE_SPACE();
     payload.nonce = 42;
     payload.calls = new Payload.Call[](1);
     payload.calls[0] = _nativeTransferCall(1 ether);
@@ -230,7 +243,7 @@ contract AutoRecoverSapientTest is Test {
   function _mixedTransferPayload() private view returns (Payload.Decoded memory payload) {
     payload.kind = Payload.KIND_TRANSACTIONS;
     payload.noChainId = true;
-    payload.space = 11;
+    payload.space = sapient.AUTO_RECOVER_NONCE_SPACE();
     payload.nonce = 99;
     payload.calls = new Payload.Call[](2);
     payload.calls[0] = _erc20TransferCall(123);
