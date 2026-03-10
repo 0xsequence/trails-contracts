@@ -4,17 +4,17 @@ pragma solidity ^0.8.27;
 import {Test} from "forge-std/Test.sol";
 
 import {Allowlist} from "src/autoRecovery/Allowlist.sol";
-import {AutoRecoverSapient} from "src/autoRecovery/AutoRecoverSapient.sol";
+import {TimedRefundSapient} from "src/autoRecovery/TimedRefundSapient.sol";
 import {MockERC20, MockMetadataProbeToken} from "test/helpers/Mocks.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
-contract AutoRecoverSapientTest is Test {
+contract TimedRefundSapientTest is Test {
   uint256 private constant ALLOWED_SIGNER_PK = 0xA11CE;
   uint256 private constant BLOCKED_SIGNER_PK = 0xB0B;
   uint256 private constant START_TIME = 1_000;
 
   Allowlist internal allowlist;
-  AutoRecoverSapient internal sapient;
+  TimedRefundSapient internal sapient;
   MockERC20 internal token;
 
   address internal allowedSigner;
@@ -36,7 +36,7 @@ contract AutoRecoverSapientTest is Test {
     initial[0] = allowedSigner;
 
     allowlist = new Allowlist(address(this), initial);
-    sapient = new AutoRecoverSapient(allowlist);
+    sapient = new TimedRefundSapient(allowlist);
 
     token = new MockERC20();
     token.mint(wallet, 1_000 ether);
@@ -47,7 +47,7 @@ contract AutoRecoverSapientTest is Test {
     bytes memory signature = abi.encode(destination, START_TIME, bytes(""));
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.InvalidAllowSignatureLength.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.InvalidApprovalSignatureLength.selector, uint256(0)));
     sapient.recoverSapientSignature(payload, signature);
   }
 
@@ -56,7 +56,7 @@ contract AutoRecoverSapientTest is Test {
     bytes memory signature = abi.encode(destination, START_TIME, new bytes(64));
 
     vm.prank(wallet);
-    vm.expectRevert(AutoRecoverSapient.InvalidRecoveredSigner.selector);
+    vm.expectRevert(TimedRefundSapient.InvalidRecoveredSigner.selector);
     sapient.recoverSapientSignature(payload, signature);
   }
 
@@ -65,17 +65,21 @@ contract AutoRecoverSapientTest is Test {
     bytes memory signature = _signatureFor(payload, wallet, BLOCKED_SIGNER_PK, destination, START_TIME);
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.SignerNotAllowed.selector, blockedSigner));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.SignerNotAllowed.selector, blockedSigner));
     sapient.recoverSapientSignature(payload, signature);
   }
 
-  function test_recoverSapientSignature_reverts_thresholdNotReached() external {
+  function test_recoverSapientSignature_reverts_unlockTimestampNotReached() external {
     Payload.Decoded memory payload = _erc20Payload();
-    uint256 threshold = block.timestamp + 1;
+    uint256 unlockTimestamp = block.timestamp + 1;
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.ThresholdNotReached.selector, threshold, block.timestamp));
-    sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, threshold));
+    vm.expectRevert(
+      abi.encodeWithSelector(TimedRefundSapient.UnlockTimestampNotReached.selector, unlockTimestamp, block.timestamp)
+    );
+    sapient.recoverSapientSignature(
+      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, unlockTimestamp)
+    );
   }
 
   function test_recoverSapientSignature_reverts_invalidPayloadKind() external {
@@ -83,25 +87,25 @@ contract AutoRecoverSapientTest is Test {
 
     vm.prank(wallet);
     vm.expectRevert(
-      abi.encodeWithSelector(AutoRecoverSapient.InvalidPayloadKind.selector, uint256(Payload.KIND_MESSAGE))
+      abi.encodeWithSelector(TimedRefundSapient.InvalidPayloadKind.selector, uint256(Payload.KIND_MESSAGE))
     );
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
   function test_recoverSapientSignature_reverts_invalidNonceSpace() external {
     Payload.Decoded memory payload = _erc20Payload();
-    payload.space = sapient.AUTO_RECOVER_NONCE_SPACE() ^ 1;
+    payload.space = sapient.TIMED_REFUND_NONCE_SPACE() ^ 1;
 
     vm.prank(wallet);
     vm.expectRevert(
       abi.encodeWithSelector(
-        AutoRecoverSapient.InvalidNonceSpace.selector, payload.space, sapient.AUTO_RECOVER_NONCE_SPACE()
+        TimedRefundSapient.InvalidNonceSpace.selector, payload.space, sapient.TIMED_REFUND_NONCE_SPACE()
       )
     );
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
-  function test_isERC20_returnsExpectedAcrossMetadataMatrix() external {
+  function test_hasERC20Metadata_returnsExpectedAcrossMetadataMatrix() external {
     MockMetadataProbeToken.MetadataBehavior[] memory behaviors = new MockMetadataProbeToken.MetadataBehavior[](6);
     behaviors[0] = MockMetadataProbeToken.MetadataBehavior.StringNonZero;
     behaviors[1] = MockMetadataProbeToken.MetadataBehavior.StringEmpty;
@@ -116,7 +120,7 @@ contract AutoRecoverSapientTest is Test {
         bool expected = _returnsAnyData(behaviors[i]) && _returnsAnyData(behaviors[j]);
 
         assertEq(
-          sapient.isERC20(address(probe)),
+          sapient.hasERC20Metadata(address(probe)),
           expected,
           string.concat("name=", _behaviorLabel(behaviors[i]), ", symbol=", _behaviorLabel(behaviors[j]))
         );
@@ -124,20 +128,20 @@ contract AutoRecoverSapientTest is Test {
     }
   }
 
-  function test_isERC20_returnsFalse_forAddressWithoutCode() external {
-    assertFalse(sapient.isERC20(makeAddr("externallyOwnedAccount")));
+  function test_hasERC20Metadata_returnsFalse_forAddressWithoutCode() external {
+    assertFalse(sapient.hasERC20Metadata(makeAddr("externallyOwnedAccount")));
   }
 
   function test_recoverSapientSignature_returnsRoot_forErc20TransferPayload() external {
     Payload.Decoded memory payload = _erc20Payload();
-    uint256 threshold = block.timestamp;
+    uint256 unlockTimestamp = block.timestamp;
 
     vm.prank(wallet);
     bytes32 got = sapient.recoverSapientSignature(
-      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, threshold)
+      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, unlockTimestamp)
     );
 
-    assertEq(got, keccak256(abi.encode("auto-recover", destination, threshold)));
+    assertEq(got, keccak256(abi.encode("timed-refund", destination, unlockTimestamp)));
   }
 
   function test_recoverSapientSignature_returnsRoot_forBytes32MetadataToken() external {
@@ -145,14 +149,14 @@ contract AutoRecoverSapientTest is Test {
       MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero, MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero
     );
     Payload.Decoded memory payload = _erc20PayloadFor(address(probe));
-    uint256 threshold = block.timestamp;
+    uint256 unlockTimestamp = block.timestamp;
 
     vm.prank(wallet);
     bytes32 got = sapient.recoverSapientSignature(
-      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, threshold)
+      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, unlockTimestamp)
     );
 
-    assertEq(got, keccak256(abi.encode("auto-recover", destination, threshold)));
+    assertEq(got, keccak256(abi.encode("timed-refund", destination, unlockTimestamp)));
   }
 
   function test_recoverSapientSignature_returnsRoot_whenMetadataMethodsReturnAnyData() external {
@@ -160,26 +164,26 @@ contract AutoRecoverSapientTest is Test {
       MockMetadataProbeToken.MetadataBehavior.StringEmpty, MockMetadataProbeToken.MetadataBehavior.Bytes32Zero
     );
     Payload.Decoded memory payload = _erc20PayloadFor(address(probe));
-    uint256 threshold = block.timestamp;
+    uint256 unlockTimestamp = block.timestamp;
 
     vm.prank(wallet);
     bytes32 got = sapient.recoverSapientSignature(
-      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, threshold)
+      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, unlockTimestamp)
     );
 
-    assertEq(got, keccak256(abi.encode("auto-recover", destination, threshold)));
+    assertEq(got, keccak256(abi.encode("timed-refund", destination, unlockTimestamp)));
   }
 
   function test_recoverSapientSignature_returnsRoot_forMixedTransferBatch() external {
     Payload.Decoded memory payload = _mixedTransferPayload();
-    uint256 threshold = block.timestamp - 100;
+    uint256 unlockTimestamp = block.timestamp - 100;
 
     vm.prank(wallet);
     bytes32 got = sapient.recoverSapientSignature(
-      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, threshold)
+      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, unlockTimestamp)
     );
 
-    assertEq(got, keccak256(abi.encode("auto-recover", destination, threshold)));
+    assertEq(got, keccak256(abi.encode("timed-refund", destination, unlockTimestamp)));
   }
 
   function test_recoverSapientSignature_reverts_whenSignatureWasSignedForDifferentWallet() external {
@@ -190,7 +194,7 @@ contract AutoRecoverSapientTest is Test {
     address recoveredSigner = _recoverCompactSigner(Payload.hashFor(payload, wallet), allowSignature);
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.SignerNotAllowed.selector, recoveredSigner));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.SignerNotAllowed.selector, recoveredSigner));
     sapient.recoverSapientSignature(payload, signature);
   }
 
@@ -201,7 +205,7 @@ contract AutoRecoverSapientTest is Test {
     vm.prank(wallet);
     vm.expectRevert(
       abi.encodeWithSelector(
-        AutoRecoverSapient.InvalidBehaviorOnError.selector, uint256(1), uint256(Payload.BEHAVIOR_IGNORE_ERROR)
+        TimedRefundSapient.InvalidBehaviorOnError.selector, uint256(1), uint256(Payload.BEHAVIOR_IGNORE_ERROR)
       )
     );
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
@@ -212,7 +216,7 @@ contract AutoRecoverSapientTest is Test {
     payload.calls[0].delegateCall = true;
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.DelegateCallNotAllowed.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.DelegateCallNotAllowed.selector, uint256(0)));
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
@@ -221,7 +225,7 @@ contract AutoRecoverSapientTest is Test {
     payload.calls[0].onlyFallback = true;
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.OnlyFallbackNotAllowed.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.OnlyFallbackNotAllowed.selector, uint256(0)));
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
@@ -230,7 +234,7 @@ contract AutoRecoverSapientTest is Test {
     payload.calls[0].gasLimit = 1;
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.GasLimitNotZero.selector, uint256(0), uint256(1)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.GasLimitNotZero.selector, uint256(0), uint256(1)));
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
@@ -241,7 +245,7 @@ contract AutoRecoverSapientTest is Test {
     Payload.Decoded memory payload = _erc20PayloadFor(address(probe));
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.UnauthorizedTransaction.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.UnauthorizedTransaction.selector, uint256(0)));
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
@@ -249,7 +253,7 @@ contract AutoRecoverSapientTest is Test {
     Payload.Decoded memory payload = _erc20PayloadFor(makeAddr("noCodeToken"));
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.UnauthorizedTransaction.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.UnauthorizedTransaction.selector, uint256(0)));
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
@@ -258,7 +262,7 @@ contract AutoRecoverSapientTest is Test {
     payload.calls[0].data = abi.encodePacked(MockERC20.transfer.selector);
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.UnauthorizedTransaction.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.UnauthorizedTransaction.selector, uint256(0)));
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
@@ -267,7 +271,7 @@ contract AutoRecoverSapientTest is Test {
     payload.calls[0].data = abi.encodeWithSelector(bytes4(keccak256("approve(address,uint256)")), destination, 123);
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.UnauthorizedTransaction.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.UnauthorizedTransaction.selector, uint256(0)));
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
@@ -276,7 +280,7 @@ contract AutoRecoverSapientTest is Test {
     payload.calls[0].data = abi.encodeCall(MockERC20.transfer, (makeAddr("otherDestination"), 123));
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.UnauthorizedTransaction.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.UnauthorizedTransaction.selector, uint256(0)));
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
@@ -285,7 +289,7 @@ contract AutoRecoverSapientTest is Test {
     payload.calls[0].to = makeAddr("otherRecipient");
 
     vm.prank(wallet);
-    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.UnauthorizedTransaction.selector, uint256(0)));
+    vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.UnauthorizedTransaction.selector, uint256(0)));
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
@@ -295,7 +299,7 @@ contract AutoRecoverSapientTest is Test {
 
     vm.prank(wallet);
     vm.expectRevert(
-      abi.encodeWithSelector(AutoRecoverSapient.NativeTransferDataNotEmpty.selector, uint256(0), uint256(4))
+      abi.encodeWithSelector(TimedRefundSapient.NativeTransferDataNotEmpty.selector, uint256(0), uint256(4))
     );
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
@@ -306,7 +310,7 @@ contract AutoRecoverSapientTest is Test {
 
   function _erc20PayloadFor(address token_) private view returns (Payload.Decoded memory payload) {
     payload.kind = Payload.KIND_TRANSACTIONS;
-    payload.space = sapient.AUTO_RECOVER_NONCE_SPACE();
+    payload.space = sapient.TIMED_REFUND_NONCE_SPACE();
     payload.nonce = 42;
     payload.calls = new Payload.Call[](1);
     payload.calls[0] = _erc20TransferCall(token_, 123);
@@ -314,7 +318,7 @@ contract AutoRecoverSapientTest is Test {
 
   function _nativePayload() private view returns (Payload.Decoded memory payload) {
     payload.kind = Payload.KIND_TRANSACTIONS;
-    payload.space = sapient.AUTO_RECOVER_NONCE_SPACE();
+    payload.space = sapient.TIMED_REFUND_NONCE_SPACE();
     payload.nonce = 42;
     payload.calls = new Payload.Call[](1);
     payload.calls[0] = _nativeTransferCall(1 ether);
@@ -323,7 +327,7 @@ contract AutoRecoverSapientTest is Test {
   function _mixedTransferPayload() private view returns (Payload.Decoded memory payload) {
     payload.kind = Payload.KIND_TRANSACTIONS;
     payload.noChainId = true;
-    payload.space = sapient.AUTO_RECOVER_NONCE_SPACE();
+    payload.space = sapient.TIMED_REFUND_NONCE_SPACE();
     payload.nonce = 99;
     payload.calls = new Payload.Call[](2);
     payload.calls[0] = _erc20TransferCall(address(token), 123);
@@ -359,10 +363,10 @@ contract AutoRecoverSapientTest is Test {
     address wallet_,
     uint256 signerPk,
     address destination_,
-    uint256 threshold
+    uint256 unlockTimestamp
   ) private view returns (bytes memory) {
     bytes32 payloadHash = Payload.hashFor(payload, wallet_);
-    return abi.encode(destination_, threshold, _compactSignature(payloadHash, signerPk));
+    return abi.encode(destination_, unlockTimestamp, _compactSignature(payloadHash, signerPk));
   }
 
   function _compactSignature(bytes32 digest, uint256 privateKey) private pure returns (bytes memory) {

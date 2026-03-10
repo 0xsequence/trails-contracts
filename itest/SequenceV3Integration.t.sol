@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import {TrailsUtils} from "src/TrailsUtils.sol";
 import {Allowlist} from "src/autoRecovery/Allowlist.sol";
-import {AutoRecoverSapient} from "src/autoRecovery/AutoRecoverSapient.sol";
+import {TimedRefundSapient} from "src/autoRecovery/TimedRefundSapient.sol";
 import {HydrateProxy} from "src/modules/HydrateProxy.sol";
 
 import {PackedPayload} from "trails-test/helpers/PackedPayload.sol";
@@ -81,11 +81,7 @@ contract SequenceV3IntegrationTest is Test {
 
     uint8 header = uint8(0x90 | (sizeSize << 2) | weightBits);
     sig = bytes.concat(
-      abi.encodePacked(signatureFlag, threshold, header),
-      weightExtra,
-      abi.encodePacked(sapient),
-      sizeBytes,
-      sapientSig
+      abi.encodePacked(signatureFlag, threshold, header), weightExtra, abi.encodePacked(sapient), sizeBytes, sapientSig
     );
   }
 
@@ -107,8 +103,8 @@ contract SequenceV3IntegrationTest is Test {
     }
   }
 
-  function _autoRecoverSapientRoot(address destination, uint256 threshold) private pure returns (bytes32) {
-    return keccak256(abi.encode("auto-recover", destination, threshold));
+  function _timedRefundSapientRoot(address destination, uint256 unlockTimestamp) private pure returns (bytes32) {
+    return keccak256(abi.encode("timed-refund", destination, unlockTimestamp));
   }
 
   function _asSeqCall(LocalPayload.Call memory c) private pure returns (SeqPayload.Call memory) {
@@ -144,14 +140,14 @@ contract SequenceV3IntegrationTest is Test {
     return abi.encodePacked(r, yParityAndS);
   }
 
-  function _autoRecoverSapientSignature(
+  function _timedRefundSapientSignature(
     SeqPayload.Decoded memory payload,
     address wallet,
     address destination,
-    uint256 threshold
+    uint256 unlockTimestamp
   ) private view returns (bytes memory) {
     bytes32 payloadHash = SeqPayload.hashFor(payload, wallet);
-    return abi.encode(destination, threshold, _compactSignature(payloadHash, ALLOWED_SIGNER_PK));
+    return abi.encode(destination, unlockTimestamp, _compactSignature(payloadHash, ALLOWED_SIGNER_PK));
   }
 
   function _erc20TransferCall(address token, address destination, uint256 amount)
@@ -189,17 +185,17 @@ contract SequenceV3IntegrationTest is Test {
     wallet = factory.deploy(address(stage1), configImageHash);
   }
 
-  function test_integration_autoRecoverSapient_executesRefundPayloadsThroughSequenceWallet() external {
+  function test_integration_timedRefundSapient_executesRefundPayloadsThroughSequenceWallet() external {
     address signer = vm.addr(ALLOWED_SIGNER_PK);
     address destination = makeAddr("destination");
-    uint256 threshold = block.timestamp + 60;
+    uint256 unlockTimestamp = block.timestamp + 60;
 
     address[] memory initial = new address[](1);
     initial[0] = signer;
     Allowlist allowlist = new Allowlist(address(this), initial);
-    AutoRecoverSapient sapient = new AutoRecoverSapient(allowlist);
+    TimedRefundSapient sapient = new TimedRefundSapient(allowlist);
 
-    address wallet = _deployWalletWithSapient(address(sapient), _autoRecoverSapientRoot(destination, threshold));
+    address wallet = _deployWalletWithSapient(address(sapient), _timedRefundSapientRoot(destination, unlockTimestamp));
 
     MockERC20 token = new MockERC20();
     uint256 firstAmount = 12 ether;
@@ -209,29 +205,29 @@ contract SequenceV3IntegrationTest is Test {
     token.mint(wallet, firstAmount + secondAmount);
     vm.deal(wallet, nativeAmount);
 
-    vm.warp(threshold);
+    vm.warp(unlockTimestamp);
 
     LocalPayload.Call[] memory firstCalls = new LocalPayload.Call[](1);
     firstCalls[0] = _erc20TransferCall(address(token), destination, firstAmount);
 
-    bytes memory firstPacked = firstCalls.packCallsWithSpaceNonce(sapient.AUTO_RECOVER_NONCE_SPACE(), 0);
-    SeqPayload.Decoded memory firstPayload = _asSeqPayload(firstCalls, sapient.AUTO_RECOVER_NONCE_SPACE(), 0);
-    bytes memory firstSapientSig = _autoRecoverSapientSignature(firstPayload, wallet, destination, threshold);
+    bytes memory firstPacked = firstCalls.packCallsWithSpaceNonce(sapient.TIMED_REFUND_NONCE_SPACE(), 0);
+    SeqPayload.Decoded memory firstPayload = _asSeqPayload(firstCalls, sapient.TIMED_REFUND_NONCE_SPACE(), 0);
+    bytes memory firstSapientSig = _timedRefundSapientSignature(firstPayload, wallet, destination, unlockTimestamp);
     bytes memory firstSignature = _buildSapientSignature(address(sapient), 1, 1, firstSapientSig);
 
     SeqStage1Module(payable(wallet)).execute(firstPacked, firstSignature);
 
     assertEq(token.balanceOf(destination), firstAmount);
     assertEq(token.balanceOf(wallet), secondAmount);
-    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.AUTO_RECOVER_NONCE_SPACE()), 1);
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.TIMED_REFUND_NONCE_SPACE()), 1);
 
     LocalPayload.Call[] memory secondCalls = new LocalPayload.Call[](2);
     secondCalls[0] = _erc20TransferCall(address(token), destination, secondAmount);
     secondCalls[1] = _nativeTransferCall(destination, nativeAmount);
 
-    bytes memory secondPacked = secondCalls.packCallsWithSpaceNonce(sapient.AUTO_RECOVER_NONCE_SPACE(), 1);
-    SeqPayload.Decoded memory secondPayload = _asSeqPayload(secondCalls, sapient.AUTO_RECOVER_NONCE_SPACE(), 1);
-    bytes memory secondSapientSig = _autoRecoverSapientSignature(secondPayload, wallet, destination, threshold);
+    bytes memory secondPacked = secondCalls.packCallsWithSpaceNonce(sapient.TIMED_REFUND_NONCE_SPACE(), 1);
+    SeqPayload.Decoded memory secondPayload = _asSeqPayload(secondCalls, sapient.TIMED_REFUND_NONCE_SPACE(), 1);
+    bytes memory secondSapientSig = _timedRefundSapientSignature(secondPayload, wallet, destination, unlockTimestamp);
     bytes memory secondSignature = _buildSapientSignature(address(sapient), 1, 1, secondSapientSig);
 
     SeqStage1Module(payable(wallet)).execute(secondPacked, secondSignature);
@@ -240,20 +236,20 @@ contract SequenceV3IntegrationTest is Test {
     assertEq(token.balanceOf(wallet), 0);
     assertEq(destination.balance, nativeAmount);
     assertEq(wallet.balance, 0);
-    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.AUTO_RECOVER_NONCE_SPACE()), 2);
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.TIMED_REFUND_NONCE_SPACE()), 2);
   }
 
-  function test_integration_autoRecoverSapient_revertsBeforeThreshold_andPreservesNonce() external {
+  function test_integration_timedRefundSapient_revertsBeforeThreshold_andPreservesNonce() external {
     address signer = vm.addr(ALLOWED_SIGNER_PK);
     address destination = makeAddr("destination");
-    uint256 threshold = block.timestamp + 60;
+    uint256 unlockTimestamp = block.timestamp + 60;
 
     address[] memory initial = new address[](1);
     initial[0] = signer;
     Allowlist allowlist = new Allowlist(address(this), initial);
-    AutoRecoverSapient sapient = new AutoRecoverSapient(allowlist);
+    TimedRefundSapient sapient = new TimedRefundSapient(allowlist);
 
-    address wallet = _deployWalletWithSapient(address(sapient), _autoRecoverSapientRoot(destination, threshold));
+    address wallet = _deployWalletWithSapient(address(sapient), _timedRefundSapientRoot(destination, unlockTimestamp));
 
     MockERC20 token = new MockERC20();
     uint256 amount = 3 ether;
@@ -262,24 +258,24 @@ contract SequenceV3IntegrationTest is Test {
     LocalPayload.Call[] memory calls = new LocalPayload.Call[](1);
     calls[0] = _erc20TransferCall(address(token), destination, amount);
 
-    bytes memory packed = calls.packCallsWithSpaceNonce(sapient.AUTO_RECOVER_NONCE_SPACE(), 0);
-    SeqPayload.Decoded memory payload = _asSeqPayload(calls, sapient.AUTO_RECOVER_NONCE_SPACE(), 0);
-    bytes memory sapientSig = _autoRecoverSapientSignature(payload, wallet, destination, threshold);
+    bytes memory packed = calls.packCallsWithSpaceNonce(sapient.TIMED_REFUND_NONCE_SPACE(), 0);
+    SeqPayload.Decoded memory payload = _asSeqPayload(calls, sapient.TIMED_REFUND_NONCE_SPACE(), 0);
+    bytes memory sapientSig = _timedRefundSapientSignature(payload, wallet, destination, unlockTimestamp);
     bytes memory signature = _buildSapientSignature(address(sapient), 1, 1, sapientSig);
 
     vm.expectRevert(
-      abi.encodeWithSelector(AutoRecoverSapient.ThresholdNotReached.selector, threshold, block.timestamp)
+      abi.encodeWithSelector(TimedRefundSapient.UnlockTimestampNotReached.selector, unlockTimestamp, block.timestamp)
     );
     SeqStage1Module(payable(wallet)).execute(packed, signature);
 
-    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.AUTO_RECOVER_NONCE_SPACE()), 0);
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.TIMED_REFUND_NONCE_SPACE()), 0);
     assertEq(token.balanceOf(destination), 0);
 
-    vm.warp(threshold);
+    vm.warp(unlockTimestamp);
     SeqStage1Module(payable(wallet)).execute(packed, signature);
 
     assertEq(token.balanceOf(destination), amount);
-    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.AUTO_RECOVER_NONCE_SPACE()), 1);
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.TIMED_REFUND_NONCE_SPACE()), 1);
   }
 
   function testFuzz_integration_sapientSigner_allowsMalleableCalldata(bytes32 seed) external {
