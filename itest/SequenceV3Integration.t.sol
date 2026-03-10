@@ -4,19 +4,24 @@ pragma solidity ^0.8.27;
 import "forge-std/Test.sol";
 
 import {TrailsUtils} from "src/TrailsUtils.sol";
+import {Allowlist} from "src/autoRecovery/Allowlist.sol";
+import {AutoRecoverSapient} from "src/autoRecovery/AutoRecoverSapient.sol";
+import {HydrateProxy} from "src/modules/HydrateProxy.sol";
 
 import {PackedPayload} from "trails-test/helpers/PackedPayload.sol";
-import {RecordingReceiver} from "trails-test/helpers/Mocks.sol";
+import {MockERC20, RecordingReceiver} from "trails-test/helpers/Mocks.sol";
 
-import {Factory as SeqFactory} from "wallet-contracts-v3-external/Factory.sol";
-import {Stage1Module as SeqStage1Module} from "wallet-contracts-v3-external/Stage1Module.sol";
-import {Payload as SeqPayload} from "wallet-contracts-v3-external/modules/Payload.sol";
-import {ISapient} from "wallet-contracts-v3-external/modules/interfaces/ISapient.sol";
+import {Factory as SeqFactory} from "wallet-contracts-v3/Factory.sol";
+import {Stage1Module as SeqStage1Module} from "wallet-contracts-v3/Stage1Module.sol";
+import {Payload as SeqPayload} from "wallet-contracts-v3/modules/Payload.sol";
+import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 
 import {Payload as LocalPayload} from "wallet-contracts-v3/modules/Payload.sol";
 
 contract SequenceV3IntegrationTest is Test {
   using PackedPayload for LocalPayload.Call[];
+
+  uint256 private constant ALLOWED_SIGNER_PK = 0xA11CE;
 
   function _fkeccak(bytes32 a, bytes32 b) private pure returns (bytes32 c) {
     assembly ("memory-safe") {
@@ -102,6 +107,10 @@ contract SequenceV3IntegrationTest is Test {
     }
   }
 
+  function _autoRecoverSapientRoot(address destination, uint256 threshold) private pure returns (bytes32) {
+    return keccak256(abi.encode("auto-recover", destination, threshold));
+  }
+
   function _asSeqCall(LocalPayload.Call memory c) private pure returns (SeqPayload.Call memory) {
     return SeqPayload.Call({
       to: c.to,
@@ -112,6 +121,165 @@ contract SequenceV3IntegrationTest is Test {
       onlyFallback: c.onlyFallback,
       behaviorOnError: c.behaviorOnError
     });
+  }
+
+  function _asSeqPayload(LocalPayload.Call[] memory calls, uint256 space, uint256 nonce)
+    private
+    pure
+    returns (SeqPayload.Decoded memory payload)
+  {
+    payload.kind = SeqPayload.KIND_TRANSACTIONS;
+    payload.space = space;
+    payload.nonce = nonce;
+    payload.calls = new SeqPayload.Call[](calls.length);
+
+    for (uint256 i; i < calls.length; i++) {
+      payload.calls[i] = _asSeqCall(calls[i]);
+    }
+  }
+
+  function _compactSignature(bytes32 digest, uint256 privateKey) private pure returns (bytes memory) {
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+    bytes32 yParityAndS = bytes32((uint256(s) & ((uint256(1) << 255) - 1)) | (uint256(v - 27) << 255));
+    return abi.encodePacked(r, yParityAndS);
+  }
+
+  function _autoRecoverSapientSignature(
+    SeqPayload.Decoded memory payload,
+    address wallet,
+    address destination,
+    uint256 threshold
+  ) private view returns (bytes memory) {
+    bytes32 payloadHash = SeqPayload.hashFor(payload, wallet);
+    return abi.encode(destination, threshold, _compactSignature(payloadHash, ALLOWED_SIGNER_PK));
+  }
+
+  function _erc20TransferCall(address token, address destination, uint256 amount)
+    private
+    pure
+    returns (LocalPayload.Call memory)
+  {
+    return LocalPayload.Call({
+      to: token,
+      value: 0,
+      data: abi.encodeCall(MockERC20.transfer, (destination, amount)),
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: LocalPayload.BEHAVIOR_REVERT_ON_ERROR
+    });
+  }
+
+  function _nativeTransferCall(address destination, uint256 amount) private pure returns (LocalPayload.Call memory) {
+    return LocalPayload.Call({
+      to: destination,
+      value: amount,
+      data: "",
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: LocalPayload.BEHAVIOR_REVERT_ON_ERROR
+    });
+  }
+
+  function _deployWalletWithSapient(address sapient, bytes32 sapientImageHash) private returns (address wallet) {
+    SeqFactory factory = new SeqFactory();
+    SeqStage1Module stage1 = new SeqStage1Module(address(factory), address(0));
+    bytes32 configImageHash = _configImageHashForSapient(sapientImageHash, sapient, 1, 1);
+    wallet = factory.deploy(address(stage1), configImageHash);
+  }
+
+  function test_integration_autoRecoverSapient_executesRefundPayloadsThroughSequenceWallet() external {
+    address signer = vm.addr(ALLOWED_SIGNER_PK);
+    address destination = makeAddr("destination");
+    uint256 threshold = block.timestamp + 60;
+
+    address[] memory initial = new address[](1);
+    initial[0] = signer;
+    Allowlist allowlist = new Allowlist(address(this), initial);
+    AutoRecoverSapient sapient = new AutoRecoverSapient(allowlist);
+
+    address wallet = _deployWalletWithSapient(address(sapient), _autoRecoverSapientRoot(destination, threshold));
+
+    MockERC20 token = new MockERC20();
+    uint256 firstAmount = 12 ether;
+    uint256 secondAmount = 5 ether;
+    uint256 nativeAmount = 0.7 ether;
+
+    token.mint(wallet, firstAmount + secondAmount);
+    vm.deal(wallet, nativeAmount);
+
+    vm.warp(threshold);
+
+    LocalPayload.Call[] memory firstCalls = new LocalPayload.Call[](1);
+    firstCalls[0] = _erc20TransferCall(address(token), destination, firstAmount);
+
+    bytes memory firstPacked = firstCalls.packCallsWithSpaceNonce(sapient.AUTO_RECOVER_NONCE_SPACE(), 0);
+    SeqPayload.Decoded memory firstPayload = _asSeqPayload(firstCalls, sapient.AUTO_RECOVER_NONCE_SPACE(), 0);
+    bytes memory firstSapientSig = _autoRecoverSapientSignature(firstPayload, wallet, destination, threshold);
+    bytes memory firstSignature = _buildSapientSignature(address(sapient), 1, 1, firstSapientSig);
+
+    SeqStage1Module(payable(wallet)).execute(firstPacked, firstSignature);
+
+    assertEq(token.balanceOf(destination), firstAmount);
+    assertEq(token.balanceOf(wallet), secondAmount);
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.AUTO_RECOVER_NONCE_SPACE()), 1);
+
+    LocalPayload.Call[] memory secondCalls = new LocalPayload.Call[](2);
+    secondCalls[0] = _erc20TransferCall(address(token), destination, secondAmount);
+    secondCalls[1] = _nativeTransferCall(destination, nativeAmount);
+
+    bytes memory secondPacked = secondCalls.packCallsWithSpaceNonce(sapient.AUTO_RECOVER_NONCE_SPACE(), 1);
+    SeqPayload.Decoded memory secondPayload = _asSeqPayload(secondCalls, sapient.AUTO_RECOVER_NONCE_SPACE(), 1);
+    bytes memory secondSapientSig = _autoRecoverSapientSignature(secondPayload, wallet, destination, threshold);
+    bytes memory secondSignature = _buildSapientSignature(address(sapient), 1, 1, secondSapientSig);
+
+    SeqStage1Module(payable(wallet)).execute(secondPacked, secondSignature);
+
+    assertEq(token.balanceOf(destination), firstAmount + secondAmount);
+    assertEq(token.balanceOf(wallet), 0);
+    assertEq(destination.balance, nativeAmount);
+    assertEq(wallet.balance, 0);
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.AUTO_RECOVER_NONCE_SPACE()), 2);
+  }
+
+  function test_integration_autoRecoverSapient_revertsBeforeThreshold_andPreservesNonce() external {
+    address signer = vm.addr(ALLOWED_SIGNER_PK);
+    address destination = makeAddr("destination");
+    uint256 threshold = block.timestamp + 60;
+
+    address[] memory initial = new address[](1);
+    initial[0] = signer;
+    Allowlist allowlist = new Allowlist(address(this), initial);
+    AutoRecoverSapient sapient = new AutoRecoverSapient(allowlist);
+
+    address wallet = _deployWalletWithSapient(address(sapient), _autoRecoverSapientRoot(destination, threshold));
+
+    MockERC20 token = new MockERC20();
+    uint256 amount = 3 ether;
+    token.mint(wallet, amount);
+
+    LocalPayload.Call[] memory calls = new LocalPayload.Call[](1);
+    calls[0] = _erc20TransferCall(address(token), destination, amount);
+
+    bytes memory packed = calls.packCallsWithSpaceNonce(sapient.AUTO_RECOVER_NONCE_SPACE(), 0);
+    SeqPayload.Decoded memory payload = _asSeqPayload(calls, sapient.AUTO_RECOVER_NONCE_SPACE(), 0);
+    bytes memory sapientSig = _autoRecoverSapientSignature(payload, wallet, destination, threshold);
+    bytes memory signature = _buildSapientSignature(address(sapient), 1, 1, sapientSig);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(AutoRecoverSapient.ThresholdNotReached.selector, threshold, block.timestamp)
+    );
+    SeqStage1Module(payable(wallet)).execute(packed, signature);
+
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.AUTO_RECOVER_NONCE_SPACE()), 0);
+    assertEq(token.balanceOf(destination), 0);
+
+    vm.warp(threshold);
+    SeqStage1Module(payable(wallet)).execute(packed, signature);
+
+    assertEq(token.balanceOf(destination), amount);
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.AUTO_RECOVER_NONCE_SPACE()), 1);
   }
 
   function testFuzz_integration_sapientSigner_allowsMalleableCalldata(bytes32 seed) external {
@@ -202,8 +370,8 @@ contract SequenceV3IntegrationTest is Test {
     // - insert `msg.sender` (relayer) at offset 32
     bytes memory hydratePayload = bytes.concat(
       abi.encodePacked(uint8(0)), // tindex
-      abi.encodePacked(uint8(0x01), uint16(0)), // HYDRATE_DATA_SELF_ADDRESS
-      abi.encodePacked(uint8(0x02), uint16(32)), // HYDRATE_DATA_MESSAGE_SENDER_ADDRESS
+      abi.encodePacked(uint8(0x10), uint16(0)), // HYDRATE_TYPE_DATA_ADDRESS | HYDRATE_DATA_SELF
+      abi.encodePacked(uint8(0x11), uint16(32)), // HYDRATE_TYPE_DATA_ADDRESS | HYDRATE_DATA_MESSAGE_SENDER
       abi.encodePacked(uint8(0x00)) // SIGNAL_NEXT_HYDRATE
     );
 
@@ -211,7 +379,7 @@ contract SequenceV3IntegrationTest is Test {
     outerCalls[0] = LocalPayload.Call({
       to: address(trailsUtils),
       value: 0,
-      data: abi.encode(innerPacked, hydratePayload),
+      data: abi.encodeWithSelector(HydrateProxy.hydrateExecute.selector, innerPacked, hydratePayload),
       gasLimit: 0,
       delegateCall: true,
       onlyFallback: false,
