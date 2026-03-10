@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {Allowlist} from "src/autoRecovery/Allowlist.sol";
 import {AutoRecoverSapient} from "src/autoRecovery/AutoRecoverSapient.sol";
-import {MockERC20} from "test/helpers/Mocks.sol";
+import {MockERC20, MockMetadataProbeToken} from "test/helpers/Mocks.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
 contract AutoRecoverSapientTest is Test {
@@ -101,8 +101,65 @@ contract AutoRecoverSapientTest is Test {
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
+  function test_isERC20_returnsExpectedAcrossMetadataMatrix() external {
+    MockMetadataProbeToken.MetadataBehavior[] memory behaviors = new MockMetadataProbeToken.MetadataBehavior[](6);
+    behaviors[0] = MockMetadataProbeToken.MetadataBehavior.StringNonZero;
+    behaviors[1] = MockMetadataProbeToken.MetadataBehavior.StringEmpty;
+    behaviors[2] = MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero;
+    behaviors[3] = MockMetadataProbeToken.MetadataBehavior.Bytes32Zero;
+    behaviors[4] = MockMetadataProbeToken.MetadataBehavior.Revert;
+    behaviors[5] = MockMetadataProbeToken.MetadataBehavior.Malformed;
+
+    for (uint256 i = 0; i < behaviors.length; i++) {
+      for (uint256 j = 0; j < behaviors.length; j++) {
+        MockMetadataProbeToken probe = new MockMetadataProbeToken(behaviors[i], behaviors[j]);
+        bool expected = _returnsAnyData(behaviors[i]) && _returnsAnyData(behaviors[j]);
+
+        assertEq(
+          sapient.isERC20(address(probe)),
+          expected,
+          string.concat("name=", _behaviorLabel(behaviors[i]), ", symbol=", _behaviorLabel(behaviors[j]))
+        );
+      }
+    }
+  }
+
+  function test_isERC20_returnsFalse_forAddressWithoutCode() external {
+    assertFalse(sapient.isERC20(makeAddr("externallyOwnedAccount")));
+  }
+
   function test_recoverSapientSignature_returnsRoot_forErc20TransferPayload() external {
     Payload.Decoded memory payload = _erc20Payload();
+    uint256 threshold = block.timestamp;
+
+    vm.prank(wallet);
+    bytes32 got = sapient.recoverSapientSignature(
+      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, threshold)
+    );
+
+    assertEq(got, keccak256(abi.encode("auto-recover", destination, threshold)));
+  }
+
+  function test_recoverSapientSignature_returnsRoot_forBytes32MetadataToken() external {
+    MockMetadataProbeToken probe = new MockMetadataProbeToken(
+      MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero, MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero
+    );
+    Payload.Decoded memory payload = _erc20PayloadFor(address(probe));
+    uint256 threshold = block.timestamp;
+
+    vm.prank(wallet);
+    bytes32 got = sapient.recoverSapientSignature(
+      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, threshold)
+    );
+
+    assertEq(got, keccak256(abi.encode("auto-recover", destination, threshold)));
+  }
+
+  function test_recoverSapientSignature_returnsRoot_whenMetadataMethodsReturnAnyData() external {
+    MockMetadataProbeToken probe = new MockMetadataProbeToken(
+      MockMetadataProbeToken.MetadataBehavior.StringEmpty, MockMetadataProbeToken.MetadataBehavior.Bytes32Zero
+    );
+    Payload.Decoded memory payload = _erc20PayloadFor(address(probe));
     uint256 threshold = block.timestamp;
 
     vm.prank(wallet);
@@ -177,6 +234,25 @@ contract AutoRecoverSapientTest is Test {
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
+  function test_recoverSapientSignature_reverts_unauthorizedTransaction_whenMetadataCallReverts() external {
+    MockMetadataProbeToken probe = new MockMetadataProbeToken(
+      MockMetadataProbeToken.MetadataBehavior.StringNonZero, MockMetadataProbeToken.MetadataBehavior.Revert
+    );
+    Payload.Decoded memory payload = _erc20PayloadFor(address(probe));
+
+    vm.prank(wallet);
+    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.UnauthorizedTransaction.selector, uint256(0)));
+    sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
+  }
+
+  function test_recoverSapientSignature_reverts_unauthorizedTransaction_whenTokenAddressHasNoCode() external {
+    Payload.Decoded memory payload = _erc20PayloadFor(makeAddr("noCodeToken"));
+
+    vm.prank(wallet);
+    vm.expectRevert(abi.encodeWithSelector(AutoRecoverSapient.UnauthorizedTransaction.selector, uint256(0)));
+    sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
+  }
+
   function test_recoverSapientSignature_reverts_unauthorizedTransaction_forShortErc20Calldata() external {
     Payload.Decoded memory payload = _erc20Payload();
     payload.calls[0].data = abi.encodePacked(MockERC20.transfer.selector);
@@ -225,11 +301,15 @@ contract AutoRecoverSapientTest is Test {
   }
 
   function _erc20Payload() private view returns (Payload.Decoded memory payload) {
+    return _erc20PayloadFor(address(token));
+  }
+
+  function _erc20PayloadFor(address token_) private view returns (Payload.Decoded memory payload) {
     payload.kind = Payload.KIND_TRANSACTIONS;
     payload.space = sapient.AUTO_RECOVER_NONCE_SPACE();
     payload.nonce = 42;
     payload.calls = new Payload.Call[](1);
-    payload.calls[0] = _erc20TransferCall(123);
+    payload.calls[0] = _erc20TransferCall(token_, 123);
   }
 
   function _nativePayload() private view returns (Payload.Decoded memory payload) {
@@ -246,13 +326,13 @@ contract AutoRecoverSapientTest is Test {
     payload.space = sapient.AUTO_RECOVER_NONCE_SPACE();
     payload.nonce = 99;
     payload.calls = new Payload.Call[](2);
-    payload.calls[0] = _erc20TransferCall(123);
+    payload.calls[0] = _erc20TransferCall(address(token), 123);
     payload.calls[1] = _nativeTransferCall(1 ether);
   }
 
-  function _erc20TransferCall(uint256 amount) private view returns (Payload.Call memory) {
+  function _erc20TransferCall(address token_, uint256 amount) private view returns (Payload.Call memory) {
     return Payload.Call({
-      to: address(token),
+      to: token_,
       value: 0,
       data: abi.encodeCall(MockERC20.transfer, (destination, amount)),
       gasLimit: 0,
@@ -304,5 +384,18 @@ contract AutoRecoverSapientTest is Test {
     }
 
     return ecrecover(digest, v, r, s);
+  }
+
+  function _returnsAnyData(MockMetadataProbeToken.MetadataBehavior behavior) private pure returns (bool) {
+    return behavior != MockMetadataProbeToken.MetadataBehavior.Revert;
+  }
+
+  function _behaviorLabel(MockMetadataProbeToken.MetadataBehavior behavior) private pure returns (string memory) {
+    if (behavior == MockMetadataProbeToken.MetadataBehavior.StringNonZero) return "string-non-zero";
+    if (behavior == MockMetadataProbeToken.MetadataBehavior.StringEmpty) return "string-empty";
+    if (behavior == MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero) return "bytes32-non-zero";
+    if (behavior == MockMetadataProbeToken.MetadataBehavior.Bytes32Zero) return "bytes32-zero";
+    if (behavior == MockMetadataProbeToken.MetadataBehavior.Revert) return "revert";
+    return "malformed";
   }
 }

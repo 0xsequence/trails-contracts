@@ -3,6 +3,7 @@ pragma solidity ^0.8.27;
 
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
+import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Allowlist} from "./Allowlist.sol";
 
 contract AutoRecoverSapient is ISapient {
@@ -49,6 +50,16 @@ contract AutoRecoverSapient is ISapient {
     return ecrecover(_hash, v, r, s);
   }
 
+  function isERC20(address _token) public view returns (bool) {
+    return _hasMetadata(_token, abi.encodeCall(IERC20Metadata.name, ()))
+      && _hasMetadata(_token, abi.encodeCall(IERC20Metadata.symbol, ()));
+  }
+
+  function _hasMetadata(address _token, bytes memory _calldata) private view returns (bool) {
+    (bool success, bytes memory returndata) = _token.staticcall(_calldata);
+    return success && returndata.length != 0;
+  }
+
   function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata signature)
     external
     view
@@ -82,6 +93,7 @@ contract AutoRecoverSapient is ISapient {
       bytes calldata data = call.data;
 
       if (call.value == 0) {
+        if (!isERC20(call.to)) revert UnauthorizedTransaction(i);
         // Must be an ERC20 transfer to "destination"
         if (data.length != 68) revert UnauthorizedTransaction(i);
         // Check selector is transfer(address,uint256) = 0xa9059cbb
