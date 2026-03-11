@@ -2,16 +2,18 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
+import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import {Allowlist} from "src/autoRecovery/Allowlist.sol";
 import {TimedRefundSapient} from "src/autoRecovery/TimedRefundSapient.sol";
-import {MockERC20, MockMetadataProbeToken} from "test/helpers/Mocks.sol";
+import {MockERC20} from "test/helpers/Mocks.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
 contract TimedRefundSapientTest is Test {
   uint256 private constant ALLOWED_SIGNER_PK = 0xA11CE;
   uint256 private constant BLOCKED_SIGNER_PK = 0xB0B;
   uint256 private constant START_TIME = 1_000;
+  uint256 private constant MAX_METADATA_RETURN_LENGTH = 256;
 
   Allowlist internal allowlist;
   TimedRefundSapient internal sapient;
@@ -105,27 +107,19 @@ contract TimedRefundSapientTest is Test {
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
-  function test_hasERC20Metadata_returnsExpectedAcrossMetadataMatrix() external {
-    MockMetadataProbeToken.MetadataBehavior[] memory behaviors = new MockMetadataProbeToken.MetadataBehavior[](6);
-    behaviors[0] = MockMetadataProbeToken.MetadataBehavior.StringNonZero;
-    behaviors[1] = MockMetadataProbeToken.MetadataBehavior.StringEmpty;
-    behaviors[2] = MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero;
-    behaviors[3] = MockMetadataProbeToken.MetadataBehavior.Bytes32Zero;
-    behaviors[4] = MockMetadataProbeToken.MetadataBehavior.Revert;
-    behaviors[5] = MockMetadataProbeToken.MetadataBehavior.Malformed;
+  function testFuzz_hasERC20Metadata_returnsExpectedForArbitraryMetadataResponses(
+    bytes memory nameData,
+    bool nameReverts,
+    bytes memory symbolData,
+    bool symbolReverts
+  ) external {
+    vm.assume(nameData.length <= MAX_METADATA_RETURN_LENGTH);
+    vm.assume(symbolData.length <= MAX_METADATA_RETURN_LENGTH);
 
-    for (uint256 i = 0; i < behaviors.length; i++) {
-      for (uint256 j = 0; j < behaviors.length; j++) {
-        MockMetadataProbeToken probe = new MockMetadataProbeToken(behaviors[i], behaviors[j]);
-        bool expected = _returnsAnyData(behaviors[i]) && _returnsAnyData(behaviors[j]);
+    _mockMetadata(address(token), nameData, nameReverts, symbolData, symbolReverts);
 
-        assertEq(
-          sapient.hasERC20Metadata(address(probe)),
-          expected,
-          string.concat("name=", _behaviorLabel(behaviors[i]), ", symbol=", _behaviorLabel(behaviors[j]))
-        );
-      }
-    }
+    bool expected = _metadataProbeSucceeds(nameData, nameReverts) && _metadataProbeSucceeds(symbolData, symbolReverts);
+    assertEq(sapient.hasERC20Metadata(address(token)), expected);
   }
 
   function test_hasERC20Metadata_returnsFalse_forAddressWithoutCode() external {
@@ -144,26 +138,15 @@ contract TimedRefundSapientTest is Test {
     assertEq(got, keccak256(abi.encode("timed-refund", destination, unlockTimestamp)));
   }
 
-  function test_recoverSapientSignature_returnsRoot_forBytes32MetadataToken() external {
-    MockMetadataProbeToken probe = new MockMetadataProbeToken(
-      MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero, MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero
-    );
-    Payload.Decoded memory payload = _erc20PayloadFor(address(probe));
-    uint256 unlockTimestamp = block.timestamp;
+  function testFuzz_recoverSapientSignature_returnsRoot_whenMetadataProbesReturnNonEmptyData(
+    bytes memory nameData,
+    bytes memory symbolData
+  ) external {
+    vm.assume(nameData.length > 0 && nameData.length <= MAX_METADATA_RETURN_LENGTH);
+    vm.assume(symbolData.length > 0 && symbolData.length <= MAX_METADATA_RETURN_LENGTH);
 
-    vm.prank(wallet);
-    bytes32 got = sapient.recoverSapientSignature(
-      payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, unlockTimestamp)
-    );
-
-    assertEq(got, keccak256(abi.encode("timed-refund", destination, unlockTimestamp)));
-  }
-
-  function test_recoverSapientSignature_returnsRoot_whenMetadataMethodsReturnAnyData() external {
-    MockMetadataProbeToken probe = new MockMetadataProbeToken(
-      MockMetadataProbeToken.MetadataBehavior.StringEmpty, MockMetadataProbeToken.MetadataBehavior.Bytes32Zero
-    );
-    Payload.Decoded memory payload = _erc20PayloadFor(address(probe));
+    _mockMetadata(address(token), nameData, false, symbolData, false);
+    Payload.Decoded memory payload = _erc20Payload();
     uint256 unlockTimestamp = block.timestamp;
 
     vm.prank(wallet);
@@ -238,11 +221,18 @@ contract TimedRefundSapientTest is Test {
     sapient.recoverSapientSignature(payload, _signatureFor(payload, wallet, ALLOWED_SIGNER_PK, destination, START_TIME));
   }
 
-  function test_recoverSapientSignature_reverts_unauthorizedTransaction_whenMetadataCallReverts() external {
-    MockMetadataProbeToken probe = new MockMetadataProbeToken(
-      MockMetadataProbeToken.MetadataBehavior.StringNonZero, MockMetadataProbeToken.MetadataBehavior.Revert
-    );
-    Payload.Decoded memory payload = _erc20PayloadFor(address(probe));
+  function testFuzz_recoverSapientSignature_reverts_unauthorizedTransaction_whenMetadataProbeFails(
+    bytes memory nameData,
+    bool nameReverts,
+    bytes memory symbolData,
+    bool symbolReverts
+  ) external {
+    vm.assume(nameData.length <= MAX_METADATA_RETURN_LENGTH);
+    vm.assume(symbolData.length <= MAX_METADATA_RETURN_LENGTH);
+    vm.assume(!_metadataProbeSucceeds(nameData, nameReverts) || !_metadataProbeSucceeds(symbolData, symbolReverts));
+
+    _mockMetadata(address(token), nameData, nameReverts, symbolData, symbolReverts);
+    Payload.Decoded memory payload = _erc20Payload();
 
     vm.prank(wallet);
     vm.expectRevert(abi.encodeWithSelector(TimedRefundSapient.UnauthorizedTransaction.selector, uint256(0)));
@@ -390,16 +380,27 @@ contract TimedRefundSapientTest is Test {
     return ecrecover(digest, v, r, s);
   }
 
-  function _returnsAnyData(MockMetadataProbeToken.MetadataBehavior behavior) private pure returns (bool) {
-    return behavior != MockMetadataProbeToken.MetadataBehavior.Revert;
+  function _mockMetadata(
+    address token_,
+    bytes memory nameData,
+    bool nameReverts,
+    bytes memory symbolData,
+    bool symbolReverts
+  ) private {
+    if (nameReverts) {
+      vm.mockCallRevert(token_, abi.encodeCall(IERC20Metadata.name, ()), bytes("metadata"));
+    } else {
+      vm.mockCall(token_, abi.encodeCall(IERC20Metadata.name, ()), nameData);
+    }
+
+    if (symbolReverts) {
+      vm.mockCallRevert(token_, abi.encodeCall(IERC20Metadata.symbol, ()), bytes("metadata"));
+    } else {
+      vm.mockCall(token_, abi.encodeCall(IERC20Metadata.symbol, ()), symbolData);
+    }
   }
 
-  function _behaviorLabel(MockMetadataProbeToken.MetadataBehavior behavior) private pure returns (string memory) {
-    if (behavior == MockMetadataProbeToken.MetadataBehavior.StringNonZero) return "string-non-zero";
-    if (behavior == MockMetadataProbeToken.MetadataBehavior.StringEmpty) return "string-empty";
-    if (behavior == MockMetadataProbeToken.MetadataBehavior.Bytes32NonZero) return "bytes32-non-zero";
-    if (behavior == MockMetadataProbeToken.MetadataBehavior.Bytes32Zero) return "bytes32-zero";
-    if (behavior == MockMetadataProbeToken.MetadataBehavior.Revert) return "revert";
-    return "malformed";
+  function _metadataProbeSucceeds(bytes memory returnData, bool reverts) private pure returns (bool) {
+    return !reverts && returnData.length != 0;
   }
 }
