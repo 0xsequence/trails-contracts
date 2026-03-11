@@ -28,23 +28,22 @@ contract Allowlist is Ownable {
   /// @param initial The initial addresses to mark as allowed.
   constructor(address owner_, address[] memory initial) Ownable(owner_) {
     for (uint256 i; i < initial.length; i++) {
-      address addr = initial[i];
-      if (addr == address(0)) revert ZeroAddress();
-      if (_allowed[addr]) revert AlreadyAllowed(addr);
-
-      _allowed[addr] = true;
-      _entries.push(addr);
+      _add(initial[i], false);
     }
   }
 
   /// @notice Adds `addr` to the allowlist.
   /// @param addr The address to add.
   function add(address addr) external onlyOwner {
-    if (addr == address(0)) revert ZeroAddress();
-    if (_allowed[addr]) revert AlreadyAllowed(addr);
-    _allowed[addr] = true;
-    _entries.push(addr);
-    emit AddressAdded(addr);
+    _add(addr, true);
+  }
+
+  /// @notice Adds each address in `addrs` to the allowlist.
+  /// @param addrs The addresses to add.
+  function add(address[] calldata addrs) external onlyOwner {
+    for (uint256 i; i < addrs.length; i++) {
+      _add(addrs[i], true);
+    }
   }
 
   /// @notice Removes `addr` from the allowlist.
@@ -52,26 +51,16 @@ contract Allowlist is Ownable {
   /// @param index Optional index hint into `getAllowed()`. Pass `0` to use search mode.
   /// @dev Removal uses swap-and-pop, so `getAllowed()` ordering is not stable.
   function remove(address addr, uint256 index) external onlyOwner {
-    if (!_allowed[addr]) revert NotAllowed(addr);
-    _allowed[addr] = false;
+    _remove(addr, index, true);
+  }
 
-    if (index != 0) {
-      if (_entries[index] != addr) revert IndexMismatch(index, addr, _entries[index]);
-      _entries[index] = _entries[_entries.length - 1];
-      _entries.pop();
-    } else {
-      // Search for the address
-      uint256 len = _entries.length;
-      for (uint256 i; i < len; i++) {
-        if (_entries[i] == addr) {
-          _entries[i] = _entries[len - 1];
-          _entries.pop();
-          break;
-        }
-      }
+  /// @notice Removes each address in `addrs` from the allowlist using search mode.
+  /// @param addrs The addresses to remove.
+  /// @dev Removal uses swap-and-pop, so `getAllowed()` ordering is not stable.
+  function remove(address[] calldata addrs) external onlyOwner {
+    for (uint256 i; i < addrs.length; i++) {
+      _remove(addrs[i], 0, true);
     }
-
-    emit AddressRemoved(addr);
   }
 
   /// @notice Returns whether `addr` is currently allowed.
@@ -83,5 +72,37 @@ contract Allowlist is Ownable {
   /// @dev Ordering is not stable because removals use swap-and-pop.
   function getAllowed() external view returns (address[] memory) {
     return _entries;
+  }
+
+  function _add(address addr, bool emitEvent) private {
+    if (addr == address(0)) revert ZeroAddress();
+    if (_allowed[addr]) revert AlreadyAllowed(addr);
+
+    _allowed[addr] = true;
+    _entries.push(addr);
+
+    if (emitEvent) emit AddressAdded(addr);
+  }
+
+  function _remove(address addr, uint256 index, bool emitEvent) private {
+    if (!_allowed[addr]) revert NotAllowed(addr);
+    _allowed[addr] = false;
+
+    if (index != 0) {
+      if (_entries[index] != addr) revert IndexMismatch(index, addr, _entries[index]);
+      _entries[index] = _entries[_entries.length - 1];
+      _entries.pop();
+    } else {
+      uint256 len = _entries.length;
+      for (uint256 i; i < len; i++) {
+        if (_entries[i] == addr) {
+          _entries[i] = _entries[len - 1];
+          _entries.pop();
+          break;
+        }
+      }
+    }
+
+    if (emitEvent) emit AddressRemoved(addr);
   }
 }

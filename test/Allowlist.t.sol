@@ -81,16 +81,33 @@ contract AllowlistTest is Test {
     assertEq(all[0], addr);
   }
 
-  function testFuzz_add_multiple(address owner_, address first, address second) external {
+  function testFuzz_addBatch_empty(address owner_) external {
+    vm.assume(owner_ != address(0));
+
+    Allowlist allowlist = _newAllowlist(owner_);
+    address[] memory addrs = new address[](0);
+
+    vm.prank(owner_);
+    allowlist.add(addrs);
+
+    assertEq(allowlist.getAllowed().length, 0);
+  }
+
+  function testFuzz_addBatch(address owner_, address first, address second) external {
     vm.assume(owner_ != address(0));
     _assumeDistinctNonZero(first, second);
 
     Allowlist allowlist = _newAllowlist(owner_);
+    address[] memory addrs = new address[](2);
+    addrs[0] = first;
+    addrs[1] = second;
 
-    vm.startPrank(owner_);
-    allowlist.add(first);
-    allowlist.add(second);
-    vm.stopPrank();
+    vm.prank(owner_);
+    vm.expectEmit(true, false, false, false);
+    emit AddressAdded(first);
+    vm.expectEmit(true, false, false, false);
+    emit AddressAdded(second);
+    allowlist.add(addrs);
 
     assertTrue(allowlist.isAllowed(first));
     assertTrue(allowlist.isAllowed(second));
@@ -115,6 +132,20 @@ contract AllowlistTest is Test {
     vm.stopPrank();
   }
 
+  function testFuzz_addBatch_revertsDuplicateWithinBatch(address owner_, address addr) external {
+    vm.assume(owner_ != address(0));
+    vm.assume(addr != address(0));
+
+    Allowlist allowlist = _newAllowlist(owner_);
+    address[] memory addrs = new address[](2);
+    addrs[0] = addr;
+    addrs[1] = addr;
+
+    vm.prank(owner_);
+    vm.expectRevert(abi.encodeWithSelector(Allowlist.AlreadyAllowed.selector, addr));
+    allowlist.add(addrs);
+  }
+
   function testFuzz_add_revertsZeroAddress(address owner_) external {
     vm.assume(owner_ != address(0));
 
@@ -123,6 +154,20 @@ contract AllowlistTest is Test {
     vm.prank(owner_);
     vm.expectRevert(Allowlist.ZeroAddress.selector);
     allowlist.add(address(0));
+  }
+
+  function testFuzz_addBatch_revertsZeroAddress(address owner_, address addr) external {
+    vm.assume(owner_ != address(0));
+    vm.assume(addr != address(0));
+
+    Allowlist allowlist = _newAllowlist(owner_);
+    address[] memory addrs = new address[](2);
+    addrs[0] = addr;
+    addrs[1] = address(0);
+
+    vm.prank(owner_);
+    vm.expectRevert(Allowlist.ZeroAddress.selector);
+    allowlist.add(addrs);
   }
 
   function testFuzz_add_revertsNotOwner(address owner_, address caller, address addr) external {
@@ -135,6 +180,20 @@ contract AllowlistTest is Test {
     vm.prank(caller);
     vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, caller));
     allowlist.add(addr);
+  }
+
+  function testFuzz_addBatch_revertsNotOwner(address owner_, address caller, address addr) external {
+    vm.assume(owner_ != address(0));
+    vm.assume(caller != owner_);
+    vm.assume(addr != address(0));
+
+    Allowlist allowlist = _newAllowlist(owner_);
+    address[] memory addrs = new address[](1);
+    addrs[0] = addr;
+
+    vm.prank(caller);
+    vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, caller));
+    allowlist.add(addrs);
   }
 
   function testFuzz_remove_searchMode(address owner_, address first, address second, bool removeFirst) external {
@@ -175,6 +234,54 @@ contract AllowlistTest is Test {
 
     assertFalse(allowlist.isAllowed(addr));
     assertEq(allowlist.getAllowed().length, 0);
+  }
+
+  function testFuzz_removeBatch_empty(address owner_) external {
+    vm.assume(owner_ != address(0));
+
+    Allowlist allowlist = _newAllowlist(owner_);
+    address[] memory addrs = new address[](0);
+
+    vm.prank(owner_);
+    allowlist.remove(addrs);
+
+    assertEq(allowlist.getAllowed().length, 0);
+  }
+
+  function testFuzz_removeBatch(
+    address owner_,
+    address first,
+    address second,
+    address third,
+    bool removeFirstBeforeSecond
+  ) external {
+    vm.assume(owner_ != address(0));
+    _assumeDistinctNonZero(first, second, third);
+
+    Allowlist allowlist = _newAllowlist(owner_);
+    address[] memory addrs = new address[](2);
+    addrs[0] = removeFirstBeforeSecond ? first : second;
+    addrs[1] = removeFirstBeforeSecond ? second : first;
+
+    vm.startPrank(owner_);
+    allowlist.add(first);
+    allowlist.add(second);
+    allowlist.add(third);
+
+    vm.expectEmit(true, false, false, false);
+    emit AddressRemoved(addrs[0]);
+    vm.expectEmit(true, false, false, false);
+    emit AddressRemoved(addrs[1]);
+    allowlist.remove(addrs);
+    vm.stopPrank();
+
+    assertFalse(allowlist.isAllowed(first));
+    assertFalse(allowlist.isAllowed(second));
+    assertTrue(allowlist.isAllowed(third));
+
+    address[] memory all = allowlist.getAllowed();
+    assertEq(all.length, 1);
+    assertEq(all[0], third);
   }
 
   function testFuzz_remove_withIndex(
@@ -238,6 +345,18 @@ contract AllowlistTest is Test {
     allowlist.remove(addr, index);
   }
 
+  function testFuzz_removeBatch_revertsNotAllowed(address owner_, address addr) external {
+    vm.assume(owner_ != address(0));
+
+    Allowlist allowlist = _newAllowlist(owner_);
+    address[] memory addrs = new address[](1);
+    addrs[0] = addr;
+
+    vm.prank(owner_);
+    vm.expectRevert(abi.encodeWithSelector(Allowlist.NotAllowed.selector, addr));
+    allowlist.remove(addrs);
+  }
+
   function testFuzz_remove_revertsNotOwner(address owner_, address caller, address addr) external {
     vm.assume(owner_ != address(0));
     vm.assume(caller != owner_);
@@ -251,6 +370,23 @@ contract AllowlistTest is Test {
     vm.prank(caller);
     vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, caller));
     allowlist.remove(addr, 0);
+  }
+
+  function testFuzz_removeBatch_revertsNotOwner(address owner_, address caller, address addr) external {
+    vm.assume(owner_ != address(0));
+    vm.assume(caller != owner_);
+    vm.assume(addr != address(0));
+
+    Allowlist allowlist = _newAllowlist(owner_);
+    address[] memory addrs = new address[](1);
+    addrs[0] = addr;
+
+    vm.prank(owner_);
+    allowlist.add(addr);
+
+    vm.prank(caller);
+    vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, caller));
+    allowlist.remove(addrs);
   }
 
   function testFuzz_isAllowed_false(address owner_, address addr) external {
