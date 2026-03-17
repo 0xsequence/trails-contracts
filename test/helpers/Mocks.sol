@@ -137,4 +137,3 @@ contract MockERC1155 {
     isApprovedForAll[owner][operator] = approved;
   }
 }
-
