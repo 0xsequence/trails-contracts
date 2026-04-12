@@ -76,6 +76,10 @@ onlyFallback: false
 
 [Sweep](src/modules/Sweep.sol) allows the entire balance (ERC20, address(this).balance) to be sent to another address.
 
+### FixedImageSapient
+
+[FixedImageSapient.sol](src/modules/FixedImageSapient.sol) implements [`ISapientCompact`](https://github.com/0xsequence/wallet-contracts-v3/blob/master/src/modules/interfaces/ISapient.sol): `recoverSapientSignatureCompact` always returns the owner-configured `imageHash` and ignores payload and signature bytes; only the owner may change it via `setImageHash`. THis is intended to be used in conjunction with other signers, as a failsafe kill switch. It is not included in [TrailsUtils.sol](src/TrailsUtils.sol), so deploy it as its own contract when a fixed sapient image is required.
+
 ## Glossary
 
 | Term           | Definition                                                     |
@@ -102,7 +106,7 @@ Any funds accumulated in the `TrailsUtils` context, via a `call` should be swept
 
 The Trails contracts are flexible in what they allow a configuration to represent. Misuse can cause an Intent to be exploitable.
 
-`RequireUtils`, `HydrateProxy` and `MalleableSapient` are tools to help create functionally complete and secure Intent configurations. The actual creation of the configuration must be done with care and is out of scope of this repository.
+`RequireUtils`, `HydrateProxy`, `MalleableSapient`, and `FixedImageSapient` are tools to help create functionally complete and secure Intent configurations. The actual creation of the configuration must be done with care and is out of scope of this repository.
 
 ### Token Handling
 
