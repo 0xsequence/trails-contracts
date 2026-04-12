@@ -25,54 +25,57 @@ contract PayloadSwitchSapientTest is Test {
     assertEq(sapient.owner(), owner);
   }
 
-  function test_enabled_defaultsFalse() external {
-    assertFalse(sapient.enabled());
+  function test_disabled_defaultsFalse() external {
+    assertFalse(sapient.disabled());
   }
 
-  function test_recoverSapientSignature_revertsWhenDisabled() external {
-    Payload.Decoded memory payload = Payload.fromDigest(bytes32(uint256(0xabc)));
-    vm.expectRevert(PayloadSwitchSapient.Disabled.selector);
-    sapient.recoverSapientSignature(payload, hex"");
-  }
-
-  function test_setEnabled_owner_allowsRecoverToReturnLeafForPayload() external {
+  function test_recoverSapientSignature_returnsLeafWhenNotDisabled() external {
     Payload.Decoded memory payload = Payload.fromDigest(bytes32(uint256(0xdeadbeef)));
-    vm.prank(owner);
-    sapient.setEnabled(true);
-    assertTrue(sapient.enabled());
+    assertFalse(sapient.disabled());
     bytes32 h = sapient.recoverSapientSignature(payload, hex"01");
     assertEq(h, _expectedLeaf(payload));
   }
 
-  function test_setEnabled_owner_canDisableAgain() external {
+  function test_recoverSapientSignature_revertsWhenDisabled() external {
+    Payload.Decoded memory payload = Payload.fromDigest(bytes32(uint256(0xabc)));
+    vm.prank(owner);
+    sapient.setDisabled(true);
+    assertTrue(sapient.disabled());
+    vm.expectRevert(PayloadSwitchSapient.Disabled.selector);
+    sapient.recoverSapientSignature(payload, hex"");
+  }
+
+  function test_setDisabled_owner_canClearAndRecoverAgain() external {
     Payload.Decoded memory payload = Payload.fromDigest(bytes32(uint256(1)));
     vm.startPrank(owner);
-    sapient.setEnabled(true);
-    sapient.setEnabled(false);
-    vm.stopPrank();
-    assertFalse(sapient.enabled());
+    sapient.setDisabled(true);
     vm.expectRevert(PayloadSwitchSapient.Disabled.selector);
     sapient.recoverSapientSignature(payload, "");
+    sapient.setDisabled(false);
+    vm.stopPrank();
+    assertFalse(sapient.disabled());
+    bytes32 h = sapient.recoverSapientSignature(payload, hex"");
+    assertEq(h, _expectedLeaf(payload));
   }
 
-  function test_setEnabled_nonOwner_reverts() external {
+  function test_setDisabled_nonOwner_reverts() external {
     vm.prank(makeAddr("notOwner"));
     vm.expectRevert(PayloadSwitchSapient.NotOwner.selector);
-    sapient.setEnabled(true);
+    sapient.setDisabled(true);
   }
 
-  function testFuzz_recoverSapientSignature_whenEnabled_returnsLeafForPayload(bytes32 digest, bytes memory data)
+  function testFuzz_recoverSapientSignature_whenNotDisabled_returnsLeafForPayload(bytes32 digest, bytes memory data)
     external
   {
     Payload.Decoded memory payload = Payload.fromDigest(digest);
-    vm.prank(owner);
-    sapient.setEnabled(true);
     bytes32 h = sapient.recoverSapientSignature(payload, data);
     assertEq(h, _expectedLeaf(payload));
   }
 
   function testFuzz_recoverSapientSignature_whenDisabled_reverts(bytes32 digest, bytes memory data) external {
     Payload.Decoded memory payload = Payload.fromDigest(digest);
+    vm.prank(owner);
+    sapient.setDisabled(true);
     vm.expectRevert(PayloadSwitchSapient.Disabled.selector);
     sapient.recoverSapientSignature(payload, data);
   }

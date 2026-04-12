@@ -18,26 +18,26 @@ contract PayloadSwitchSapient is ISapient {
   /// @notice The owner of the contract.
   address public owner;
 
-  /// @notice Whether subdigest authorisation is enabled.
-  bool public enabled;
+  /// @notice Whether subdigest authorisation is disabled.
+  bool public disabled;
 
   constructor(address owner_) {
     owner = owner_;
   }
 
-  /// @notice Sets the enabled state.
-  /// @param enabled_ The new enabled state.
-  function setEnabled(bool enabled_) external {
+  /// @notice Sets the disabled state.
+  /// @param disabled_ The new disabled state.
+  function setDisabled(bool disabled_) external {
     if (msg.sender != owner) {
       revert NotOwner();
     }
-    enabled = enabled_;
+    disabled = disabled_;
   }
 
   /// @inheritdoc ISapient
   /// @notice Returns the subdigest authorisation signature.
   function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata) external view returns (bytes32) {
-    if (!enabled) {
+    if (disabled) {
       revert Disabled();
     }
     return _leafForPayload(payload);
