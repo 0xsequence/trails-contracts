@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
-import {ISapientCompact} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
+import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
+import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
+
+using Payload for Payload.Decoded;
 
 /// @title PayloadSwitchSapient
-/// @notice An `ISapientCompact` that wraps subdigest authorisation under a kill switch.
-contract PayloadSwitchSapient is ISapientCompact {
+/// @notice An `ISapient` that wraps subdigest authorisation under a kill switch.
+contract PayloadSwitchSapient is ISapient {
   /// @notice The caller is not the owner.
   error NotOwner();
 
@@ -31,12 +34,19 @@ contract PayloadSwitchSapient is ISapientCompact {
     enabled = enabled_;
   }
 
-  /// @inheritdoc ISapientCompact
+  /// @inheritdoc ISapient
   /// @notice Returns the subdigest authorisation signature.
-  function recoverSapientSignatureCompact(bytes32 digest, bytes calldata) external view returns (bytes32) {
+  function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata) external view returns (bytes32) {
     if (!enabled) {
       revert Disabled();
     }
-    return digest;
+    return _leafForPayload(payload);
+  }
+
+  /// @notice Returns the leaf for a payload.
+  /// @dev This copies the FLAG_SIGNATURE_ANY_ADDRESS_SUBDIGEST encoding used by the wallet.
+  function _leafForPayload(Payload.Decoded calldata _payload) internal view returns (bytes32) {
+    bytes32 anyAddressOpHash = _payload.hashFor(address(0));
+    return keccak256(abi.encodePacked("Sequence any address subdigest:\n", anyAddressOpHash));
   }
 }
