@@ -76,6 +76,10 @@ onlyFallback: false
 
 [Sweep](src/modules/Sweep.sol) allows the entire balance (ERC20, address(this).balance) to be sent to another address.
 
+### Payload Switch Sapient
+
+[PayloadSwitchSapient.sol](src/modules/PayloadSwitchSapient.sol) is an [`ISapient`](https://github.com/0xsequence/wallet-contracts-v3/blob/master/src/modules/interfaces/ISapient.sol) helper with a `disabled` kill switch (defaults off): the owner can call `setDisabled(true)` so `recoverSapientSignature` reverts and the wallet drops that branch; while not disabled, it returns the same digest leaf as any-address subdigest checks (`hashFor` with the zero address, then the `"Sequence any address subdigest:\n"` prefix), for use with the standard sapient path rather than `ISapientCompact`.
+
 ## Glossary
 
 | Term           | Definition                                                     |
@@ -102,7 +106,7 @@ Any funds accumulated in the `TrailsUtils` context, via a `call` should be swept
 
 The Trails contracts are flexible in what they allow a configuration to represent. Misuse can cause an Intent to be exploitable.
 
-`RequireUtils`, `HydrateProxy` and `MalleableSapient` are tools to help create functionally complete and secure Intent configurations. The actual creation of the configuration must be done with care and is out of scope of this repository.
+`RequireUtils`, `HydrateProxy`, `MalleableSapient` and `PayloadSwitchSapient` are tools to help create functionally complete and secure Intent configurations. The actual creation of the configuration must be done with care and is out of scope of this repository.
 
 ### Token Handling
 
