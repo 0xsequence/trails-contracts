@@ -279,7 +279,7 @@ contract SequenceV3IntegrationTest is Test {
   }
 
   function testFuzz_integration_sapientSigner_allowsMalleableCalldata(bytes32 seed) external {
-    TrailsUtils trailsUtils = new TrailsUtils();
+    TrailsUtils trailsUtils = new TrailsUtils(address(this));
 
     SeqFactory factory = new SeqFactory();
     SeqStage1Module stage1 = new SeqStage1Module(address(factory), address(0));
@@ -340,7 +340,7 @@ contract SequenceV3IntegrationTest is Test {
   }
 
   function test_integration_walletDelegatecallsHydrateProxy_andHydrates() external {
-    TrailsUtils trailsUtils = new TrailsUtils();
+    TrailsUtils trailsUtils = new TrailsUtils(address(this));
 
     SeqFactory factory = new SeqFactory();
     SeqStage1Module stage1 = new SeqStage1Module(address(factory), address(0));

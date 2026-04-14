@@ -5,6 +5,7 @@ import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {LibBytes} from "wallet-contracts-v3/utils/LibBytes.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
+import {IPause} from "src/base/IPause.sol";
 
 /// @title MalleableSapient
 /// @notice An `ISapient` implementation that lets the caller declare which parts of a transaction bundle are "static" (committed to),
@@ -24,7 +25,7 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 /// - `tindex2` (uint8): call index in `payload.calls`
 /// - `cindex2` (uint16): byte offset into `payload.calls[tindex2].data`
 /// - This is *not* an ECDSA signature; it's a compact description of the committed sections.
-contract MalleableSapient is ISapient {
+contract MalleableSapient is IPause, ISapient {
   error NonTransactionPayload();
 
   error InvalidRepeatSection(uint256 _tindex, uint256 _cindex, uint256 _size, uint256 _tindex2, uint256 _cindex2);
@@ -36,6 +37,7 @@ contract MalleableSapient is ISapient {
   function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata signature)
     external
     view
+    whenActive
     returns (bytes32 imageHash)
   {
     if (payload.kind != Payload.KIND_TRANSACTIONS) {

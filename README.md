@@ -112,4 +112,6 @@ While the tools in this repository do not directly support non-standard tokens, 
 
 ### State
 
-`TrailsUtils` is stateless and ownerless.
+`TrailsUtils` now carries a shared OpenZeppelin pause slot plus shared owner/operator authority across `MalleableSapient`, `HydrateProxy`, and `Sweepable`.
+
+The initial owner is set at deployment. The owner can pause, unpause, transfer ownership, and manage operators. Operators can only pause.

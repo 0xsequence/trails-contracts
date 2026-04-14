@@ -51,9 +51,6 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
   uint256 private constant HYDRATE_DATA_TRANSACTION_ORIGIN = 0x02;
   uint256 private constant HYDRATE_DATA_ANY_ADDRESS = 0x03;
 
-  // Cached address of this contract to detect delegatecall context.
-  address internal immutable SELF = address(this);
-
   /// @notice Hydrates `packedPayload` using `hydratePayload` and then executes the batch.
   /// @param packedPayload The packed payload to hydrate.
   /// @param hydratePayload The hydrate payload to use.
@@ -62,7 +59,7 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
   /// - Followed by commands for that call. Each command starts with a 1-byte `flag`.
   /// - A `SIGNAL_NEXT_HYDRATE` (0x00) ends the current call's section; if more bytes remain, the next byte is the next `tindex`.
   /// - The supported command flags are the `HYDRATE_*` constants in this file.
-  function hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) external payable {
+  function hydrateExecute(bytes calldata packedPayload, bytes calldata hydratePayload) external payable whenActive {
     _hydrateExecute(packedPayload, hydratePayload);
   }
 
@@ -71,6 +68,7 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
   function handleSequenceDelegateCall(bytes32, uint256, uint256, uint256, uint256, bytes calldata data)
     external
     virtual
+    whenActive
   {
     if (address(this) == SELF) {
       revert OnlyDelegateCallAllowed();
@@ -93,7 +91,7 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
     address sweepTarget,
     address[] calldata tokensToSweep,
     bool sweepNative
-  ) external payable {
+  ) external payable whenActive {
     _hydrateExecute(packedPayload, hydratePayload);
     _sweep(sweepTarget, tokensToSweep, sweepNative);
   }

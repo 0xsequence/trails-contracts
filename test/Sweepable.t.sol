@@ -84,4 +84,3 @@ contract SweepableTest is Test {
     assertEq(address(sweepable).balance, 0);
   }
 }
-

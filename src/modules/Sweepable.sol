@@ -3,10 +3,11 @@ pragma solidity ^0.8.27;
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IPause} from "src/base/IPause.sol";
 
 /// @title Sweepable
 /// @notice Contract for sweeping balances to a target address
-contract Sweepable {
+contract Sweepable is IPause {
   using SafeERC20 for IERC20;
 
   /// @notice Error thrown when a native sweep fails
@@ -19,7 +20,7 @@ contract Sweepable {
   /// @param sweepTarget The address to sweep the balances to
   /// @param tokensToSweep The tokens to sweep
   /// @param sweepNative Whether to sweep native tokens
-  function sweep(address sweepTarget, address[] calldata tokensToSweep, bool sweepNative) external {
+  function sweep(address sweepTarget, address[] calldata tokensToSweep, bool sweepNative) external whenActive {
     _sweep(sweepTarget, tokensToSweep, sweepNative);
   }
 
@@ -51,5 +52,5 @@ contract Sweepable {
     }
   }
 
-  receive() external payable {}
+  receive() external payable whenActive {}
 }
