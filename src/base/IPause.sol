@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
-import {Pausable as OZPausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 import {Self} from "src/base/Self.sol";
 
 abstract contract IPause is Self {
+  error EnforcedPause();
+
   modifier whenActive() {
     _requireActive();
     _;
@@ -20,7 +21,7 @@ abstract contract IPause is Self {
 
   function _requireActive() internal view virtual {
     if (paused()) {
-      revert OZPausable.EnforcedPause();
+      revert EnforcedPause();
     }
   }
 }
