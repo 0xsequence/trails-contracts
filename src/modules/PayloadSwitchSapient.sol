@@ -12,6 +12,8 @@ using Payload for Payload.Decoded;
 contract PayloadSwitchSapient is ISapient, Ownable {
   /// @notice The zero address was provided where an operator address is required.
   error ZeroAddress();
+  /// @notice Ownership renunciation is disabled to preserve an account that can unpause.
+  error OwnershipRenunciationDisabled();
   /// @notice The caller is neither the owner nor a pause operator.
   error UnauthorizedPauser(address account);
   /// @notice Subdigest authorisation is paused.
@@ -76,6 +78,11 @@ contract PayloadSwitchSapient is ISapient, Ownable {
 
     isOperator[operator] = allowed;
     emit OperatorSet(operator, allowed);
+  }
+
+  /// @notice Disables ownership renunciation so the pause switch cannot become permanently stuck.
+  function renounceOwnership() public view override onlyOwner {
+    revert OwnershipRenunciationDisabled();
   }
 
   /// @inheritdoc ISapient

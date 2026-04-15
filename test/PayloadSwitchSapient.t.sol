@@ -155,6 +155,14 @@ contract PayloadSwitchSapientTest is Test {
     sapient.setOperator(address(0), true);
   }
 
+  function test_renounceOwnership_reverts() external {
+    vm.prank(owner);
+    vm.expectRevert(PayloadSwitchSapient.OwnershipRenunciationDisabled.selector);
+    sapient.renounceOwnership();
+
+    assertEq(sapient.owner(), owner);
+  }
+
   function test_constructor_revertsOnZeroOperator() external {
     address[] memory initialOperators = new address[](1);
     initialOperators[0] = address(0);
