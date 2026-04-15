@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import {Test} from "forge-std/Test.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {Pausable} from "src/base/Pausable.sol";
+import {Pausable} from "src/pausable/Pausable.sol";
 
 contract PausableHarness is Pausable {
   constructor(address owner_, address[] memory initialOperators) Pausable(owner_, initialOperators) {}
