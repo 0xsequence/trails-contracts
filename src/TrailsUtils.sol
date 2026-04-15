@@ -11,4 +11,6 @@ import {RequireUtils} from "src/modules/RequireUtils.sol";
 /// - {MalleableSapient} for malleable commitments
 /// - {HydrateProxy} for hydrate + execute flows
 /// - {RequireUtils} for precondition checks
-contract TrailsUtils is MalleableSapient, HydrateProxy, RequireUtils {}
+contract TrailsUtils is MalleableSapient, HydrateProxy, RequireUtils {
+  constructor(address pauseSource) MalleableSapient(pauseSource) {}
+}

@@ -4,10 +4,20 @@ pragma solidity ^0.8.27;
 import {Test} from "forge-std/Test.sol";
 
 import {MalleableSapient} from "src/modules/MalleableSapient.sol";
+import {PayloadSwitchSapient} from "src/modules/PayloadSwitchSapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 
 contract MalleableSapientTest is Test {
+  function _newPauseSource() private returns (PayloadSwitchSapient pauseSource) {
+    address[] memory initialOperators = new address[](0);
+    pauseSource = new PayloadSwitchSapient(makeAddr("owner"), initialOperators);
+  }
+
+  function _newSapient() private returns (MalleableSapient) {
+    return new MalleableSapient(address(_newPauseSource()));
+  }
+
   function _randomBytes(uint256 len, bytes32 seed) private pure returns (bytes memory data) {
     data = new bytes(len);
 
@@ -88,7 +98,7 @@ contract MalleableSapientTest is Test {
   function testFuzz_recoverSapientSignature_reverts_nonTransactions(uint8 kind) external {
     vm.assume(kind != Payload.KIND_TRANSACTIONS);
 
-    MalleableSapient sapient = new MalleableSapient();
+    MalleableSapient sapient = _newSapient();
 
     Payload.Decoded memory payload;
     payload.kind = kind;
@@ -124,7 +134,7 @@ contract MalleableSapientTest is Test {
       });
     }
 
-    MalleableSapient sapient = new MalleableSapient();
+    MalleableSapient sapient = _newSapient();
 
     bytes32 got = sapient.recoverSapientSignature(payload, "");
     bytes32 expected = _expectedImageHash(payload, "");
@@ -216,7 +226,7 @@ contract MalleableSapientTest is Test {
       }
     }
 
-    MalleableSapient sapient = new MalleableSapient();
+    MalleableSapient sapient = _newSapient();
 
     bytes32 got = sapient.recoverSapientSignature(payload, signature);
     bytes32 expected = _expectedImageHash(payload, signature);
@@ -299,7 +309,7 @@ contract MalleableSapientTest is Test {
     // At least one of the repeat sections must be invalid
     vm.assume(invalidParts.size != 0);
 
-    MalleableSapient sapient = new MalleableSapient();
+    MalleableSapient sapient = _newSapient();
 
     vm.expectRevert(
       abi.encodeWithSelector(
@@ -315,7 +325,7 @@ contract MalleableSapientTest is Test {
   }
 
   function test_recoverSapientSignature_chainId_included() external {
-    MalleableSapient sapient = new MalleableSapient();
+    MalleableSapient sapient = _newSapient();
 
     Payload.Decoded memory payload;
     payload.kind = Payload.KIND_TRANSACTIONS;
@@ -340,7 +350,7 @@ contract MalleableSapientTest is Test {
   }
 
   function test_recoverSapientSignature_noChainId_zeroUsed() external {
-    MalleableSapient sapient = new MalleableSapient();
+    MalleableSapient sapient = _newSapient();
 
     Payload.Decoded memory payload;
     payload.kind = Payload.KIND_TRANSACTIONS;
@@ -415,7 +425,7 @@ contract MalleableSapientTest is Test {
       payloadNoChainId.calls[i] = call;
     }
 
-    MalleableSapient sapient = new MalleableSapient();
+    MalleableSapient sapient = _newSapient();
 
     bytes32 hashWithChainId = sapient.recoverSapientSignature(payloadWithChainId, "");
     bytes32 hashNoChainId = sapient.recoverSapientSignature(payloadNoChainId, "");
@@ -426,5 +436,27 @@ contract MalleableSapientTest is Test {
     // Verify they match expected values
     assertEq(hashWithChainId, _expectedImageHash(payloadWithChainId, ""));
     assertEq(hashNoChainId, _expectedImageHash(payloadNoChainId, ""));
+  }
+
+  function test_constructor_revertsOnZeroPauseSource() external {
+    vm.expectRevert(abi.encodeWithSelector(MalleableSapient.InvalidPauseSource.selector, address(0)));
+    new MalleableSapient(address(0));
+  }
+
+  function test_recoverSapientSignature_revertsWhenPauseSourcePaused() external {
+    address owner = makeAddr("owner");
+    address[] memory initialOperators = new address[](0);
+    PayloadSwitchSapient pauseSource = new PayloadSwitchSapient(owner, initialOperators);
+    MalleableSapient sapient = new MalleableSapient(address(pauseSource));
+
+    Payload.Decoded memory payload;
+    payload.kind = Payload.KIND_TRANSACTIONS;
+    payload.calls = new Payload.Call[](0);
+
+    vm.prank(owner);
+    pauseSource.pause();
+
+    vm.expectRevert(MalleableSapient.EnforcedPause.selector);
+    sapient.recoverSapientSignature(payload, "");
   }
 }

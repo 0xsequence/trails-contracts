@@ -25,11 +25,23 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 /// - `cindex2` (uint16): byte offset into `payload.calls[tindex2].data`
 /// - This is *not* an ECDSA signature; it's a compact description of the committed sections.
 contract MalleableSapient is ISapient {
+  error InvalidPauseSource(address pauseSource);
+  error EnforcedPause();
   error NonTransactionPayload();
 
   error InvalidRepeatSection(uint256 _tindex, uint256 _cindex, uint256 _size, uint256 _tindex2, uint256 _cindex2);
 
   using LibBytes for bytes;
+
+  address public immutable pauseSource;
+
+  constructor(address pauseSource_) {
+    if (pauseSource_ == address(0)) {
+      revert InvalidPauseSource(address(0));
+    }
+
+    pauseSource = pauseSource_;
+  }
 
   /// @inheritdoc ISapient
   /// @dev Computes the `imageHash` for a transaction payload with a malleable `data` commitment.
@@ -38,6 +50,10 @@ contract MalleableSapient is ISapient {
     view
     returns (bytes32 imageHash)
   {
+    if (IPauseSource(pauseSource).paused()) {
+      revert EnforcedPause();
+    }
+
     if (payload.kind != Payload.KIND_TRANSACTIONS) {
       revert NonTransactionPayload();
     }
@@ -116,4 +132,8 @@ contract MalleableSapient is ISapient {
   function _staticSection(uint256 _tindex, uint256 _cindex, bytes calldata _data) internal pure returns (bytes32) {
     return keccak256(abi.encode("static-section", _tindex, _cindex, _data));
   }
+}
+
+interface IPauseSource {
+  function paused() external view returns (bool);
 }

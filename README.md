@@ -42,7 +42,7 @@ The Hydrator logic supports the following replacements:
 
 #### MalleableSapient
 
-[MalleableSapient.sol](src/modules/MalleableSapient.sol) implements the [ISapient interface](https://github.com/0xsequence/wallet-contracts-v3/blob/master/src/modules/interfaces/ISapient.sol) used by Sequence Wallets to support singleton counter factual configurations derived at runtime.
+[MalleableSapient.sol](src/modules/MalleableSapient.sol) implements the [ISapient interface](https://github.com/0xsequence/wallet-contracts-v3/blob/master/src/modules/interfaces/ISapient.sol) used by Sequence Wallets to support singleton counter factual configurations derived at runtime. It is gated by an external pause source and reverts while that source reports `paused() == true`.
 
 Sequence Wallets support preauthorization of entire payload digests. This does not support all Trails providers. Some information (e.g. commit / reveal bridges) do not allow the entire payload to be known when constructing the Intent supported Payloads.
 

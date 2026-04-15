@@ -7,6 +7,7 @@ import {TrailsUtils} from "src/TrailsUtils.sol";
 import {Allowlist} from "src/autoRecovery/Allowlist.sol";
 import {TimedRefundSapient} from "src/autoRecovery/TimedRefundSapient.sol";
 import {HydrateProxy} from "src/modules/HydrateProxy.sol";
+import {PayloadSwitchSapient} from "src/modules/PayloadSwitchSapient.sol";
 
 import {PackedPayload} from "trails-test/helpers/PackedPayload.sol";
 import {MockERC20, RecordingReceiver} from "trails-test/helpers/Mocks.sol";
@@ -279,7 +280,9 @@ contract SequenceV3IntegrationTest is Test {
   }
 
   function testFuzz_integration_sapientSigner_allowsMalleableCalldata(bytes32 seed) external {
-    TrailsUtils trailsUtils = new TrailsUtils();
+    address[] memory initialOperators = new address[](0);
+    PayloadSwitchSapient pauseSource = new PayloadSwitchSapient(address(this), initialOperators);
+    TrailsUtils trailsUtils = new TrailsUtils(address(pauseSource));
 
     SeqFactory factory = new SeqFactory();
     SeqStage1Module stage1 = new SeqStage1Module(address(factory), address(0));
@@ -340,7 +343,9 @@ contract SequenceV3IntegrationTest is Test {
   }
 
   function test_integration_walletDelegatecallsHydrateProxy_andHydrates() external {
-    TrailsUtils trailsUtils = new TrailsUtils();
+    address[] memory initialOperators = new address[](0);
+    PayloadSwitchSapient pauseSource = new PayloadSwitchSapient(address(this), initialOperators);
+    TrailsUtils trailsUtils = new TrailsUtils(address(pauseSource));
 
     SeqFactory factory = new SeqFactory();
     SeqStage1Module stage1 = new SeqStage1Module(address(factory), address(0));
