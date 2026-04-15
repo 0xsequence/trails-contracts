@@ -4,17 +4,24 @@ pragma solidity ^0.8.27;
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "openzeppelin-contracts/contracts/token/ERC1155/IERC1155.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 /// @title RequireUtils
 /// @notice A set of small, composable precondition checks intended to be called from an intent's call batch.
 /// @dev Each function reverts with a custom error (cheap + structured) on failure.
 contract RequireUtils {
+  uint256 internal constant BPS_SCALE = 10_000;
+
   /// @notice The transaction is expired.
   error Expired(uint256 expiration, uint256 timestamp);
   /// @notice The ERC20 balance is too low.
   error ERC20BalanceTooLow(address token, address owner, uint256 balance, uint256 minBalance);
   /// @notice The ERC20 allowance is too low.
   error ERC20AllowanceTooLow(address token, address owner, address spender, uint256 allowance, uint256 minAllowance);
+  /// @notice The ERC20 fee cap basis points are invalid.
+  error InvalidBps(uint256 bps);
+  /// @notice The amount exceeds the permitted share of an ERC20 balance.
+  error ERC20AmountExceedsBalanceBps(address token, address owner, uint256 amount, uint256 balance, uint256 maxAmount);
   /// @notice The ERC721 is not owned.
   error ERC721NotOwner(address token, uint256 tokenId, address owner, address requiredOwner);
   /// @notice The ERC721 is not approved.
@@ -48,6 +55,18 @@ contract RequireUtils {
     uint256 allowance = IERC20(token).allowance(owner, spender);
     if (allowance < minAllowance) {
       revert ERC20AllowanceTooLow(token, owner, spender, allowance, minAllowance);
+    }
+  }
+
+  function _requireMaxERC20BalanceBps(address token, address owner, uint256 amount, uint256 maxBps) private view {
+    if (maxBps > BPS_SCALE) {
+      revert InvalidBps(maxBps);
+    }
+
+    uint256 balance = IERC20(token).balanceOf(owner);
+    uint256 maxAmount = Math.mulDiv(balance, maxBps, BPS_SCALE);
+    if (amount > maxAmount) {
+      revert ERC20AmountExceedsBalanceBps(token, owner, amount, balance, maxAmount);
     }
   }
 
@@ -153,6 +172,16 @@ contract RequireUtils {
   function requireMinERC20BalanceAllowanceSelf(address token, address spender, uint256 minAmount) external view {
     _requireMinERC20Balance(token, msg.sender, minAmount);
     _requireMinERC20Allowance(token, msg.sender, spender, minAmount);
+  }
+
+  /// @notice Reverts if `amount` exceeds `owner`'s balance times `maxBps`.
+  function requireMaxERC20BalanceBps(address token, address owner, uint256 amount, uint256 maxBps) external view {
+    _requireMaxERC20BalanceBps(token, owner, amount, maxBps);
+  }
+
+  /// @notice Reverts if `amount` exceeds `msg.sender`'s balance times `maxBps`.
+  function requireMaxERC20BalanceBpsSelf(address token, uint256 amount, uint256 maxBps) external view {
+    _requireMaxERC20BalanceBps(token, msg.sender, amount, maxBps);
   }
 
   /// @notice Reverts if `owner` is not the owner of `tokenId` on `token` (ERC721).
