@@ -10,7 +10,7 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 /// @notice An `ISapient` implementation that lets the caller declare which parts of a transaction bundle are "static" (committed to),
 /// which parts are "malleable" (can be changed/hydrated at execution), and which parts are "repeatable" (for malleable sections that must match).
 /// @dev The returned `imageHash` is a rolling hash of:
-/// - the payload `space` + `nonce`
+/// - the payload `space`
 /// - the current `block.chainid`
 /// - each call's metadata (everything except `data`)
 /// - each "static section" of call `data` as described by `signature`
@@ -42,8 +42,8 @@ contract MalleableSapient is ISapient {
       revert NonTransactionPayload();
     }
 
-    // Roll space and nonce
-    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(payload.nonce));
+    // Roll space only; wallet replay protection already enforces nonce.
+    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(0));
 
     // Roll chainId
     if (payload.noChainId) {
