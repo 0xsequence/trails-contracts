@@ -32,13 +32,13 @@ contract MalleableSapient is ISapient {
 
   using LibBytes for bytes;
 
-  /// @notice Dedicated nonce space that opts back into the legacy `(space, nonce)` commitment.
+  /// @notice Dedicated space that opts back into the legacy `(space, nonce)` commitment.
   /// @dev uint160(uint256(keccak256("trails.malleable-sapient.outer-nonce-space")) | (uint256(1) << 159))
-  uint256 public constant OUTER_NONCE_ESCAPE_SPACE = uint256(uint160(0x8f2BFac5838766798E52D0d64E9B22E1c455Cdda));
+  uint256 public constant MALLEABLE_SAPIENT_NONCE_SPACE = uint256(uint160(0x8f2BFac5838766798E52D0d64E9B22E1c455Cdda));
 
   /// @dev Preserve the `(space, nonce)` transcript shape while defaulting to nonce-free PDA configuration.
   function _outerNonceCommitment(Payload.Decoded calldata payload) internal pure returns (bytes32) {
-    if (payload.space == OUTER_NONCE_ESCAPE_SPACE) {
+    if (payload.space == MALLEABLE_SAPIENT_NONCE_SPACE) {
       return bytes32(payload.nonce);
     }
 

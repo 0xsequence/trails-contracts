@@ -160,12 +160,12 @@ contract MalleableSapientTest is Test {
     assertEq(firstHash, secondHash);
   }
 
-  function test_recoverSapientSignature_escapeSpace_commitsNonce() external {
+  function test_recoverSapientSignature_malleableSapientNonceSpace_commitsNonce() external {
     MalleableSapient sapient = new MalleableSapient();
 
     Payload.Decoded memory payload;
     payload.kind = Payload.KIND_TRANSACTIONS;
-    payload.space = sapient.OUTER_NONCE_ESCAPE_SPACE();
+    payload.space = sapient.MALLEABLE_SAPIENT_NONCE_SPACE();
     payload.calls = new Payload.Call[](1);
     payload.calls[0] = Payload.Call({
       to: address(0x1234), value: 0, data: hex"010203", gasLimit: 0, delegateCall: false, onlyFallback: false, behaviorOnError: 0
