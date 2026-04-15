@@ -32,7 +32,7 @@ contract MalleableSapientTest is Test {
   }
 
   function _expectedImageHash(Payload.Decoded memory payload, bytes memory signature) private view returns (bytes32) {
-    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(payload.nonce));
+    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(0));
     if (payload.noChainId) {
       root = LibOptim.fkeccak256(root, bytes32(0));
     } else {
@@ -129,6 +129,26 @@ contract MalleableSapientTest is Test {
     bytes32 got = sapient.recoverSapientSignature(payload, "");
     bytes32 expected = _expectedImageHash(payload, "");
     assertEq(got, expected);
+  }
+
+  function test_recoverSapientSignature_ignoresNonce() external {
+    MalleableSapient sapient = new MalleableSapient();
+
+    Payload.Decoded memory payload;
+    payload.kind = Payload.KIND_TRANSACTIONS;
+    payload.space = 1;
+    payload.calls = new Payload.Call[](1);
+    payload.calls[0] = Payload.Call({
+      to: address(0x1234), value: 0, data: hex"010203", gasLimit: 0, delegateCall: false, onlyFallback: false, behaviorOnError: 0
+    });
+
+    payload.nonce = 0;
+    bytes32 firstHash = sapient.recoverSapientSignature(payload, "");
+
+    payload.nonce = 1;
+    bytes32 secondHash = sapient.recoverSapientSignature(payload, "");
+
+    assertEq(firstHash, secondHash);
   }
 
   struct SignatureParts {
@@ -359,7 +379,7 @@ contract MalleableSapientTest is Test {
     assertEq(hash, expected);
 
     // Verify the hash uses zero by manually computing with zero
-    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(payload.nonce));
+    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(0));
     root = LibOptim.fkeccak256(root, bytes32(0)); // Should use zero, not block.chainid
     root = LibOptim.fkeccak256(
       root,

@@ -207,6 +207,65 @@ contract RequireUtilsTest is Test {
     utils.requireMinERC20BalanceAllowanceSelf(address(token), spender, minAmount);
   }
 
+  function testFuzz_requireMaxERC20BalanceBps(address owner, uint128 balance, uint128 amount, uint16 maxBps) external {
+    RequireUtils utils = new RequireUtils();
+    MockERC20 token = new MockERC20();
+
+    token.mint(owner, balance);
+    maxBps = uint16(bound(uint256(maxBps), 0, 10_000));
+
+    uint256 maxAmount = uint256(balance) * uint256(maxBps) / 10_000;
+    if (uint256(amount) > maxAmount) {
+      vm.expectRevert(
+        abi.encodeWithSelector(
+          RequireUtils.ERC20AmountExceedsBalanceBps.selector,
+          address(token),
+          owner,
+          uint256(amount),
+          uint256(balance),
+          maxAmount
+        )
+      );
+    }
+
+    utils.requireMaxERC20BalanceBps(address(token), owner, amount, maxBps);
+  }
+
+  function testFuzz_requireMaxERC20BalanceBpsSelf(address owner, uint128 balance, uint128 amount, uint16 maxBps)
+    external
+  {
+    RequireUtils utils = new RequireUtils();
+    MockERC20 token = new MockERC20();
+
+    token.mint(owner, balance);
+    maxBps = uint16(bound(uint256(maxBps), 0, 10_000));
+
+    uint256 maxAmount = uint256(balance) * uint256(maxBps) / 10_000;
+    vm.prank(owner);
+    if (uint256(amount) > maxAmount) {
+      vm.expectRevert(
+        abi.encodeWithSelector(
+          RequireUtils.ERC20AmountExceedsBalanceBps.selector,
+          address(token),
+          owner,
+          uint256(amount),
+          uint256(balance),
+          maxAmount
+        )
+      );
+    }
+
+    utils.requireMaxERC20BalanceBpsSelf(address(token), amount, maxBps);
+  }
+
+  function test_requireMaxERC20BalanceBps_reverts_invalidBps() external {
+    RequireUtils utils = new RequireUtils();
+    MockERC20 token = new MockERC20();
+
+    vm.expectRevert(abi.encodeWithSelector(RequireUtils.InvalidBps.selector, uint256(10_001)));
+    utils.requireMaxERC20BalanceBps(address(token), address(this), 1, 10_001);
+  }
+
   function testFuzz_requireERC721Approval(
     address owner,
     address spender,
@@ -625,4 +684,3 @@ contract RequireUtilsTest is Test {
     utils.requireMinERC1155BalanceApprovalBatchSelf(address(token), tokenIds, minBalances, operator);
   }
 }
-
