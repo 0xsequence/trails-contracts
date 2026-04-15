@@ -1,44 +1,88 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 
 using Payload for Payload.Decoded;
 
 /// @title PayloadSwitchSapient
-/// @notice An `ISapient` that wraps subdigest authorisation under a kill switch.
-contract PayloadSwitchSapient is ISapient {
-  /// @notice The caller is not the owner.
-  error NotOwner();
+/// @notice An `ISapient` that wraps subdigest authorisation under a pause switch.
+contract PayloadSwitchSapient is ISapient, Ownable {
+  /// @notice The zero address was provided where an operator address is required.
+  error ZeroAddress();
+  /// @notice The caller is neither the owner nor a pause operator.
+  error UnauthorizedPauser(address account);
+  /// @notice Subdigest authorisation is paused.
+  error EnforcedPause();
+  /// @notice Subdigest authorisation is not paused.
+  error ExpectedPause();
 
-  /// @notice Subdigest authorisation is disabled.
-  error Disabled();
+  /// @notice Returns whether `account` is allowed to pause.
+  mapping(address => bool) public isOperator;
+  /// @notice Returns whether subdigest authorisation is paused.
+  bool public paused;
 
-  /// @notice The owner of the contract.
-  address public owner;
+  /// @notice Emitted when `account` pauses the contract.
+  event Paused(address indexed account);
+  /// @notice Emitted when `account` unpauses the contract.
+  event Unpaused(address indexed account);
+  /// @notice Emitted when an operator permission is updated.
+  event OperatorSet(address indexed operator, bool allowed);
 
-  /// @notice Whether subdigest authorisation is disabled.
-  bool public disabled;
+  constructor(address owner_, address[] memory initialOperators) Ownable(owner_) {
+    for (uint256 i; i < initialOperators.length; i++) {
+      address operator = initialOperators[i];
+      if (operator == address(0)) {
+        revert ZeroAddress();
+      }
 
-  constructor(address owner_) {
-    owner = owner_;
+      isOperator[operator] = true;
+    }
   }
 
-  /// @notice Sets the disabled state.
-  /// @param disabled_ The new disabled state.
-  function setDisabled(bool disabled_) external {
-    if (msg.sender != owner) {
-      revert NotOwner();
+  /// @notice Pauses subdigest authorisation.
+  /// @dev Callable by the owner or an approved operator.
+  function pause() external {
+    if (paused) {
+      revert EnforcedPause();
     }
-    disabled = disabled_;
+
+    if (msg.sender != owner() && !isOperator[msg.sender]) {
+      revert UnauthorizedPauser(msg.sender);
+    }
+
+    paused = true;
+    emit Paused(msg.sender);
+  }
+
+  /// @notice Unpauses subdigest authorisation.
+  /// @dev Callable only by the owner.
+  function unpause() external onlyOwner {
+    if (!paused) {
+      revert ExpectedPause();
+    }
+
+    paused = false;
+    emit Unpaused(msg.sender);
+  }
+
+  /// @notice Updates whether `operator` is allowed to pause.
+  function setOperator(address operator, bool allowed) external onlyOwner {
+    if (operator == address(0)) {
+      revert ZeroAddress();
+    }
+
+    isOperator[operator] = allowed;
+    emit OperatorSet(operator, allowed);
   }
 
   /// @inheritdoc ISapient
   /// @notice Returns the subdigest authorisation signature.
   function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata) external view returns (bytes32) {
-    if (disabled) {
-      revert Disabled();
+    if (paused) {
+      revert EnforcedPause();
     }
     return _leafForPayload(payload);
   }

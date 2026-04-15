@@ -78,7 +78,7 @@ onlyFallback: false
 
 ### Payload Switch Sapient
 
-[PayloadSwitchSapient.sol](src/modules/PayloadSwitchSapient.sol) is an [`ISapient`](https://github.com/0xsequence/wallet-contracts-v3/blob/master/src/modules/interfaces/ISapient.sol) helper with a `disabled` kill switch (defaults off): the owner can call `setDisabled(true)` so `recoverSapientSignature` reverts and the wallet drops that branch; while not disabled, it returns the same digest leaf as any-address subdigest checks (`hashFor` with the zero address, then the `"Sequence any address subdigest:\n"` prefix), for use with the standard sapient path rather than `ISapientCompact`.
+[PayloadSwitchSapient.sol](src/modules/PayloadSwitchSapient.sol) is an [`ISapient`](https://github.com/0xsequence/wallet-contracts-v3/blob/master/src/modules/interfaces/ISapient.sol) helper with a pause switch (defaults off): the owner or an approved operator can call `pause()` so `recoverSapientSignature` reverts and the wallet drops that branch; only the owner can `unpause()`. While not paused, it returns the same digest leaf as any-address subdigest checks (`hashFor` with the zero address, then the `"Sequence any address subdigest:\n"` prefix), for use with the standard sapient path rather than `ISapientCompact`.
 
 ## Glossary
 
