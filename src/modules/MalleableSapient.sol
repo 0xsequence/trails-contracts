@@ -11,6 +11,7 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 /// which parts are "malleable" (can be changed/hydrated at execution), and which parts are "repeatable" (for malleable sections that must match).
 /// @dev The returned `imageHash` is a rolling hash of:
 /// - the payload `space`
+/// - the outer nonce commitment slot (defaults to `0`; a dedicated escape-hatch `space` opts back into `payload.nonce`)
 /// - the current `block.chainid`
 /// - each call's metadata (everything except `data`)
 /// - each "static section" of call `data` as described by `signature`
@@ -31,6 +32,19 @@ contract MalleableSapient is ISapient {
 
   using LibBytes for bytes;
 
+  /// @notice Dedicated nonce space that opts back into the legacy `(space, nonce)` commitment.
+  /// @dev uint160(uint256(keccak256("trails.malleable-sapient.outer-nonce-space")) | (uint256(1) << 159))
+  uint256 public constant OUTER_NONCE_ESCAPE_SPACE = uint256(uint160(0x8f2BFac5838766798E52D0d64E9B22E1c455Cdda));
+
+  /// @dev Preserve the `(space, nonce)` transcript shape while defaulting to nonce-free PDA configuration.
+  function _outerNonceCommitment(Payload.Decoded calldata payload) internal pure returns (bytes32) {
+    if (payload.space == OUTER_NONCE_ESCAPE_SPACE) {
+      return bytes32(payload.nonce);
+    }
+
+    return bytes32(0);
+  }
+
   /// @inheritdoc ISapient
   /// @dev Computes the `imageHash` for a transaction payload with a malleable `data` commitment.
   function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata signature)
@@ -42,8 +56,8 @@ contract MalleableSapient is ISapient {
       revert NonTransactionPayload();
     }
 
-    // Roll space only; wallet replay protection already enforces nonce.
-    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(0));
+    // Preserve the outer nonce slot but zero it by default; wallet replay protection already enforces nonce.
+    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), _outerNonceCommitment(payload));
 
     // Roll chainId
     if (payload.noChainId) {

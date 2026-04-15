@@ -32,7 +32,16 @@ contract MalleableSapientTest is Test {
   }
 
   function _expectedImageHash(Payload.Decoded memory payload, bytes memory signature) private view returns (bytes32) {
-    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(0));
+    return _expectedImageHash(payload, signature, false);
+  }
+
+  function _expectedImageHash(Payload.Decoded memory payload, bytes memory signature, bool commitOuterNonce)
+    private
+    view
+    returns (bytes32)
+  {
+    bytes32 outerNonce = commitOuterNonce ? bytes32(payload.nonce) : bytes32(0);
+    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), outerNonce);
     if (payload.noChainId) {
       root = LibOptim.fkeccak256(root, bytes32(0));
     } else {
@@ -149,6 +158,29 @@ contract MalleableSapientTest is Test {
     bytes32 secondHash = sapient.recoverSapientSignature(payload, "");
 
     assertEq(firstHash, secondHash);
+  }
+
+  function test_recoverSapientSignature_escapeSpace_commitsNonce() external {
+    MalleableSapient sapient = new MalleableSapient();
+
+    Payload.Decoded memory payload;
+    payload.kind = Payload.KIND_TRANSACTIONS;
+    payload.space = sapient.OUTER_NONCE_ESCAPE_SPACE();
+    payload.calls = new Payload.Call[](1);
+    payload.calls[0] = Payload.Call({
+      to: address(0x1234), value: 0, data: hex"010203", gasLimit: 0, delegateCall: false, onlyFallback: false, behaviorOnError: 0
+    });
+
+    payload.nonce = 0;
+    bytes32 firstHash = sapient.recoverSapientSignature(payload, "");
+    assertEq(firstHash, _expectedImageHash(payload, "", true));
+
+    payload.nonce = 1;
+    bytes32 secondHash = sapient.recoverSapientSignature(payload, "");
+    assertEq(secondHash, _expectedImageHash(payload, "", true));
+
+    assertNotEq(firstHash, secondHash);
+    assertNotEq(secondHash, _expectedImageHash(payload, ""));
   }
 
   struct SignatureParts {
