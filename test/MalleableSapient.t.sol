@@ -8,6 +8,8 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 
 contract MalleableSapientTest is Test {
+  uint256 private constant MALLEABLE_SAPIENT_NONCE_SPACE = uint256(uint160(0x8f2BFac5838766798E52D0d64E9B22E1c455Cdda));
+
   function _randomBytes(uint256 len, bytes32 seed) private pure returns (bytes memory data) {
     data = new bytes(len);
 
@@ -32,7 +34,7 @@ contract MalleableSapientTest is Test {
   }
 
   function _expectedImageHash(Payload.Decoded memory payload, bytes memory signature) private view returns (bytes32) {
-    return _expectedImageHash(payload, signature, false);
+    return _expectedImageHash(payload, signature, payload.space == MALLEABLE_SAPIENT_NONCE_SPACE);
   }
 
   function _expectedImageHash(Payload.Decoded memory payload, bytes memory signature, bool commitOuterNonce)
@@ -180,7 +182,7 @@ contract MalleableSapientTest is Test {
     assertEq(secondHash, _expectedImageHash(payload, "", true));
 
     assertNotEq(firstHash, secondHash);
-    assertNotEq(secondHash, _expectedImageHash(payload, ""));
+    assertNotEq(secondHash, _expectedImageHash(payload, "", false));
   }
 
   struct SignatureParts {
