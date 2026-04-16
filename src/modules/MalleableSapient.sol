@@ -49,7 +49,7 @@ contract MalleableSapient is ISapient {
       revert NonTransactionPayload();
     }
 
-    // Use the legacy outer nonce commitment by default, with a dedicated nonce-insensitive malleable lane.
+    // Use the outer nonce commitment by default, with a dedicated nonce-insensitive malleable nocne space.
     bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), _outerNonceCommitment(payload));
 
     // Roll chainId
