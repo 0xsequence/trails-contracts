@@ -91,6 +91,14 @@ contract SequenceV3IntegrationTest is Test {
     }
   }
 
+  function _abiDynamicArgDataOffset(bytes memory callData, uint256 argIndex) private pure returns (uint256 offset) {
+    uint256 tailOffset;
+    assembly ("memory-safe") {
+      tailOffset := mload(add(add(callData, 36), shl(5, argIndex)))
+    }
+    return 4 + tailOffset + 32;
+  }
+
   function _randomBytes(uint256 len, bytes32 seed) private pure returns (bytes memory data) {
     data = new bytes(len);
 
@@ -337,6 +345,88 @@ contract SequenceV3IntegrationTest is Test {
 
     assertEq(receiver.lastSender(), wallet);
     assertEq(receiver.lastData(), dataB);
+  }
+
+  function test_integration_sapientStaticHydrateRange_isNotShiftedByPrependedTypeZeroCommand() external {
+    TrailsUtils trailsUtils = new TrailsUtils();
+
+    RecordingReceiver receiver = new RecordingReceiver();
+    address signedReceiver = makeAddr("signedReceiver");
+    address relayer = makeAddr("relayer");
+    address origin = makeAddr("origin");
+
+    LocalPayload.Call[] memory innerCalls = new LocalPayload.Call[](1);
+    innerCalls[0] = LocalPayload.Call({
+      to: address(receiver),
+      value: 0,
+      data: new bytes(20),
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: LocalPayload.BEHAVIOR_REVERT_ON_ERROR
+    });
+
+    bytes memory innerPacked = innerCalls.packCalls();
+    bytes memory hydratePayload = bytes.concat(
+      abi.encodePacked(uint8(0)),
+      abi.encodePacked(uint8(0x13), signedReceiver, uint16(0)),
+      abi.encodePacked(uint8(0x00))
+    );
+    bytes memory shiftedHydratePayload = bytes.concat(
+      abi.encodePacked(uint8(0)),
+      abi.encodePacked(uint8(0x01), uint16(0xBEEF)),
+      abi.encodePacked(uint8(0x13), signedReceiver, uint16(0)),
+      abi.encodePacked(uint8(0x00))
+    );
+
+    bytes memory outerData = abi.encodeWithSelector(HydrateProxy.hydrateExecute.selector, innerPacked, hydratePayload);
+    uint16 signedRangeOffset = uint16(_abiDynamicArgDataOffset(outerData, 1) + 2);
+    bytes memory sapientSig = abi.encodePacked(uint8(0), signedRangeOffset, uint16(20));
+
+    LocalPayload.Call[] memory outerCalls = new LocalPayload.Call[](1);
+    outerCalls[0] = LocalPayload.Call({
+      to: address(trailsUtils),
+      value: 0,
+      data: outerData,
+      gasLimit: 0,
+      delegateCall: true,
+      onlyFallback: false,
+      behaviorOnError: LocalPayload.BEHAVIOR_REVERT_ON_ERROR
+    });
+
+    bytes memory shiftedOuterData =
+      abi.encodeWithSelector(HydrateProxy.hydrateExecute.selector, innerPacked, shiftedHydratePayload);
+    LocalPayload.Call[] memory shiftedOuterCalls = new LocalPayload.Call[](1);
+    shiftedOuterCalls[0] = LocalPayload.Call({
+      to: address(trailsUtils),
+      value: 0,
+      data: shiftedOuterData,
+      gasLimit: 0,
+      delegateCall: true,
+      onlyFallback: false,
+      behaviorOnError: LocalPayload.BEHAVIOR_REVERT_ON_ERROR
+    });
+
+    bytes memory outerPacked = outerCalls.packCalls();
+    bytes memory shiftedOuterPacked = shiftedOuterCalls.packCalls();
+
+    SeqPayload.Decoded memory payload = _asSeqPayload(outerCalls, 0, 0);
+    bytes32 sapientImageHash = ISapient(address(trailsUtils)).recoverSapientSignature(payload, sapientSig);
+    address wallet = _deployWalletWithSapient(address(trailsUtils), sapientImageHash);
+    bytes memory signature = _buildSapientSignature(address(trailsUtils), 1, 1, sapientSig);
+
+    vm.prank(relayer, origin);
+    vm.expectRevert();
+    SeqStage1Module(payable(wallet)).execute(shiftedOuterPacked, signature);
+
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(0), 0);
+
+    vm.prank(relayer, origin);
+    SeqStage1Module(payable(wallet)).execute(outerPacked, signature);
+
+    assertEq(receiver.lastSender(), wallet);
+    assertEq(_readAddress(receiver.lastData(), 0), signedReceiver);
+    assertEq(SeqStage1Module(payable(wallet)).readNonce(0), 1);
   }
 
   function test_integration_walletDelegatecallsHydrateProxy_andHydrates() external {

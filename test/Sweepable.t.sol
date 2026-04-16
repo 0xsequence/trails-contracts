@@ -6,7 +6,37 @@ import {Test} from "forge-std/Test.sol";
 import {Sweepable} from "src/modules/Sweepable.sol";
 import {MockERC20} from "test/helpers/Mocks.sol";
 
+contract ReturnBombERC20 {
+  mapping(address => uint256) public balanceOf;
+
+  uint256 internal immutable bombSize;
+
+  constructor(uint256 bombSize_) {
+    bombSize = bombSize_;
+  }
+
+  function mint(address to, uint256 amount) external {
+    balanceOf[to] += amount;
+  }
+
+  function transfer(address, uint256) external view returns (bool) {
+    uint256 size = bombSize;
+
+    assembly ("memory-safe") {
+      let ptr := mload(0x40)
+      mstore(0x40, add(ptr, size))
+      revert(ptr, size)
+    }
+  }
+}
+
 contract SweepableTest is Test {
+  uint256 internal constant GOOD_TOKEN_BALANCE = 2 ether;
+  uint256 internal constant BAD_TOKEN_BALANCE = 1 ether;
+  uint256 internal constant NATIVE_BALANCE = 3 ether;
+  uint256 internal constant RETURN_BOMB_SIZE = 1 << 20;
+  uint256 internal constant RETURN_BOMB_GAS_LIMIT = 3_500_000;
+
   Sweepable public sweepable;
 
   function setUp() public {
@@ -83,5 +113,30 @@ contract SweepableTest is Test {
     assertEq(sweepTarget.balance, 0);
     assertEq(address(sweepable).balance, 0);
   }
-}
 
+  function test_sweepReturnBombSkipsFailedTokenAndContinues() external {
+    MockERC20 goodToken = new MockERC20();
+    ReturnBombERC20 badToken = new ReturnBombERC20(RETURN_BOMB_SIZE);
+    address recipient = makeAddr("recipient");
+
+    goodToken.mint(address(sweepable), GOOD_TOKEN_BALANCE);
+    badToken.mint(address(sweepable), BAD_TOKEN_BALANCE);
+    vm.deal(address(sweepable), NATIVE_BALANCE);
+
+    address[] memory tokensToSweep = new address[](2);
+    tokensToSweep[0] = address(badToken);
+    tokensToSweep[1] = address(goodToken);
+
+    (bool success,) = address(sweepable).call{gas: RETURN_BOMB_GAS_LIMIT}(
+      abi.encodeCall(Sweepable.sweep, (recipient, tokensToSweep, true))
+    );
+
+    assertTrue(success);
+    assertEq(badToken.balanceOf(address(sweepable)), BAD_TOKEN_BALANCE);
+    assertEq(badToken.balanceOf(recipient), 0);
+    assertEq(goodToken.balanceOf(address(sweepable)), 0);
+    assertEq(goodToken.balanceOf(recipient), GOOD_TOKEN_BALANCE);
+    assertEq(address(sweepable).balance, 0);
+    assertEq(recipient.balance, NATIVE_BALANCE);
+  }
+}
