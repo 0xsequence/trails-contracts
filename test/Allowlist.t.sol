@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {Allowlist} from "src/autoRecovery/Allowlist.sol";
@@ -37,6 +38,41 @@ contract AllowlistTest is Test {
     assertEq(all.length, 2);
     assertEq(all[0], first);
     assertEq(all[1], second);
+  }
+
+  function testFuzz_constructor_emitsAddressAddedForInitial(address owner_, address first, address second) external {
+    vm.assume(owner_ != address(0));
+    _assumeDistinctNonZero(first, second);
+
+    address[] memory initial = new address[](2);
+    initial[0] = first;
+    initial[1] = second;
+
+    vm.recordLogs();
+    new Allowlist(owner_, initial);
+    Vm.Log[] memory entries = vm.getRecordedLogs();
+
+    bytes32 addressAddedTopic = keccak256("AddressAdded(address)");
+    uint256 matches;
+
+    for (uint256 i; i < entries.length; i++) {
+      if (entries[i].topics.length > 0 && entries[i].topics[0] == addressAddedTopic) {
+        assertEq(entries[i].topics.length, 2);
+        address actual = address(uint160(uint256(entries[i].topics[1])));
+
+        if (matches == 0) {
+          assertEq(actual, first);
+        } else if (matches == 1) {
+          assertEq(actual, second);
+        } else {
+          fail();
+        }
+
+        matches++;
+      }
+    }
+
+    assertEq(matches, 2);
   }
 
   function testFuzz_constructor_revertsZeroAddress(address owner_, address first) external {
