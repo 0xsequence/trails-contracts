@@ -31,8 +31,7 @@ contract Sweepable {
       // Sweep all token addresses specified
       for (uint256 i = 0; i < tokensToSweep.length; ++i) {
         uint256 balance = IERC20(tokensToSweep[i]).balanceOf(address(this));
-        if (balance > 0) {
-          IERC20(tokensToSweep[i]).safeTransfer(sweepToAddress, balance);
+        if (balance > 0 && IERC20(tokensToSweep[i]).trySafeTransfer(sweepToAddress, balance)) {
           emit Sweep(tokensToSweep[i], sweepToAddress, balance);
         }
       }
