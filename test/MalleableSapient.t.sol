@@ -227,7 +227,7 @@ contract MalleableSapientTest is Test {
       });
     }
 
-    // Prevent overlap by requring separate tindex for each repeat section
+    // Prevent overlap by requiring separate tindex for each repeat section
     uint256[] memory tindexWithRepeat = new uint256[](sections * 2);
 
     SignatureParts memory parts;
