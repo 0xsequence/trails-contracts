@@ -8,6 +8,12 @@ import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 
 contract MalleableSapientTest is Test {
+  MalleableSapient internal sapient;
+
+  function setUp() external {
+    sapient = new MalleableSapient();
+  }
+
   function _randomBytes(uint256 len, bytes32 seed) private pure returns (bytes memory data) {
     data = new bytes(len);
 
@@ -31,8 +37,16 @@ contract MalleableSapientTest is Test {
     v = (uint16(uint8(data[index])) << 8) | uint16(uint8(data[index + 1]));
   }
 
+  function _outerNonceCommitment(Payload.Decoded memory payload) private view returns (bytes32) {
+    if (payload.space == sapient.MALLEABLE_NONCE_SPACE()) {
+      return bytes32(type(uint256).max);
+    }
+
+    return bytes32(payload.nonce);
+  }
+
   function _expectedImageHash(Payload.Decoded memory payload, bytes memory signature) private view returns (bytes32) {
-    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(payload.nonce));
+    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), _outerNonceCommitment(payload));
     if (payload.noChainId) {
       root = LibOptim.fkeccak256(root, bytes32(0));
     } else {
@@ -88,8 +102,6 @@ contract MalleableSapientTest is Test {
   function testFuzz_recoverSapientSignature_reverts_nonTransactions(uint8 kind) external {
     vm.assume(kind != Payload.KIND_TRANSACTIONS);
 
-    MalleableSapient sapient = new MalleableSapient();
-
     Payload.Decoded memory payload;
     payload.kind = kind;
     payload.calls = new Payload.Call[](0);
@@ -124,11 +136,59 @@ contract MalleableSapientTest is Test {
       });
     }
 
-    MalleableSapient sapient = new MalleableSapient();
-
     bytes32 got = sapient.recoverSapientSignature(payload, "");
     bytes32 expected = _expectedImageHash(payload, "");
     assertEq(got, expected);
+  }
+
+  function test_recoverSapientSignature_commitsNonceOutsideMalleableSpace() external {
+    Payload.Decoded memory payload;
+    payload.kind = Payload.KIND_TRANSACTIONS;
+    payload.space = 1;
+    payload.calls = new Payload.Call[](1);
+    payload.calls[0] = Payload.Call({
+      to: address(0x1234),
+      value: 0,
+      data: hex"010203",
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: 0
+    });
+
+    payload.nonce = 0;
+    bytes32 firstHash = sapient.recoverSapientSignature(payload, "");
+
+    payload.nonce = 1;
+    bytes32 secondHash = sapient.recoverSapientSignature(payload, "");
+
+    assertNotEq(firstHash, secondHash);
+  }
+
+  function test_recoverSapientSignature_ignoresNonceInMalleableSpace() external {
+    Payload.Decoded memory payload;
+    payload.kind = Payload.KIND_TRANSACTIONS;
+    payload.space = sapient.MALLEABLE_NONCE_SPACE();
+    payload.calls = new Payload.Call[](1);
+    payload.calls[0] = Payload.Call({
+      to: address(0x1234),
+      value: 0,
+      data: hex"010203",
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: 0
+    });
+
+    payload.nonce = 0;
+    bytes32 firstHash = sapient.recoverSapientSignature(payload, "");
+    assertEq(firstHash, _expectedImageHash(payload, ""));
+
+    payload.nonce = 1;
+    bytes32 secondHash = sapient.recoverSapientSignature(payload, "");
+    assertEq(secondHash, _expectedImageHash(payload, ""));
+
+    assertEq(firstHash, secondHash);
   }
 
   struct SignatureParts {
@@ -167,7 +227,7 @@ contract MalleableSapientTest is Test {
       });
     }
 
-    // Prevent overlap by requring separate tindex for each repeat section
+    // Prevent overlap by requiring separate tindex for each repeat section
     uint256[] memory tindexWithRepeat = new uint256[](sections * 2);
 
     SignatureParts memory parts;
@@ -215,8 +275,6 @@ contract MalleableSapientTest is Test {
         signature = bytes.concat(signature, abi.encodePacked(parts.tindex, parts.cindex, parts.size));
       }
     }
-
-    MalleableSapient sapient = new MalleableSapient();
 
     bytes32 got = sapient.recoverSapientSignature(payload, signature);
     bytes32 expected = _expectedImageHash(payload, signature);
@@ -299,8 +357,6 @@ contract MalleableSapientTest is Test {
     // At least one of the repeat sections must be invalid
     vm.assume(invalidParts.size != 0);
 
-    MalleableSapient sapient = new MalleableSapient();
-
     vm.expectRevert(
       abi.encodeWithSelector(
         MalleableSapient.InvalidRepeatSection.selector,
@@ -315,8 +371,6 @@ contract MalleableSapientTest is Test {
   }
 
   function test_recoverSapientSignature_chainId_included() external {
-    MalleableSapient sapient = new MalleableSapient();
-
     Payload.Decoded memory payload;
     payload.kind = Payload.KIND_TRANSACTIONS;
     payload.space = 1;
@@ -340,8 +394,6 @@ contract MalleableSapientTest is Test {
   }
 
   function test_recoverSapientSignature_noChainId_zeroUsed() external {
-    MalleableSapient sapient = new MalleableSapient();
-
     Payload.Decoded memory payload;
     payload.kind = Payload.KIND_TRANSACTIONS;
     payload.space = 1;
@@ -359,7 +411,7 @@ contract MalleableSapientTest is Test {
     assertEq(hash, expected);
 
     // Verify the hash uses zero by manually computing with zero
-    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(payload.nonce));
+    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), _outerNonceCommitment(payload));
     root = LibOptim.fkeccak256(root, bytes32(0)); // Should use zero, not block.chainid
     root = LibOptim.fkeccak256(
       root,
@@ -414,8 +466,6 @@ contract MalleableSapientTest is Test {
       payloadWithChainId.calls[i] = call;
       payloadNoChainId.calls[i] = call;
     }
-
-    MalleableSapient sapient = new MalleableSapient();
 
     bytes32 hashWithChainId = sapient.recoverSapientSignature(payloadWithChainId, "");
     bytes32 hashNoChainId = sapient.recoverSapientSignature(payloadNoChainId, "");
