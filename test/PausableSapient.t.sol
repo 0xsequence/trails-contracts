@@ -3,6 +3,7 @@ pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
 
+import {Pausable} from "src/pausable/Pausable.sol";
 import {PausableSapient} from "src/pausable/PausableSapient.sol";
 
 contract PausableSapientTest is Test {
@@ -27,24 +28,20 @@ contract PausableSapientTest is Test {
     assertEq(imageHash, sapient.UNPAUSED_IMAGE_HASH());
   }
 
-  function test_recoverSapientSignatureCompact_returnsZeroWhenPausedByOwner() external {
+  function test_recoverSapientSignatureCompact_revertsWhenPausedByOwner() external {
     vm.prank(owner_);
     sapient.pause();
 
-    bytes32 imageHash = sapient.recoverSapientSignatureCompact(DIGEST, "");
-
-    assertEq(imageHash, bytes32(0));
-    assertEq(imageHash, sapient.PAUSED_IMAGE_HASH());
+    vm.expectRevert(Pausable.EnforcedPause.selector);
+    sapient.recoverSapientSignatureCompact(DIGEST, "");
   }
 
-  function test_recoverSapientSignatureCompact_returnsZeroWhenPausedByOperator() external {
+  function test_recoverSapientSignatureCompact_revertsWhenPausedByOperator() external {
     vm.prank(operator);
     sapient.pause();
 
-    bytes32 imageHash = sapient.recoverSapientSignatureCompact(DIGEST, "");
-
-    assertEq(imageHash, bytes32(0));
-    assertEq(imageHash, sapient.PAUSED_IMAGE_HASH());
+    vm.expectRevert(Pausable.EnforcedPause.selector);
+    sapient.recoverSapientSignatureCompact(DIGEST, "");
   }
 
   function test_recoverSapientSignatureCompact_returnsOneAfterOwnerUnpause() external {
