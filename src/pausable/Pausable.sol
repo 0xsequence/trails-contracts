@@ -32,11 +32,7 @@ abstract contract Pausable is Ownable {
   /// @param initialOperators The initial set of addresses allowed to pause.
   constructor(address owner_, address[] memory initialOperators) Ownable(owner_) {
     for (uint256 i; i < initialOperators.length; i++) {
-      if (initialOperators[i] == address(0)) {
-        revert ZeroAddress();
-      }
-
-      isOperator[initialOperators[i]] = true;
+      _setOperator(initialOperators[i], true);
     }
   }
 
@@ -78,6 +74,10 @@ abstract contract Pausable is Ownable {
   /// @param operator The address to update.
   /// @param allowed Whether the address may pause.
   function setOperator(address operator, bool allowed) external onlyOwner {
+    _setOperator(operator, allowed);
+  }
+
+  function _setOperator(address operator, bool allowed) private {
     if (operator == address(0)) {
       revert ZeroAddress();
     }

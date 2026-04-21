@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {Pausable} from "src/pausable/Pausable.sol";
@@ -40,6 +41,37 @@ contract PausableTest is Test {
     assertTrue(pausable.isOperator(operator));
     assertTrue(pausable.isOperator(secondOperator));
     assertFalse(pausable.isOperator(outsider));
+  }
+
+  function test_constructor_emitsOperatorSetForInitialOperators() external {
+    address[] memory initialOperators = new address[](2);
+    initialOperators[0] = operator;
+    initialOperators[1] = secondOperator;
+
+    vm.recordLogs();
+    PausableHarness pausable = new PausableHarness(owner_, initialOperators);
+    Vm.Log[] memory logs = vm.getRecordedLogs();
+
+    bytes32 operatorSetTopic = keccak256("OperatorSet(address,bool)");
+    uint256 operatorSetCount;
+
+    for (uint256 i; i < logs.length; i++) {
+      if (logs[i].emitter != address(pausable) || logs[i].topics.length == 0 || logs[i].topics[0] != operatorSetTopic) {
+        continue;
+      }
+
+      if (operatorSetCount == 0) {
+        _assertOperatorSetLog(logs[i], operator);
+      } else if (operatorSetCount == 1) {
+        _assertOperatorSetLog(logs[i], secondOperator);
+      } else {
+        fail();
+      }
+
+      operatorSetCount++;
+    }
+
+    assertEq(operatorSetCount, 2);
   }
 
   function test_constructor_revertsOnZeroOwner() external {
@@ -195,5 +227,11 @@ contract PausableTest is Test {
     address[] memory initialOperators = new address[](1);
     initialOperators[0] = initialOperator;
     return new PausableHarness(owner_, initialOperators);
+  }
+
+  function _assertOperatorSetLog(Vm.Log memory log, address expectedOperator) private pure {
+    assertEq(log.topics.length, 2);
+    assertEq(address(uint160(uint256(log.topics[1]))), expectedOperator);
+    assertTrue(abi.decode(log.data, (bool)));
   }
 }
