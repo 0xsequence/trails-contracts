@@ -167,8 +167,9 @@ contract MalleableSapientTest is Test {
       });
     }
 
-    // Prevent overlap by requring separate tindex for each repeat section
+    // Prevent overlap by requiring separate tindex for each repeat section.
     uint256[] memory tindexWithRepeat = new uint256[](sections * 2);
+    uint256 repeatTindexCount;
 
     SignatureParts memory parts;
     bytes memory signature;
@@ -185,12 +186,14 @@ contract MalleableSapientTest is Test {
         parts.tindex2 = uint8(uint256(keccak256(abi.encodePacked(seed, "t2", i))) % callCount);
         // Prevent collision by checking tindex is not repeated
         vm.assume(parts.tindex != parts.tindex2);
-        for (uint256 j = 0; j < i * 2; j++) {
+        for (uint256 j = 0; j < repeatTindexCount; j++) {
           vm.assume(parts.tindex != tindexWithRepeat[j]);
           vm.assume(parts.tindex2 != tindexWithRepeat[j]);
         }
-        tindexWithRepeat[i] = parts.tindex;
-        tindexWithRepeat[i + 1] = parts.tindex2;
+        tindexWithRepeat[repeatTindexCount] = parts.tindex;
+        repeatTindexCount++;
+        tindexWithRepeat[repeatTindexCount] = parts.tindex2;
+        repeatTindexCount++;
 
         uint256 dataLen2 = payload.calls[parts.tindex2].data.length;
         // forge-lint: disable-next-line(unsafe-typecast)
