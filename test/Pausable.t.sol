@@ -41,6 +41,11 @@ contract PausableTest is Test {
     assertTrue(pausable.isOperator(operator));
     assertTrue(pausable.isOperator(secondOperator));
     assertFalse(pausable.isOperator(outsider));
+
+    address[] memory operators = pausable.getOperators();
+    assertEq(operators.length, 2);
+    assertEq(operators[0], operator);
+    assertEq(operators[1], secondOperator);
   }
 
   function test_constructor_emitsOperatorSetForInitialOperators() external {
@@ -166,6 +171,9 @@ contract PausableTest is Test {
     pausable.setOperator(operator, true);
 
     assertTrue(pausable.isOperator(operator));
+    address[] memory operators = pausable.getOperators();
+    assertEq(operators.length, 1);
+    assertEq(operators[0], operator);
 
     vm.prank(operator);
     pausable.pause();
@@ -180,10 +188,24 @@ contract PausableTest is Test {
     pausable.setOperator(operator, false);
 
     assertFalse(pausable.isOperator(operator));
+    assertEq(pausable.getOperators().length, 0);
 
     vm.prank(operator);
     vm.expectRevert(abi.encodeWithSelector(Pausable.UnauthorizedPauser.selector, operator));
     pausable.pause();
+  }
+
+  function test_setOperator_doesNotDuplicateOperator() external {
+    PausableHarness pausable = _newPausable();
+
+    vm.startPrank(owner_);
+    pausable.setOperator(operator, true);
+    pausable.setOperator(operator, true);
+    vm.stopPrank();
+
+    address[] memory operators = pausable.getOperators();
+    assertEq(operators.length, 1);
+    assertEq(operators[0], operator);
   }
 
   function test_setOperator_revertsOnZeroAddress() external {

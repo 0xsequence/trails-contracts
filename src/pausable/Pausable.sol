@@ -2,10 +2,13 @@
 pragma solidity ^0.8.27;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /// @title Pausable
 /// @notice Owner-controlled pause state with additional operators that may only pause.
 abstract contract Pausable is Ownable {
+  using EnumerableSet for EnumerableSet.AddressSet;
+
   /// @notice The zero address was provided where an operator address is required.
   error ZeroAddress();
   /// @notice The caller is neither the owner nor a pause operator.
@@ -17,8 +20,7 @@ abstract contract Pausable is Ownable {
   /// @notice Ownership renunciation is disabled to keep pause recovery available.
   error OwnershipRenunciationDisabled();
 
-  /// @notice Returns whether `account` is allowed to pause.
-  mapping(address => bool) public isOperator;
+  EnumerableSet.AddressSet private _operators;
   /// @notice Returns whether the contract is currently paused.
   bool public paused;
 
@@ -57,7 +59,7 @@ abstract contract Pausable is Ownable {
   /// @notice Pauses the contract.
   /// @dev Callable by the owner or an approved operator.
   function pause() external whenNotPaused {
-    if (msg.sender != owner() && !isOperator[msg.sender]) {
+    if (msg.sender != owner() && !_operators.contains(msg.sender)) {
       revert UnauthorizedPauser(msg.sender);
     }
 
@@ -79,6 +81,17 @@ abstract contract Pausable is Ownable {
     _setOperator(operator, allowed);
   }
 
+  /// @notice Returns whether `account` is allowed to pause.
+  function isOperator(address account) external view returns (bool) {
+    return _operators.contains(account);
+  }
+
+  /// @notice Returns the current pause operators in storage order.
+  /// @dev Ordering is not guaranteed and may change when operators are removed.
+  function getOperators() external view returns (address[] memory) {
+    return _operators.values();
+  }
+
   /// @notice Disables ownership renunciation to avoid permanently locked pause state.
   function renounceOwnership() public view override onlyOwner {
     revert OwnershipRenunciationDisabled();
@@ -89,7 +102,12 @@ abstract contract Pausable is Ownable {
       revert ZeroAddress();
     }
 
-    isOperator[operator] = allowed;
+    if (allowed) {
+      _operators.add(operator);
+    } else {
+      _operators.remove(operator);
+    }
+
     emit OperatorSet(operator, allowed);
   }
 }
