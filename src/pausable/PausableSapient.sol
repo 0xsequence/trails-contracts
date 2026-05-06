@@ -7,6 +7,7 @@ import {ISapientCompact} from "wallet-contracts-v3/modules/interfaces/ISapient.s
 /// @title PausableSapient
 /// @notice Compact sapient signer that returns a fixed image hash unless paused.
 /// @dev Reverts with `EnforcedPause` while paused.
+/// @dev Does not verify signatures; use co-signers with real verification at the nested tree level.
 contract PausableSapient is ISapientCompact, Pausable {
   /// @notice Image hash returned while the signer is active.
   bytes32 public constant UNPAUSED_IMAGE_HASH = bytes32(uint256(1));
