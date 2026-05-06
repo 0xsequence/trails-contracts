@@ -14,6 +14,8 @@ abstract contract Pausable is Ownable {
   error EnforcedPause();
   /// @notice The contract is not paused.
   error ExpectedPause();
+  /// @notice Ownership renunciation is disabled to keep pause recovery available.
+  error OwnershipRenunciationDisabled();
 
   /// @notice Returns whether `account` is allowed to pause.
   mapping(address => bool) public isOperator;
@@ -75,6 +77,11 @@ abstract contract Pausable is Ownable {
   /// @param allowed Whether the address may pause.
   function setOperator(address operator, bool allowed) external onlyOwner {
     _setOperator(operator, allowed);
+  }
+
+  /// @notice Disables ownership renunciation to avoid permanently locked pause state.
+  function renounceOwnership() public view override onlyOwner {
+    revert OwnershipRenunciationDisabled();
   }
 
   function _setOperator(address operator, bool allowed) private {

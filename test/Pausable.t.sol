@@ -194,6 +194,24 @@ contract PausableTest is Test {
     pausable.setOperator(address(0), true);
   }
 
+  function test_renounceOwnership_revertsAndKeepsOwner() external {
+    PausableHarness pausable = _newPausable();
+
+    vm.prank(owner_);
+    vm.expectRevert(Pausable.OwnershipRenunciationDisabled.selector);
+    pausable.renounceOwnership();
+
+    assertEq(pausable.owner(), owner_);
+  }
+
+  function test_renounceOwnership_revertsForNonOwner() external {
+    PausableHarness pausable = _newPausable();
+
+    vm.prank(outsider);
+    vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, outsider));
+    pausable.renounceOwnership();
+  }
+
   function test_whenNotPausedModifier() external {
     PausableHarness pausable = _newPausable();
 

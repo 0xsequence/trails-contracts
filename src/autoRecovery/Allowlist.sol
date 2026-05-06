@@ -14,6 +14,8 @@ contract Allowlist is Ownable {
   error NotAllowed(address addr);
   /// @notice The provided index hint does not point at the expected address.
   error IndexMismatch(uint256 index, address expected, address actual);
+  /// @notice Ownership renunciation is disabled to keep allowlist administration available.
+  error OwnershipRenunciationDisabled();
 
   mapping(address => bool) private _allowed;
   address[] private _entries;
@@ -72,6 +74,11 @@ contract Allowlist is Ownable {
   /// @dev Ordering is not stable because removals use swap-and-pop.
   function getAllowed() external view returns (address[] memory) {
     return _entries;
+  }
+
+  /// @notice Disables ownership renunciation to avoid permanently locked administration.
+  function renounceOwnership() public view override onlyOwner {
+    revert OwnershipRenunciationDisabled();
   }
 
   function _add(address addr, bool emitEvent) private {

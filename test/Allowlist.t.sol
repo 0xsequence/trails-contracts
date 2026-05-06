@@ -405,6 +405,29 @@ contract AllowlistTest is Test {
     assertEq(allowlist.getAllowed().length, 0);
   }
 
+  function testFuzz_renounceOwnership_revertsAndKeepsOwner(address owner_) external {
+    vm.assume(owner_ != address(0));
+
+    Allowlist allowlist = _newAllowlist(owner_);
+
+    vm.prank(owner_);
+    vm.expectRevert(Allowlist.OwnershipRenunciationDisabled.selector);
+    allowlist.renounceOwnership();
+
+    assertEq(allowlist.owner(), owner_);
+  }
+
+  function testFuzz_renounceOwnership_revertsForNonOwner(address owner_, address caller) external {
+    vm.assume(owner_ != address(0));
+    vm.assume(caller != owner_);
+
+    Allowlist allowlist = _newAllowlist(owner_);
+
+    vm.prank(caller);
+    vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, caller));
+    allowlist.renounceOwnership();
+  }
+
   function testFuzz_addRemoveAdd(address owner_, address addr) external {
     vm.assume(owner_ != address(0));
     vm.assume(addr != address(0));
