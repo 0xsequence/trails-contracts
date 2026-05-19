@@ -46,5 +46,4 @@ contract TimedRefundSapientTest is Test {
     vm.prank(wallet);
     validator.requireZeroERC20Balance(address(token));
   }
-
 }
