@@ -11,7 +11,8 @@ import {BalanceValidator} from "./BalanceValidator.sol";
 /// @title TimedRefundSapient
 /// @notice Sapient signer that authorizes time-locked refund batches to a fixed destination.
 /// @dev The returned image hash commits to `(destination, unlockTimestamp)` and only approves
-/// plain native transfers or ERC20 `transfer(address,uint256)` calls to that destination.
+/// plain native transfers or ERC20 `transfer(address,uint256)` calls to that destination, plus
+/// self-calls to `requireZeroBalance` and `requireZeroERC20Balance`.
 contract TimedRefundSapient is ISapient, BalanceValidator {
   /// @notice Dedicated nonce space for timed refund payloads.
   /// @dev uint160(uint256(keccak256("trails.timed-refund.nonce-space")) | (uint256(1) << 159))
@@ -110,7 +111,7 @@ contract TimedRefundSapient is ISapient, BalanceValidator {
     if (!allowlist.isAllowed(signer)) revert SignerNotAllowed(signer);
     if (block.timestamp < unlockTimestamp) revert UnlockTimestampNotReached(unlockTimestamp, block.timestamp);
 
-    // Restrict the approved surface to direct transfers into `destination`.
+    // Restrict the approved surface to transfers into `destination` and zero balance validation self-calls.
     for (uint256 i = 0; i < payload.calls.length; i++) {
       Payload.Call calldata call = payload.calls[i];
       if (call.behaviorOnError != Payload.BEHAVIOR_REVERT_ON_ERROR) {
