@@ -130,6 +130,8 @@ contract TimedRefundSapient is ISapient, BalanceValidator {
         } else if (selector == BALANCE_VALIDATOR_ERC20_SELECTOR) {
           // Zero ERC20 balance validation.
           if (data.length != 36) revert UnauthorizedTransaction(i);
+          address token = address(uint160(uint256(bytes32(data[4:36]))));
+          if (!hasERC20Metadata(token)) revert UnauthorizedTransaction(i);
         } else {
           revert UnauthorizedTransaction(i);
         }
