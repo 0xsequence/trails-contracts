@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import {Allowlist} from "src/autoRecovery/Allowlist.sol";
+import {BalanceValidator} from "src/autoRecovery/BalanceValidator.sol";
 import {TimedRefundSapient} from "src/autoRecovery/TimedRefundSapient.sol";
 import {MockERC20} from "test/helpers/Mocks.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
@@ -319,9 +320,11 @@ contract TimedRefundSapientTest is Test {
     payload.noChainId = true;
     payload.space = sapient.TIMED_REFUND_NONCE_SPACE();
     payload.nonce = 99;
-    payload.calls = new Payload.Call[](2);
+    payload.calls = new Payload.Call[](4);
     payload.calls[0] = _erc20TransferCall(address(token), 123);
     payload.calls[1] = _nativeTransferCall(1 ether);
+    payload.calls[2] = _requireZeroBalanceCall();
+    payload.calls[3] = _requireZeroERC20BalanceCall(address(token));
   }
 
   function _erc20TransferCall(address token_, uint256 amount) private view returns (Payload.Call memory) {
@@ -341,6 +344,30 @@ contract TimedRefundSapientTest is Test {
       to: destination,
       value: amount,
       data: "",
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
+    });
+  }
+
+  function _requireZeroBalanceCall() private view returns (Payload.Call memory call) {
+    return Payload.Call({
+      to: address(sapient),
+      value: 0,
+      data: abi.encodeWithSelector(BalanceValidator.requireZeroBalance.selector),
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
+    });
+  }
+
+  function _requireZeroERC20BalanceCall(address token_) private view returns (Payload.Call memory call) {
+    return Payload.Call({
+      to: address(sapient),
+      value: 0,
+      data: abi.encodeWithSelector(BalanceValidator.requireZeroERC20Balance.selector, token_),
       gasLimit: 0,
       delegateCall: false,
       onlyFallback: false,

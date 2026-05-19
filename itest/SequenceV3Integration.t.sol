@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 
 import {TrailsUtils} from "src/TrailsUtils.sol";
 import {Allowlist} from "src/autoRecovery/Allowlist.sol";
+import {BalanceValidator} from "src/autoRecovery/BalanceValidator.sol";
 import {TimedRefundSapient} from "src/autoRecovery/TimedRefundSapient.sol";
 import {HydrateProxy} from "src/modules/HydrateProxy.sol";
 
@@ -186,6 +187,30 @@ contract SequenceV3IntegrationTest is Test {
     });
   }
 
+  function _requireZeroBalanceCall(address sapient) private pure returns (LocalPayload.Call memory) {
+    return LocalPayload.Call({
+      to: sapient,
+      value: 0,
+      data: abi.encodeWithSelector(BalanceValidator.requireZeroBalance.selector),
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: LocalPayload.BEHAVIOR_REVERT_ON_ERROR
+    });
+  }
+
+  function _requireZeroERC20BalanceCall(address sapient, address token) private pure returns (LocalPayload.Call memory) {
+    return LocalPayload.Call({
+      to: sapient,
+      value: 0,
+      data: abi.encodeWithSelector(BalanceValidator.requireZeroERC20Balance.selector, token),
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: LocalPayload.BEHAVIOR_REVERT_ON_ERROR
+    });
+  }
+
   function _deployWalletWithSapient(address sapient, bytes32 sapientImageHash) private returns (address wallet) {
     SeqFactory factory = new SeqFactory();
     SeqStage1Module stage1 = new SeqStage1Module(address(factory), address(0));
@@ -215,6 +240,7 @@ contract SequenceV3IntegrationTest is Test {
 
     vm.warp(unlockTimestamp);
 
+    // First transfer (no zero validation)
     LocalPayload.Call[] memory firstCalls = new LocalPayload.Call[](1);
     firstCalls[0] = _erc20TransferCall(address(token), destination, firstAmount);
 
@@ -229,9 +255,12 @@ contract SequenceV3IntegrationTest is Test {
     assertEq(token.balanceOf(wallet), secondAmount);
     assertEq(SeqStage1Module(payable(wallet)).readNonce(sapient.TIMED_REFUND_NONCE_SPACE()), 1);
 
-    LocalPayload.Call[] memory secondCalls = new LocalPayload.Call[](2);
+    // Second transfer (with zero validation)
+    LocalPayload.Call[] memory secondCalls = new LocalPayload.Call[](4);
     secondCalls[0] = _erc20TransferCall(address(token), destination, secondAmount);
-    secondCalls[1] = _nativeTransferCall(destination, nativeAmount);
+    secondCalls[1] = _requireZeroERC20BalanceCall(address(sapient), address(token));
+    secondCalls[2] = _nativeTransferCall(destination, nativeAmount);
+    secondCalls[3] = _requireZeroBalanceCall(address(sapient));
 
     bytes memory secondPacked = secondCalls.packCallsWithSpaceNonce(sapient.TIMED_REFUND_NONCE_SPACE(), 1);
     SeqPayload.Decoded memory secondPayload = _asSeqPayload(secondCalls, sapient.TIMED_REFUND_NONCE_SPACE(), 1);

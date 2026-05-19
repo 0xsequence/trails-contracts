@@ -6,16 +6,19 @@ import {ISapient} from "wallet-contracts-v3/modules/interfaces/ISapient.sol";
 import {Payload} from "wallet-contracts-v3/modules/Payload.sol";
 import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Allowlist} from "./Allowlist.sol";
+import {BalanceValidator} from "./BalanceValidator.sol";
 
 /// @title TimedRefundSapient
 /// @notice Sapient signer that authorizes time-locked refund batches to a fixed destination.
 /// @dev The returned image hash commits to `(destination, unlockTimestamp)` and only approves
 /// plain native transfers or ERC20 `transfer(address,uint256)` calls to that destination.
-contract TimedRefundSapient is ISapient {
+contract TimedRefundSapient is ISapient, BalanceValidator {
   /// @notice Dedicated nonce space for timed refund payloads.
   /// @dev uint160(uint256(keccak256("trails.timed-refund.nonce-space")) | (uint256(1) << 159))
   uint256 public constant TIMED_REFUND_NONCE_SPACE = uint256(uint160(0xeF25450978071B7bD3a1aFE58C4484c84B31FaF8));
 
+  bytes4 private constant BALANCE_VALIDATOR_NATIVE_SELECTOR = BalanceValidator.requireZeroBalance.selector;
+  bytes4 private constant BALANCE_VALIDATOR_ERC20_SELECTOR = BalanceValidator.requireZeroERC20Balance.selector;
   bytes4 private constant ERC20_TRANSFER_SELECTOR = IERC20.transfer.selector;
   uint256 private constant COMPACT_SIGNATURE_LENGTH = 64;
 
@@ -119,7 +122,18 @@ contract TimedRefundSapient is ISapient {
 
       bytes calldata data = call.data;
 
-      if (call.value == 0) {
+      if (call.to == address(this)) {
+        bytes4 selector = bytes4(data[:4]);
+        if (selector == BALANCE_VALIDATOR_NATIVE_SELECTOR) {
+          // Zero balance validation.
+          if (data.length != 4) revert UnauthorizedTransaction(i);
+        } else if (selector == BALANCE_VALIDATOR_ERC20_SELECTOR) {
+          // Zero ERC20 balance validation.
+          if (data.length != 36) revert UnauthorizedTransaction(i);
+        } else {
+          revert UnauthorizedTransaction(i);
+        }
+      } else if (call.value == 0) {
         if (!hasERC20Metadata(call.to)) revert UnauthorizedTransaction(i);
         // ERC20 transfer(address,uint256) to `destination`.
         if (data.length != 68) revert UnauthorizedTransaction(i);
