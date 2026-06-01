@@ -44,7 +44,7 @@ contract LzOftSapientTest is Test {
     dstEid = 30375; // Katana
     recipient = bytes32(uint256(uint160(makeAddr("recipient"))));
 
-    sapient = new LzOftSapient(address(mockPool));
+    sapient = new LzOftSapient();
   }
 
   function _encodeSendCalldata(
@@ -97,29 +97,27 @@ contract LzOftSapientTest is Test {
   }
 
   function _encodeSig() internal view returns (bytes memory) {
-    return abi.encode(uint8(0), dstEid, recipient);
+    return abi.encode(uint8(0), address(mockPool), dstEid, recipient);
   }
 
   // --- Happy path ---
 
   function test_validSend_returnsFixedImageHash() external view {
-    // minAmountLD = 990_000 matches quoteOFT exactly
     bytes memory calldata_ = _encodeSendCalldata(dstEid, recipient, 1_000_000, 990_000);
     Payload.Decoded memory payload = _buildPayload(calldata_);
 
     bytes32 result = sapient.recoverSapientSignature(payload, _encodeSig());
-    bytes32 expected = sapient.imageHash(dstEid, recipient);
+    bytes32 expected = sapient.imageHash(address(mockPool), dstEid, recipient);
     assertEq(result, expected);
     assertTrue(result != bytes32(0));
   }
 
   function test_minAmountAboveQuote_passes() external view {
-    // minAmountLD > amountReceivedLD is valid (more conservative)
     bytes memory calldata_ = _encodeSendCalldata(dstEid, recipient, 1_000_000, 995_000);
     Payload.Decoded memory payload = _buildPayload(calldata_);
 
     bytes32 result = sapient.recoverSapientSignature(payload, _encodeSig());
-    assertEq(result, sapient.imageHash(dstEid, recipient));
+    assertEq(result, sapient.imageHash(address(mockPool), dstEid, recipient));
   }
 
   function test_differentAmounts_returnSameImageHash() external view {
@@ -132,10 +130,56 @@ contract LzOftSapientTest is Test {
     assertEq(hash1, hash2, "image hash must be stable regardless of amount");
   }
 
+  // --- Wrong pool ---
+
+  function test_wrongPool_reverts() external {
+    address wrongPool = makeAddr("wrongPool");
+    bytes memory calldata_ = _encodeSendCalldata(dstEid, recipient, 1_000_000, 990_000);
+
+    // Build payload targeting the wrong pool
+    Payload.Call[] memory calls = new Payload.Call[](1);
+    calls[0] = Payload.Call({
+      to: wrongPool,
+      value: 0.01 ether,
+      data: calldata_,
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: Payload.BEHAVIOR_REVERT_ON_ERROR
+    });
+    Payload.Decoded memory payload = Payload.Decoded({
+      kind: Payload.KIND_TRANSACTIONS,
+      noChainId: false,
+      calls: calls,
+      space: 0,
+      nonce: 0,
+      message: "",
+      imageHash: bytes32(0),
+      digest: bytes32(0),
+      parentWallets: new address[](0)
+    });
+
+    vm.expectRevert(
+      abi.encodeWithSelector(LzOftSapient.InvalidPool.selector, wrongPool, address(mockPool))
+    );
+    sapient.recoverSapientSignature(payload, _encodeSig());
+  }
+
+  // --- Different pools produce different imageHashes ---
+
+  function test_differentPools_differentImageHash() external view {
+    address pool1 = address(0x1111);
+    address pool2 = address(0x2222);
+    uint32 eid = 30375;
+    bytes32 rcpt = bytes32(uint256(1));
+    assertTrue(
+      sapient.imageHash(pool1, eid, rcpt) != sapient.imageHash(pool2, eid, rcpt)
+    );
+  }
+
   // --- minAmountLD below quote ---
 
   function test_minAmountBelowQuote_reverts() external {
-    // quoteOFT returns 990_000. Setting minAmountLD to 989_999 should revert.
     bytes memory calldata_ = _encodeSendCalldata(dstEid, recipient, 1_000_000, 989_999);
     Payload.Decoded memory payload = _buildPayload(calldata_);
 
@@ -204,10 +248,16 @@ contract LzOftSapientTest is Test {
   // --- imageHash ---
 
   function test_imageHash_deterministic() external view {
-    assertEq(sapient.imageHash(dstEid, recipient), sapient.imageHash(dstEid, recipient));
+    assertEq(
+      sapient.imageHash(address(mockPool), dstEid, recipient),
+      sapient.imageHash(address(mockPool), dstEid, recipient)
+    );
   }
 
   function test_imageHash_differentEid_differentHash() external view {
-    assertTrue(sapient.imageHash(30375, recipient) != sapient.imageHash(30101, recipient));
+    assertTrue(
+      sapient.imageHash(address(mockPool), 30375, recipient) !=
+      sapient.imageHash(address(mockPool), 30101, recipient)
+    );
   }
 }
