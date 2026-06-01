@@ -33,20 +33,18 @@ contract LzOftSapientTest is Test {
 
   uint32 internal dstEid;
   bytes32 internal recipient;
-  uint16 internal maxSlippageBps;
 
   // send(SendParam,MessagingFee,address)
   bytes4 private constant SEND_SELECTOR = 0xc7c7f5b3;
 
   function setUp() external {
     mockPool = new MockStargatePool();
-    mockPool.setAmountReceivedLD(990_000); // 1% fee
+    mockPool.setAmountReceivedLD(990_000); // 1% pool fee
 
     dstEid = 30375; // Katana
     recipient = bytes32(uint256(uint160(makeAddr("recipient"))));
-    maxSlippageBps = 50; // 0.5%
 
-    sapient = new LzOftSapient(address(mockPool), maxSlippageBps);
+    sapient = new LzOftSapient(address(mockPool));
   }
 
   function _encodeSendCalldata(
@@ -65,10 +63,9 @@ contract LzOftSapientTest is Test {
       oftCmd: hex""
     });
 
-    // MessagingFee struct (reuse OFTLimit for ABI compat in the decode - both are (uint256,uint256))
     IStargatePool.OFTLimit memory fee = IStargatePool.OFTLimit({
-      minAmountLD: 0.01 ether, // nativeFee
-      maxAmountLD: 0 // lzTokenFee
+      minAmountLD: 0.01 ether,
+      maxAmountLD: 0
     });
 
     return abi.encodeWithSelector(SEND_SELECTOR, sp, fee, address(0xBEEF));
@@ -106,7 +103,7 @@ contract LzOftSapientTest is Test {
   // --- Happy path ---
 
   function test_validSend_returnsFixedImageHash() external view {
-    // minAmountLD=990_000 matches quoteOFT exactly
+    // minAmountLD = 990_000 matches quoteOFT exactly
     bytes memory calldata_ = _encodeSendCalldata(dstEid, recipient, 1_000_000, 990_000);
     Payload.Decoded memory payload = _buildPayload(calldata_);
 
@@ -116,11 +113,9 @@ contract LzOftSapientTest is Test {
     assertTrue(result != bytes32(0));
   }
 
-  function test_minAmountWithinSlippage_passes() external view {
-    // quoteOFT returns 990_000. Floor at 0.5% slippage = 990_000 * 9950 / 10000 = 985_050
-    // minAmountLD = 985_050 is exactly at the floor -> should pass
-    uint256 floor = 990_000 * (10000 - uint256(maxSlippageBps)) / 10000;
-    bytes memory calldata_ = _encodeSendCalldata(dstEid, recipient, 1_000_000, floor);
+  function test_minAmountAboveQuote_passes() external view {
+    // minAmountLD > amountReceivedLD is valid (more conservative)
+    bytes memory calldata_ = _encodeSendCalldata(dstEid, recipient, 1_000_000, 995_000);
     Payload.Decoded memory payload = _buildPayload(calldata_);
 
     bytes32 result = sapient.recoverSapientSignature(payload, _encodeSig());
@@ -137,10 +132,23 @@ contract LzOftSapientTest is Test {
     assertEq(hash1, hash2, "image hash must be stable regardless of amount");
   }
 
+  // --- minAmountLD below quote ---
+
+  function test_minAmountBelowQuote_reverts() external {
+    // quoteOFT returns 990_000. Setting minAmountLD to 989_999 should revert.
+    bytes memory calldata_ = _encodeSendCalldata(dstEid, recipient, 1_000_000, 989_999);
+    Payload.Decoded memory payload = _buildPayload(calldata_);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(LzOftSapient.MinAmountTooLow.selector, uint256(989_999), uint256(990_000))
+    );
+    sapient.recoverSapientSignature(payload, _encodeSig());
+  }
+
   // --- Invalid dstEid ---
 
   function test_wrongDstEid_reverts() external {
-    uint32 wrongEid = 30101; // Ethereum EID instead of Katana
+    uint32 wrongEid = 30101;
     bytes memory calldata_ = _encodeSendCalldata(wrongEid, recipient, 1_000_000, 990_000);
     Payload.Decoded memory payload = _buildPayload(calldata_);
 
@@ -157,22 +165,6 @@ contract LzOftSapientTest is Test {
 
     vm.expectRevert(
       abi.encodeWithSelector(LzOftSapient.InvalidRecipient.selector, wrongRecipient, recipient)
-    );
-    sapient.recoverSapientSignature(payload, _encodeSig());
-  }
-
-  // --- Slippage too high ---
-
-  function test_minAmountBelowFloor_reverts() external {
-    // quoteOFT returns 990_000. Floor at 0.5% = 985_050
-    // Set minAmountLD to 985_049 (1 below floor)
-    uint256 floor = 990_000 * (10000 - uint256(maxSlippageBps)) / 10000;
-    uint256 tooLow = floor - 1;
-    bytes memory calldata_ = _encodeSendCalldata(dstEid, recipient, 1_000_000, tooLow);
-    Payload.Decoded memory payload = _buildPayload(calldata_);
-
-    vm.expectRevert(
-      abi.encodeWithSelector(LzOftSapient.MinAmountTooLow.selector, tooLow, floor)
     );
     sapient.recoverSapientSignature(payload, _encodeSig());
   }

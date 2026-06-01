@@ -42,27 +42,24 @@ interface IStargatePool {
 /// @notice ISapient that validates LayerZero OFT/Stargate send() calls by:
 ///         1. Verifying dstEid and recipient match the PDA's fixed rules
 ///         2. Calling quoteOFT on the pool to get amountReceivedLD
-///         3. Verifying minAmountLD is within maxSlippageBps of the quoted amount
+///         3. Verifying minAmountLD >= amountReceivedLD from the live on-chain quote
 /// @dev The quoteOFT call reads the same pool state in the same block as the
-///      subsequent send(), so the slippage check is against live pool conditions.
+///      subsequent send(), so the check is against live pool conditions.
 ///      Scoped to single-hop direct sends only (no compose/two-hop).
 contract LzOftSapient is ISapient {
   // send(SendParam,MessagingFee,address)
   bytes4 private constant SEND_SELECTOR = 0xc7c7f5b3;
 
   address public immutable pool;
-  uint16 public immutable maxSlippageBps;
 
   error NonTransactionPayload();
   error InvalidSelector(bytes4 got);
   error InvalidDstEid(uint32 got, uint32 expected);
   error InvalidRecipient(bytes32 got, bytes32 expected);
-  error MinAmountTooLow(uint256 minAmountLD, uint256 floor);
-  error QuoteOFTFailed();
+  error MinAmountTooLow(uint256 minAmountLD, uint256 amountReceivedLD);
 
-  constructor(address _pool, uint16 _maxSlippageBps) {
+  constructor(address _pool) {
     pool = _pool;
-    maxSlippageBps = _maxSlippageBps;
   }
 
   /// @inheritdoc ISapient
@@ -96,7 +93,6 @@ contract LzOftSapient is ISapient {
       (IStargatePool.SendParam, IStargatePool.OFTLimit, address)
     );
 
-    // Verify fixed PDA rules
     if (sp.dstEid != dstEid) {
       revert InvalidDstEid(sp.dstEid, dstEid);
     }
@@ -104,7 +100,7 @@ contract LzOftSapient is ISapient {
       revert InvalidRecipient(sp.to, recipient);
     }
 
-    // Re-run quoteOFT with minAmountLD=0 to get the actual floor
+    // Re-run quoteOFT to get the live amountReceivedLD from the pool
     IStargatePool.SendParam memory quoteSp = IStargatePool.SendParam({
       dstEid: sp.dstEid,
       to: sp.to,
@@ -116,10 +112,9 @@ contract LzOftSapient is ISapient {
     });
 
     (,, IStargatePool.OFTReceipt memory receipt) = IStargatePool(pool).quoteOFT(quoteSp);
-    uint256 floor = receipt.amountReceivedLD * (10000 - maxSlippageBps) / 10000;
 
-    if (sp.minAmountLD < floor) {
-      revert MinAmountTooLow(sp.minAmountLD, floor);
+    if (sp.minAmountLD < receipt.amountReceivedLD) {
+      revert MinAmountTooLow(sp.minAmountLD, receipt.amountReceivedLD);
     }
 
     return _imageHash(dstEid, recipient);
@@ -131,6 +126,6 @@ contract LzOftSapient is ISapient {
   }
 
   function _imageHash(uint32 dstEid, bytes32 recipient) internal view returns (bytes32) {
-    return keccak256(abi.encode("LzOftSapient", pool, maxSlippageBps, dstEid, recipient));
+    return keccak256(abi.encode("LzOftSapient", pool, dstEid, recipient));
   }
 }
