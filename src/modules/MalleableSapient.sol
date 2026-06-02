@@ -10,7 +10,8 @@ import {LibOptim} from "wallet-contracts-v3/utils/LibOptim.sol";
 /// @notice An `ISapient` implementation that lets the caller declare which parts of a transaction bundle are "static" (committed to),
 /// which parts are "malleable" (can be changed/hydrated at execution), and which parts are "repeatable" (for malleable sections that must match).
 /// @dev The returned `imageHash` is a rolling hash of:
-/// - the payload `space` + `nonce`
+/// - the payload `space`
+/// - the outer nonce commitment slot (defaults to `payload.nonce`; `MALLEABLE_NONCE_SPACE` maps to a sentinel)
 /// - the current `block.chainid`
 /// - each call's metadata (everything except `data`)
 /// - each "static section" of call `data` as described by `signature`
@@ -31,6 +32,12 @@ contract MalleableSapient is ISapient {
 
   using LibBytes for bytes;
 
+  /// @notice Shared nonce space for nonce-insensitive malleable payloads.
+  /// @dev uint160(uint256(keccak256("trails.malleable.nonce-space")) | (uint256(1) << 159))
+  uint256 public constant MALLEABLE_NONCE_SPACE = uint256(uint160(0xC2519dee4b2BfeFFEddE987259c8c876f5832728));
+
+  bytes32 private constant NONCE_IGNORED_SENTINEL = bytes32(type(uint256).max);
+
   /// @inheritdoc ISapient
   /// @dev Computes the `imageHash` for a transaction payload with a malleable `data` commitment.
   function recoverSapientSignature(Payload.Decoded calldata payload, bytes calldata signature)
@@ -42,8 +49,8 @@ contract MalleableSapient is ISapient {
       revert NonTransactionPayload();
     }
 
-    // Roll space and nonce
-    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), bytes32(payload.nonce));
+    // Use the legacy outer nonce commitment by default, with a dedicated nonce-insensitive malleable lane.
+    bytes32 root = LibOptim.fkeccak256(bytes32(payload.space), _outerNonceCommitment(payload));
 
     // Roll chainId
     if (payload.noChainId) {
@@ -115,5 +122,13 @@ contract MalleableSapient is ISapient {
 
   function _staticSection(uint256 _tindex, uint256 _cindex, bytes calldata _data) internal pure returns (bytes32) {
     return keccak256(abi.encode("static-section", _tindex, _cindex, _data));
+  }
+
+  function _outerNonceCommitment(Payload.Decoded calldata payload) internal pure returns (bytes32) {
+    if (payload.space == MALLEABLE_NONCE_SPACE) {
+      return NONCE_IGNORED_SENTINEL;
+    }
+
+    return bytes32(payload.nonce);
   }
 }
