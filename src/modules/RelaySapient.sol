@@ -75,27 +75,26 @@ contract RelaySapient is ISapient {
       revert InvalidRelaySolver(signer);
     }
 
-    return _imageHash(destinationChainId, receiver, receivingAssetId);
+    return _imageHash(destinationChainId, receivingAssetId);
   }
 
   /// @notice Computes the fixed imageHash for a set of PDA rules.
   /// @dev This is the value that goes into the WalletConfigTreeSapientSignerLeaf
-  ///      at PDA creation time.
+  ///      at PDA creation time. The receiver is excluded because the destination
+  ///      intent address varies per quote (fee-dependent).
   function imageHash(
     uint256 destinationChainId,
-    address receiver,
     bytes32 receivingAssetId
   ) external view returns (bytes32) {
-    return _imageHash(destinationChainId, receiver, receivingAssetId);
+    return _imageHash(destinationChainId, receivingAssetId);
   }
 
   function _imageHash(
     uint256 destinationChainId,
-    address receiver,
     bytes32 receivingAssetId
   ) internal view returns (bytes32) {
     return keccak256(
-      abi.encode("RelaySapient", relaySolver, destinationChainId, receiver, receivingAssetId)
+      abi.encode("RelaySapient", relaySolver, destinationChainId, receivingAssetId)
     );
   }
 }
