@@ -8,7 +8,7 @@ interface ISpotPriceOracle {
   function getRate(address srcToken, address dstToken, bool useWrappers) external view returns (uint256 weightedRate);
 }
 
-/// @title SwapSapient
+/// @title SwapOracleSapient
 /// @notice ISapient that validates same-chain swap output against an on-chain price oracle.
 /// @dev Reads the 1inch Spot Price Aggregator (or any compatible oracle) to enforce a
 ///      minimum output amount. Does NOT parse swap calldata - that's handled by
@@ -16,7 +16,7 @@ interface ISpotPriceOracle {
 ///
 ///      The imageHash commits to: oracle, slippage, tokenIn, tokenOut, recipient.
 ///      Amounts are validated at runtime but excluded from imageHash (vary per execution).
-contract SwapSapient is ISapient {
+contract SwapOracleSapient is ISapient {
   error NonTransactionPayload();
   error BelowOracleFloor(uint256 required, uint256 provided);
   error InvalidOracleRate();
@@ -84,7 +84,7 @@ contract SwapSapient is ISapient {
     address recipient
   ) internal view returns (bytes32) {
     return keccak256(
-      abi.encode("SwapSapient", priceOracle, maxSlippageBps, tokenIn, tokenOut, recipient)
+      abi.encode("SwapOracleSapient", priceOracle, maxSlippageBps, tokenIn, tokenOut, recipient)
     );
   }
 }
