@@ -5,18 +5,18 @@ import {Script, console} from "forge-std/Script.sol";
 import {SwapOracleSapient} from "src/modules/SwapOracleSapient.sol";
 
 contract DeploySwapOracleSapient is Script {
-    // 1inch Spot Price Aggregator - same address on all chains
-    address constant ONEINCH_ORACLE = 0x00000000000D6FFc74A8feb35aF5827bf57f6786;
+    // Uniswap V3 Factory on Base
+    address constant UNISWAP_V3_FACTORY = 0x33128a8fC17869897dcE68Ed026d694621f6FDfD;
     // Default 3% max slippage
     uint256 constant MAX_SLIPPAGE_BPS = 300;
 
     function run() external {
         vm.startBroadcast();
 
-        SwapOracleSapient sapient = new SwapOracleSapient(ONEINCH_ORACLE, MAX_SLIPPAGE_BPS);
+        SwapOracleSapient sapient = new SwapOracleSapient(UNISWAP_V3_FACTORY, MAX_SLIPPAGE_BPS);
 
         console.log("SwapOracleSapient deployed at:", address(sapient));
-        console.log("  priceOracle:", address(sapient.priceOracle()));
+        console.log("  factory:", sapient.factory());
         console.log("  maxSlippageBps:", sapient.maxSlippageBps());
 
         vm.stopBroadcast();
