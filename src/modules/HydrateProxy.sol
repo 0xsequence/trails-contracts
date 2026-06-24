@@ -192,6 +192,10 @@ contract HydrateProxy is Sweepable, IDelegatedExtension {
       address valueAddress;
       (valueAddress, rindex) = _getAddressFromFlag(valueFlag, hydratePayload, rindex);
 
+      if (typeFlag == 0) {
+        revert UnknownHydrateTypeCommand(typeFlag);
+      }
+
       if (typeFlag <= HYDRATE_TYPE_DATA_ERC20_ALLOWANCE) {
         // Data hydration commands mutate `decoded.calls[tindex].data` in-place.
         (cindex, rindex) = hydratePayload.readUint16(rindex);

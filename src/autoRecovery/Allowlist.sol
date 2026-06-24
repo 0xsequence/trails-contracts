@@ -30,21 +30,21 @@ contract Allowlist is Ownable {
   /// @param initial The initial addresses to mark as allowed.
   constructor(address owner_, address[] memory initial) Ownable(owner_) {
     for (uint256 i; i < initial.length; i++) {
-      _add(initial[i], false);
+      _add(initial[i]);
     }
   }
 
   /// @notice Adds `addr` to the allowlist.
   /// @param addr The address to add.
   function add(address addr) external onlyOwner {
-    _add(addr, true);
+    _add(addr);
   }
 
   /// @notice Adds each address in `addrs` to the allowlist.
   /// @param addrs The addresses to add.
   function add(address[] calldata addrs) external onlyOwner {
     for (uint256 i; i < addrs.length; i++) {
-      _add(addrs[i], true);
+      _add(addrs[i]);
     }
   }
 
@@ -53,7 +53,7 @@ contract Allowlist is Ownable {
   /// @param index Optional index hint into `getAllowed()`. Pass `0` to use search mode.
   /// @dev Removal uses swap-and-pop, so `getAllowed()` ordering is not stable.
   function remove(address addr, uint256 index) external onlyOwner {
-    _remove(addr, index, true);
+    _remove(addr, index);
   }
 
   /// @notice Removes each address in `addrs` from the allowlist using search mode.
@@ -61,7 +61,7 @@ contract Allowlist is Ownable {
   /// @dev Removal uses swap-and-pop, so `getAllowed()` ordering is not stable.
   function remove(address[] calldata addrs) external onlyOwner {
     for (uint256 i; i < addrs.length; i++) {
-      _remove(addrs[i], 0, true);
+      _remove(addrs[i], 0);
     }
   }
 
@@ -81,17 +81,17 @@ contract Allowlist is Ownable {
     revert OwnershipRenunciationDisabled();
   }
 
-  function _add(address addr, bool emitEvent) private {
+  function _add(address addr) private {
     if (addr == address(0)) revert ZeroAddress();
     if (_allowed[addr]) revert AlreadyAllowed(addr);
 
     _allowed[addr] = true;
     _entries.push(addr);
 
-    if (emitEvent) emit AddressAdded(addr);
+    emit AddressAdded(addr);
   }
 
-  function _remove(address addr, uint256 index, bool emitEvent) private {
+  function _remove(address addr, uint256 index) private {
     if (!_allowed[addr]) revert NotAllowed(addr);
     _allowed[addr] = false;
 
@@ -110,6 +110,6 @@ contract Allowlist is Ownable {
       }
     }
 
-    if (emitEvent) emit AddressRemoved(addr);
+    emit AddressRemoved(addr);
   }
 }

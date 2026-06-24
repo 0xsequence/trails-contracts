@@ -644,13 +644,13 @@ contract HydrateProxyTest is Test {
   }
 
   function testFuzz_hydrateExecute_unknownHydrateFlag_reverts(uint8 flag) external {
-    // With nibble-based encoding, valid flags are 0x00-0x63
-    // Test invalid flags: either invalid value flag (bottom nibble > 0x03) or invalid type flag (top nibble > 0x06)
+    // With nibble-based encoding, the valid command flags are 0x10-0x63.
+    // 0x00 is the terminator; every other 0x0X value is invalid.
     uint8 valueFlag = flag & 0x0F;
     uint8 typeFlag = flag >> 4;
 
-    // Skip valid flags (0x00-0x63)
-    vm.assume(flag > 0x63 || (valueFlag > 0x03) || (typeFlag > 0x06 && valueFlag <= 0x03));
+    bool validFlag = flag == 0x00 || (typeFlag >= 0x01 && typeFlag <= 0x06 && valueFlag <= 0x03);
+    vm.assume(!validFlag);
 
     HydrateProxy proxy = new HydrateProxy();
     RecordingReceiver receiver = new RecordingReceiver();
@@ -676,6 +676,31 @@ contract HydrateProxyTest is Test {
       vm.expectRevert(abi.encodeWithSelector(HydrateProxy.UnknownHydrateTypeCommand.selector, uint256(typeFlag)));
     }
     proxy.hydrateExecute(calls.packCalls(), hydratePayload);
+  }
+
+  function test_hydrateExecute_typeZeroFlags_revert() external {
+    HydrateProxy proxy = new HydrateProxy();
+    RecordingReceiver receiver = new RecordingReceiver();
+
+    Payload.Call[] memory calls = new Payload.Call[](1);
+    calls[0] = Payload.Call({
+      to: address(receiver),
+      value: 0,
+      data: hex"01",
+      gasLimit: 0,
+      delegateCall: false,
+      onlyFallback: false,
+      behaviorOnError: Payload.BEHAVIOR_IGNORE_ERROR
+    });
+
+    vm.expectRevert(abi.encodeWithSelector(HydrateProxy.UnknownHydrateTypeCommand.selector, uint256(0)));
+    proxy.hydrateExecute(calls.packCalls(), abi.encodePacked(uint8(0), uint8(0x01)));
+
+    vm.expectRevert(abi.encodeWithSelector(HydrateProxy.UnknownHydrateTypeCommand.selector, uint256(0)));
+    proxy.hydrateExecute(calls.packCalls(), abi.encodePacked(uint8(0), uint8(0x02)));
+
+    vm.expectRevert(abi.encodeWithSelector(HydrateProxy.UnknownHydrateTypeCommand.selector, uint256(0)));
+    proxy.hydrateExecute(calls.packCalls(), abi.encodePacked(uint8(0), uint8(0x03), makeAddr("hydrated-owner")));
   }
 
   function testFuzz_hydrateExecute_delegateCallNotAllowed_reverts(bytes calldata data) external {
